@@ -1,4 +1,4 @@
-# 📱 ST Mobile & Designing — POS v19
+# 📱 ST Mobile & Designing — POS v25
 
 > Point of Sale system — GitHub Pages hosted, browser SQLite powered.
 

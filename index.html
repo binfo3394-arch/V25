@@ -41,7 +41,6 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--fn)
 #loading-screen{
   z-index:9999;align-items:center;justify-content:center;
   background:var(--bg);gap:24px;
-  transition: opacity 0.4s ease;
 }
 .load-logo{
   width:90px;height:90px;border-radius:28px;
@@ -1082,20 +1081,6 @@ window.dispatchEvent(new Event('fb-ready'));
   draw();
 })();
 
-// ── IMMEDIATE FALLBACK: if loading screen still showing after 1.5s, hide it ──
-setTimeout(function(){
-  const ls = document.getElementById('loading-screen');
-  if(ls && !ls.classList.contains('hidden')){
-    ls.classList.add('hidden');
-    // Show auth if not already in app
-    const auth = document.getElementById('auth-screen');
-    const app = document.getElementById('app-screen');
-    if(auth && app && app.classList.contains('hidden')){
-      auth.classList.remove('hidden');
-    }
-  }
-}, 1500);
-
 // ── CONSTANTS ──
 const GOOGLE_CLIENT_ID='1007276053759-jqjt16cmffeff6e4sqp21je0p5opl247.apps.googleusercontent.com';
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
@@ -2042,18 +2027,10 @@ window.toggleCam=toggleCam;
       hideLoad(); // show auth
     }
   }
-  // Try immediately first
-  if(window._db && window._fb){
-    tryLaunch();
-  } else {
-    // Listen for firebase-ready event
-    window.addEventListener('fb-ready', tryLaunch, {once:true});
-    // Short timeout fallback — if Firebase blocked (local file/CORS), show auth anyway
-    setTimeout(()=>{
-      if(!document.getElementById('app-screen').classList.contains('hidden')) return; // already launched
-      if(!document.getElementById('auth-screen').classList.contains('hidden')) return; // already showing
-      hideLoad(); // show auth screen regardless
-    }, 2500);
+  if(window._db){tryLaunch();}
+  else{
+    window.addEventListener('fb-ready',tryLaunch,{once:true});
+    setTimeout(()=>{if(!CU)hideLoad();},8000);
   }
   window.addEventListener('load',()=>{
     if(window.google)google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:window.handleGoogleCred});

@@ -41,6 +41,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--fn)
 #loading-screen{
   z-index:9999;align-items:center;justify-content:center;
   background:var(--bg);gap:24px;
+  transition: opacity 0.4s ease;
 }
 .load-logo{
   width:90px;height:90px;border-radius:28px;
@@ -824,7 +825,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--fn)
 <canvas id="bg-canvas"></canvas>
 
 <!-- LOADING -->
-<div class="screen" id="loading-screen">
+<div class="screen hidden" id="loading-screen">
   <div class="load-logo">✦</div>
   <div class="load-name">Viberr</div>
   <div class="load-bar-wrap"><div class="load-bar"></div></div>
@@ -834,7 +835,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--fn)
 <div class="toast hidden" id="toast"></div>
 
 <!-- ══════════════ AUTH ══════════════ -->
-<div class="screen hidden" id="auth-screen">
+<div class="screen" id="auth-screen">
   <div class="auth-wrap">
     <div class="auth-logo-row">
       <div class="auth-icon">✦</div>
@@ -1124,7 +1125,11 @@ function showToast(msg,dur=3000){
   toastT=setTimeout(()=>t.classList.add('hidden'),dur);
 }
 
-function showLoad(){$('loading-screen').classList.remove('hidden');}
+function showLoad(){
+  $('loading-screen').classList.remove('hidden');
+  $('auth-screen').classList.add('hidden');
+  $('app-screen').classList.add('hidden');
+}
 function hideLoad(){$('loading-screen').classList.add('hidden');}
 
 // ── DECODE JWT ──
@@ -2018,20 +2023,30 @@ window.toggleCam=toggleCam;
 // ══════════════════════════════
 (function boot(){
   function tryLaunch(){
-    if(!window._db||!window._fb)return;
+    if(!window._db||!window._fb){
+      // Firebase not ready - stay on auth screen
+      return;
+    }
     const saved=localStorage.getItem('viberr_cu');
     if(saved){
-      try{CU=JSON.parse(saved);launchApp();}
-      catch{localStorage.removeItem('viberr_cu');hideLoad();}
-    }else{
-      hideLoad(); // show auth
+      try{
+        CU=JSON.parse(saved);
+        // Show loading briefly while launching
+        $('auth-screen').classList.add('hidden');
+        $('loading-screen').classList.remove('hidden');
+        launchApp();
+      } catch{
+        localStorage.removeItem('viberr_cu');
+        // Stay on auth screen
+      }
     }
+    // If no saved session, auth screen already visible - do nothing
   }
-  if(window._db){tryLaunch();}
-  else{
-    window.addEventListener('fb-ready',tryLaunch,{once:true});
-    setTimeout(()=>{if(!CU)hideLoad();},8000);
-  }
+
+  // Firebase ready event
+  window.addEventListener('fb-ready', tryLaunch, {once:true});
+  // Also try immediately in case already ready
+  if(window._db && window._fb){ tryLaunch(); }
   window.addEventListener('load',()=>{
     if(window.google)google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:window.handleGoogleCred});
   });

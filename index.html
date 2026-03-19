@@ -3222,7 +3222,27 @@ button, .attach-btn, .call-btn, .c-dot, .ap-item {
 .soc-lobby-link:hover { border-color:rgba(61,232,160,0.4); color:var(--text); }
 
 /* Profile view modal */
-
+.soc-profile-modal {
+  display:none; position:fixed; inset:0; z-index:700;
+  background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center; padding:20px;
+}
+.soc-profile-modal.open { display:flex; }
+.soc-profile-card {
+  background:var(--panel); border:1px solid var(--border2);
+  border-radius:20px; padding:28px 24px; width:100%; max-width:340px;
+  animation:socPostIn 0.25s ease; text-align:center; position:relative;
+}
+.soc-pf-close { position:absolute; top:12px; right:12px; background:var(--card); border:1px solid var(--border); border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; color:var(--text2); }
+.soc-pf-av { width:72px; height:72px; border-radius:50%; margin:0 auto 12px; background:var(--accent-dim); border:2px solid rgba(61,232,160,0.3); display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:700; color:var(--accent); font-family:var(--mono); overflow:hidden; }
+.soc-pf-av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.soc-pf-name { font-size:18px; font-weight:700; margin-bottom:4px; }
+.soc-pf-bio  { font-size:12px; color:var(--text2); font-family:var(--mono); margin-bottom:16px; }
+.soc-pf-stats { display:flex; gap:14px; justify-content:center; margin-bottom:16px; }
+.soc-pf-stat { text-align:center; }
+.soc-pf-stat strong { display:block; font-size:16px; font-weight:700; }
+.soc-pf-stat span   { font-size:10px; color:var(--text3); font-family:var(--mono); text-transform:uppercase; }
+.soc-pf-msg-btn { width:100%; padding:10px; background:var(--accent); color:#000; border:none; border-radius:8px; font-family:var(--display); font-size:14px; font-weight:700; cursor:pointer; }
 
 /* ── Back button ── */
 .soc-back-btn {
@@ -7094,10 +7114,7 @@ const SOC_PATH = 'social';
 let socUserId  = 'su_' + Math.random().toString(36).slice(2,9);
 let socName    = '', socPhoto = '', socColor = '#3de8a0', socBio = '';
 let socImgData = '', socMobImgData = '';
-let socPresUnsub = null, socPostsUnsub = null, socChangedUnsub = null;
-let socFriendsUnsub = null, socCtxPostId = null;
-let socFriendsTab = 'requests';
-let socMobVidData = '';
+let socPresUnsub = null, socPostsUnsub = null;
 let socReactTarget = null;   // {postId}
 let socViewProfile = null;   // profile data being viewed
 let socRenderedPosts = new Set();
@@ -7153,22 +7170,7 @@ function socRefreshNav() {
 
 // ── Open social area ──
 window.openSocialArea = function() {
-  if (!window.__db) {
-    // Firebase still loading — wait up to 4s then retry
-    showToast('⏳ Connecting...');
-    let tries = 0;
-    const wait = setInterval(() => {
-      tries++;
-      if (window.__db) {
-        clearInterval(wait);
-        openSocialArea();
-      } else if (tries > 8) {
-        clearInterval(wait);
-        showToast('❌ Firebase connect failed. Reload page.');
-      }
-    }, 500);
-    return;
-  }
+  if (!window.__db) { showToast('⏳ Firebase loading, retry...'); return; }
 
   const priv = getActivePrivProfile();
   const gp   = (() => { try{return JSON.parse(localStorage.getItem('sl_google_profile')||'null');}catch(e){return null;} })();
@@ -7311,20 +7313,9 @@ function socRenderPost(postId, data) {
     else { myAvEl.textContent=socIni(socName); }
   }
 
-  // Insert sorted by timestamp (newest first)
-  card.dataset.ts = data.ts || 0;
+  // Insert newest first
   const postsWrap = document.getElementById('soc-posts');
-  let inserted = false;
-  const children = Array.from(postsWrap.children);
-  for (const existing of children) {
-    const existTs = parseInt(existing.dataset.ts || 0);
-    const cardTs  = parseInt(data.ts || 0);
-    if (existTs < cardTs) {
-      postsWrap.insertBefore(card, existing);
-      inserted = true; break;
-    }
-  }
-  if (!inserted) postsWrap.appendChild(card);
+  postsWrap.insertBefore(card, postsWrap.firstChild);
 
   socRenderReactions(postId, data.reactions||{});
   socRenderComments(postId, data.comments||{});
@@ -7333,27 +7324,18 @@ function socRenderPost(postId, data) {
 // ── Update post (reactions/comments changed) ──
 function socUpdatePost(postId, data) {
   if (!data) return;
-  // Card not yet rendered — render it now
-  if (!socRenderedPosts.has(postId)) {
-    socRenderedPosts.add(postId);
-    socPostsData[postId] = data;
-    socRenderPost(postId, data);
-    const emptyEl = document.getElementById('soc-feed-empty');
-    if (emptyEl) emptyEl.style.display = 'none';
-    return;
-  }
   const myReaction = data.reactions ? data.reactions[socUserId] : null;
   const totalLikes = data.reactions ? Object.values(data.reactions).filter(Boolean).length : 0;
-  const cmtCount2  = data.comments  ? Object.values(data.comments).length : 0;
+  const comments   = data.comments  ? Object.values(data.comments) : [];
 
-  const likeBtn  = document.getElementById(`like-btn-${postId}`);
+  const likeBtn = document.getElementById(`like-btn-${postId}`);
   const likeIcon = likeBtn?.querySelector('.soc-act-icon');
-  const likeCnt  = document.getElementById(`like-count-${postId}`);
-  const cmtCnt   = document.getElementById(`cmt-count-${postId}`);
-  if (likeIcon) likeIcon.textContent = myReaction||'🤍';
-  if (likeBtn)  likeBtn.classList.toggle('liked', !!myReaction);
-  if (likeCnt)  likeCnt.textContent  = totalLikes||'';
-  if (cmtCnt)   cmtCnt.textContent   = cmtCount2||'';
+  const likeCount= document.getElementById(`like-count-${postId}`);
+  const cmtCount = document.getElementById(`cmt-count-${postId}`);
+  if (likeIcon)  likeIcon.textContent = myReaction||'🤍';
+  if (likeBtn)   likeBtn.classList.toggle('liked', !!myReaction);
+  if (likeCount) likeCount.textContent = totalLikes||'';
+  if (cmtCount)  cmtCount.textContent  = comments.length||'';
 
   socRenderReactions(postId, data.reactions||{});
   socRenderComments(postId, data.comments||{});
@@ -7364,11 +7346,9 @@ function socRenderReactions(postId, reactions) {
   const wrap = document.getElementById(`reactions-${postId}`); if(!wrap) return;
   const counts = {};
   Object.values(reactions).forEach(e=>{ if(e) counts[e]=(counts[e]||0)+1; });
-  const myReact = reactions[socUserId] || null;
   wrap.innerHTML='';
   Object.entries(counts).forEach(([emoji,cnt])=>{
-    const chip=document.createElement('div');
-    chip.className='soc-react-chip'+(myReact===emoji?' reacted':'');
+    const chip=document.createElement('div'); chip.className='soc-react-chip';
     chip.innerHTML=`${emoji} <span>${cnt}</span>`;
     chip.onclick=()=>socToggleReact(postId, emoji);
     wrap.appendChild(chip);
@@ -7508,9 +7488,12 @@ window.socDoReact = function(emoji) {
 };
 window.socToggleReact = function(postId, emoji) {
   const { ref, set, remove } = socGetFB(); const db2=socGetDB();
-  const rRef = ref(db2,`${SOC_PATH}/posts/${postId}/reactions/${socUserId}`);
-  const cur  = socPostsData[postId]?.reactions?.[socUserId];
-  if(cur === emoji) remove(rRef); else set(rRef, emoji);
+  const rRef=ref(db2,`${SOC_PATH}/posts/${postId}/reactions/${socUserId}`);
+  // fetch current and toggle
+  const { get } = socGetFB();
+  get(rRef).then(snap=>{
+    if(snap.val()===emoji) remove(rRef); else set(rRef,emoji);
+  });
 };
 document.addEventListener('click',()=>{
   document.getElementById('soc-react-pop')?.classList.remove('open');
@@ -7519,6 +7502,19 @@ document.addEventListener('click',()=>{
 // ── Toggle comments ──
 window.socToggleComments = function(postId) {
   document.getElementById(`comments-${postId}`)?.classList.toggle('open');
+};
+
+// ── Post comment ──
+window.socPostComment = function(postId) {
+  const inp=document.getElementById(`cmt-input-${postId}`);
+  const text=(inp?.value||'').trim(); if(!text) return;
+  inp.value='';
+  const { ref, push } = socGetFB(); const db2=socGetDB();
+  push(ref(db2,`${SOC_PATH}/posts/${postId}/comments`),{
+    name:socName, photo:socPhoto, color:socColor,
+    text, ts:Date.now(), uid:socUserId
+  });
+  document.getElementById(`comments-${postId}`)?.classList.add('open');
 };
 
 // ── Video pick JS ──
@@ -7536,20 +7532,12 @@ window.socRemoveMobVid=function(){socMobVidData='';const v=document.getElementBy
 window.socDeleteMyPost = function(postId) {
   if(!confirm('Post delete කරන්නද?\nUndo කරන්න බෑ.')) return;
   const {ref,remove}=socGetFB(); const db2=socGetDB(); if(!db2) return;
-  // Optimistic UI update
-  const card=document.querySelector(`.soc-post[data-post-id="${postId}"]`);
-  if(card){
-    card.style.transition='opacity 0.25s,transform 0.25s';
-    card.style.opacity='0'; card.style.transform='scale(0.96)';
-    setTimeout(()=>{ card.remove();
-      delete socPostsData[postId]; socRenderedPosts.delete(postId);
-      if(!document.querySelector('.soc-post'))
-        document.getElementById('soc-feed-empty').style.display='block';
-    }, 260);
-  }
-  remove(ref(db2,`${SOC_PATH}/posts/${postId}`))
-    .then(()=>showToast('🗑️ Post deleted'))
-    .catch(()=>showToast('❌ Delete failed'));
+  remove(ref(db2,`${SOC_PATH}/posts/${postId}`)).then(()=>{
+    const card=document.querySelector(`.soc-post[data-post-id="${postId}"]`);
+    if(card){card.style.transition='opacity 0.3s,transform 0.3s';card.style.opacity='0';card.style.transform='scale(0.95)';setTimeout(()=>card.remove(),300);}
+    setTimeout(()=>{if(!document.querySelector('.soc-post'))document.getElementById('soc-feed-empty').style.display='block';},350);
+    showToast('🗑️ Post deleted');
+  }).catch(()=>showToast('❌ Delete failed'));
 };
 
 // ── Comment reply system ──
@@ -7616,7 +7604,7 @@ function socSaveSentReqs(d){localStorage.setItem('soc_sent_reqs',JSON.stringify(
 
 window.socShowProfileFromPost = function(postId) {
   const data=socPostsData[postId]; if(!data) return;
-  // Show profile for all users (own profile shows without add/follow buttons)
+  if(data.uid===socUserId) return; // own post — skip
   const allPosts=Object.entries(socPostsData).filter(([,p])=>p.uid===data.uid||p.name===data.name).sort(([,a],[,b])=>b.ts-a.ts);
   const totalLikes=allPosts.reduce((s,[,p])=>s+Object.values(p.reactions||{}).filter(Boolean).length,0);
   socShowProfile({uid:data.uid,name:data.name,photo:data.photo||'',color:data.color||'#3de8a0',bio:data.bio||'',postCount:allPosts.length,likeCount:totalLikes,recentPosts:allPosts.slice(0,5)});
@@ -7649,10 +7637,6 @@ window.socShowProfile = function(u) {
   const rp=document.getElementById('soc-pf-recent-posts'); rp.innerHTML='';
   (u.recentPosts||[]).forEach(([,p])=>{const d=document.createElement('div');d.className='soc-pf-post-preview';d.textContent=p.text?p.text.slice(0,80):(p.image?'📷 Photo':(p.video?'🎬 Video':''));if(d.textContent)rp.appendChild(d);});
   if(!rp.children.length){const d=document.createElement('div');d.className='soc-pf-post-preview';d.textContent='Posts නැහැ.';rp.appendChild(d);}
-  // Hide action buttons for own profile
-  const actionRow = document.querySelector('.soc-pf-action-row');
-  if (actionRow) actionRow.style.display = (u.uid === socUserId) ? 'none' : 'flex';
-
   document.getElementById('soc-profile-modal').classList.add('open');
 };
 window.closeSocProfile=function(){document.getElementById('soc-profile-modal').classList.remove('open');};
@@ -7681,6 +7665,7 @@ window.socSendFriendReq=function(){
 window.socMsgUser=function(){closeSocProfile();showToast('💬 Room code share කරලා invite කරන්න!');};
 
 // ── Friends Panel ──
+let socFriendsTab='requests', socFriendsUnsub=null;
 window.openFriendsPanel=function(){document.getElementById('soc-friends-panel').classList.add('open');switchFTab('requests');socListenFriendRequests();};
 window.closeFriendsPanel=function(){document.getElementById('soc-friends-panel').classList.remove('open');if(socFriendsUnsub){socFriendsUnsub();socFriendsUnsub=null;}};
 window.switchFTab=function(tab){socFriendsTab=tab;document.querySelectorAll('.soc-ftab').forEach(t=>t.classList.remove('active'));document.getElementById('ftab-'+tab)?.classList.add('active');if(tab==='requests')socRenderFriendRequests();else if(tab==='friends')socRenderFriendsList();else socRenderFollowingList();};
@@ -7697,7 +7682,7 @@ function socMakeFrRow(u,actions){
 }
 
 function socListenFriendRequests(){
-  if(!window.__db||!window.__fbx){ setTimeout(socListenFriendRequests,1000); return; }
+  if(!window.__db||!window.__fbx) return;
   const {ref,onValue}=socGetFB(); const db2=socGetDB();
   if(socFriendsUnsub){socFriendsUnsub();socFriendsUnsub=null;}
   socFriendsUnsub=onValue(ref(db2,`social/friend_requests/${socUserId}`),snap=>{
@@ -7754,14 +7739,12 @@ window.socDeclineFriend=function(fromUid){
 
 // ── Back / Home navigation ──
 window.socGoBack=function(){
-  try {
-    const {ref,remove}=socGetFB();const db2=socGetDB();
-    if(db2)remove(ref(db2,`${SOC_PATH}/presence/${socUserId}`)).catch(()=>{});
-  } catch(e){}
-  try { if(socPresUnsub){socPresUnsub();socPresUnsub=null;} } catch(e){}
-  try { if(socPostsUnsub){socPostsUnsub();socPostsUnsub=null;} } catch(e){}
-  try { if(socChangedUnsub){socChangedUnsub();socChangedUnsub=null;} } catch(e){}
-  try { if(socFriendsUnsub){socFriendsUnsub();socFriendsUnsub=null;} } catch(e){}
+  const {ref,remove}=socGetFB();const db2=socGetDB();
+  if(db2)remove(ref(db2,`${SOC_PATH}/presence/${socUserId}`)).catch(()=>{});
+  if(socPresUnsub){socPresUnsub();socPresUnsub=null;}
+  if(socPostsUnsub){socPostsUnsub();socPostsUnsub=null;}
+  if(socChangedUnsub){socChangedUnsub();socChangedUnsub=null;}
+  if(socFriendsUnsub){socFriendsUnsub();socFriendsUnsub=null;}
   document.getElementById('social-screen').classList.add('hidden');
   document.getElementById('setup-screen').classList.remove('hidden');
 };
@@ -7790,16 +7773,6 @@ function _socLeaveAndGo(code) {
 // ── Mobile compose ──
 window.openSocCompose  = function() { document.getElementById('soc-compose-modal').classList.add('open'); };
 window.closeSocCompose = function() { document.getElementById('soc-compose-modal').classList.remove('open'); };
-
-// Auto-refresh post timestamps every 60s
-setInterval(()=>{
-  document.querySelectorAll('.soc-post[data-post-id]').forEach(card=>{
-    const pid = card.dataset.postId;
-    const d   = socPostsData[pid]; if(!d) return;
-    const t   = card.querySelector('.soc-post-time');
-    if(t) t.textContent = socFmtTime(d.ts);
-  });
-}, 60000);
 </script>
 
 </body>

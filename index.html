@@ -7114,7 +7114,7 @@ const SOC_PATH = 'social';
 let socUserId  = 'su_' + Math.random().toString(36).slice(2,9);
 let socName    = '', socPhoto = '', socColor = '#3de8a0', socBio = '';
 let socImgData = '', socMobImgData = '';
-let socPresUnsub = null, socPostsUnsub = null;
+let socPresUnsub = null, socPostsUnsub = null, socChangedUnsub = null;
 let socReactTarget = null;   // {postId}
 let socViewProfile = null;   // profile data being viewed
 let socRenderedPosts = new Set();
@@ -7502,19 +7502,6 @@ document.addEventListener('click',()=>{
 // ── Toggle comments ──
 window.socToggleComments = function(postId) {
   document.getElementById(`comments-${postId}`)?.classList.toggle('open');
-};
-
-// ── Post comment ──
-window.socPostComment = function(postId) {
-  const inp=document.getElementById(`cmt-input-${postId}`);
-  const text=(inp?.value||'').trim(); if(!text) return;
-  inp.value='';
-  const { ref, push } = socGetFB(); const db2=socGetDB();
-  push(ref(db2,`${SOC_PATH}/posts/${postId}/comments`),{
-    name:socName, photo:socPhoto, color:socColor,
-    text, ts:Date.now(), uid:socUserId
-  });
-  document.getElementById(`comments-${postId}`)?.classList.add('open');
 };
 
 // ── Video pick JS ──

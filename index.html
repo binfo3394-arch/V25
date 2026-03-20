@@ -9786,7 +9786,7 @@ window.doSearchMessages = function(q){
   results.innerHTML = '';
   hits.slice(0,50).forEach(m => {
     const highlighted = escHtml2(m.text.slice(0,120)).replace(
-      new RegExp(escHtml2(q).replace(/[.*+?^${}()|[\]\]/g,'\$&'),'gi'),
+      new RegExp(escHtml2(q).replace(/[\\^$.|?*+()[{]/g,'\\$&'),'gi'),
       match => `<mark>${match}</mark>`
     );
     const el = document.createElement('div');
@@ -10095,7 +10095,7 @@ function lobbyApplyFeedFilter() {
   if (empty) {
     if (visibleCount === 0 && posts.length > 0) {
       empty.style.display = 'block';
-      empty.textContent = lobbyFeedTab === 'mine'     ? '📝 You haven't posted yet.'
+      empty.textContent = lobbyFeedTab === 'mine'     ? '📝 You haven\'t posted yet.'
                         : lobbyFeedTab === 'media'    ? '📷 No media posts yet.'
                         : lobbyFeedTab === 'trending' ? '🔥 No trending posts yet.'
                         : '📭 Posts නැහැ.';
@@ -10841,8 +10841,7 @@ Room: ${roomCode}
 Date: ${now}
 ${'─'.repeat(40)}
 
-` + lines.join('
-')], { type: 'text/plain' });
+` + lines.join('\n')], { type: 'text/plain' });
     filename = `secretline-${roomCode}-${now}.txt`;
     mime = 'text/plain';
   } else if (format === 'html') {

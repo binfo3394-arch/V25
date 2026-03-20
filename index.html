@@ -3271,7 +3271,8 @@ button, .attach-btn, .call-btn, .c-dot, .ap-item {
   background:var(--card2); border:1px solid var(--border2);
   border-radius:30px; padding:6px 10px;
   box-shadow:0 8px 30px rgba(0,0,0,0.5);
-  gap:4px; flex-wrap:nowrap;
+  gap:4px; flex-wrap:wrap;
+  max-width:calc(100vw - 16px);
 }
 .soc-react-pop.open { display:flex; }
 .soc-re-btn {
@@ -7379,7 +7380,7 @@ function escHtml(s) {
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.innerHTML = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
@@ -9160,10 +9161,31 @@ window.socToggleLike = function(postId) {
 // ── React picker ──
 window.socReactPick = function(e, postId) {
   e.stopPropagation();
-  socReactTarget=postId;
-  const pop=document.getElementById('soc-react-pop');
-  const rect=e.currentTarget.getBoundingClientRect();
-  pop.style.top=(rect.top-50)+'px'; pop.style.left=rect.left+'px';
+  socReactTarget = postId;
+  const pop = document.getElementById('soc-react-pop');
+  if (!pop) return;
+  
+  const rect = e.currentTarget.getBoundingClientRect();
+  const popW = 260; // approximate pop width
+  const popH = 50;  // approximate pop height
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  
+  // Show above button, clamped to screen
+  let top  = rect.top - popH - 8;
+  let left = rect.left;
+  
+  // Clamp horizontal
+  if (left + popW > vw - 8) left = vw - popW - 8;
+  if (left < 8) left = 8;
+  
+  // If above goes off screen, show below
+  if (top < 8) top = rect.bottom + 8;
+  // Clamp bottom
+  if (top + popH > vh - 8) top = rect.top - popH - 8;
+  
+  pop.style.top  = Math.max(8, top) + 'px';
+  pop.style.left = left + 'px';
   pop.classList.add('open');
 };
 window.socDoReact = function(emoji) {
@@ -11109,17 +11131,32 @@ window.openDM = function(peer) {
 
   document.getElementById('dm-peer-name').textContent = peer.name || '?';
 
-  // Check online status from lobby presence
-  const presData = window._lobbyPresenceData || {};
-  const isOnline  = Object.entries(presData).some(([uid]) => uid === peer.uid);
-  const statusEl  = document.getElementById('dm-status-text');
-  const dotEl     = document.getElementById('dm-online-dot');
-  if (isOnline) {
-    statusEl.textContent  = 'Online';
-    dotEl.style.display   = 'block';
-  } else {
-    statusEl.textContent  = 'Offline';
-    dotEl.style.display   = 'none';
+  // Check online status - first from cached data, then live from Firebase
+  const statusEl = document.getElementById('dm-status-text');
+  const dotEl    = document.getElementById('dm-online-dot');
+  
+  function updateDMOnlineStatus() {
+    const presData = window._lobbyPresenceData || {};
+    const isOnline = !!presData[peer.uid];
+    if (statusEl) statusEl.textContent = isOnline ? 'Online' : 'Offline';
+    if (dotEl)    dotEl.style.display  = isOnline ? 'block'  : 'none';
+  }
+  updateDMOnlineStatus();
+  
+  // Live Firebase listener for this peer's presence
+  if (window.__db && window.__fbx) {
+    const { ref, onValue } = window.__fbx;
+    // Clean up previous listener
+    if (window._dmPresUnsub) { try { window._dmPresUnsub(); } catch(e){} }
+    window._dmPresUnsub = onValue(ref(window.__db, 'social/presence/' + peer.uid), snap => {
+      const isOnline = snap.exists() && snap.val() !== null;
+      if (statusEl) statusEl.textContent = isOnline ? 'Online' : 'Offline';
+      if (dotEl)    dotEl.style.display  = isOnline ? 'block'  : 'none';
+      // Update cached presence
+      if (!window._lobbyPresenceData) window._lobbyPresenceData = {};
+      if (isOnline) window._lobbyPresenceData[peer.uid] = snap.val();
+      else delete window._lobbyPresenceData[peer.uid];
+    });
   }
 
   // Clear old messages
@@ -11151,6 +11188,10 @@ window.closeDM = function() {
   document.getElementById('dm-overlay').classList.remove('open');
   if (dmUnsub)        { dmUnsub();        dmUnsub = null; }
   if (dmTypingUnsub)  { dmTypingUnsub();  dmTypingUnsub = null; }
+  // Clean up presence live listener
+  if (window._dmPresUnsub) { try { window._dmPresUnsub(); } catch(e){} window._dmPresUnsub = null; }
+  // End any active DM call
+  if (window._dmCallPc && window.dmEndCall) { window.dmEndCall(); }
   // Stop typing indicator
   if (dmIsTyping) {
     dmIsTyping = false;
@@ -11206,6 +11247,11 @@ function dmSubscribe() {
 }
 
 function dmRenderMsg(m, key) {
+  // Delegate to window.dmRenderMsg if upgraded version exists
+  if (window.dmRenderMsg && window.dmRenderMsg !== dmRenderMsg) {
+    return window.dmRenderMsg(m, key);
+  }
+  // Fallback basic renderer
   const msgsEl = document.getElementById('dm-msgs');
   if (!msgsEl) return;
 
@@ -11215,11 +11261,48 @@ function dmRenderMsg(m, key) {
 
   const bubble = document.createElement('div');
   bubble.className = 'dm-bubble';
-  bubble.textContent = m.text || '';
+  
+  // Handle different message types
+  if (m.type === 'image' && m.dataUrl) {
+    bubble.style.padding = '4px';
+    bubble.style.background = 'transparent';
+    bubble.style.border = 'none';
+    const img = document.createElement('img');
+    img.src = m.dataUrl;
+    img.style.cssText = 'max-width:220px;max-height:180px;border-radius:10px;display:block;cursor:zoom-in;object-fit:cover;';
+    img.onclick = () => { if(window.openLb) openLb(m.dataUrl); };
+    bubble.appendChild(img);
+  } else if (m.type === 'voice' && m.dataUrl) {
+    const audio = document.createElement('audio');
+    audio.src = m.dataUrl; audio.controls = true;
+    audio.style.cssText = 'max-width:220px;height:40px;';
+    bubble.appendChild(audio);
+  } else if (m.type === 'video' && m.dataUrl) {
+    const vid = document.createElement('video');
+    vid.src = m.dataUrl; vid.controls = true;
+    vid.style.cssText = 'max-width:220px;border-radius:10px;display:block;';
+    bubble.appendChild(vid);
+  } else if (m.type === 'doc' && m.dataUrl) {
+    const a = document.createElement('a');
+    a.href = m.dataUrl; a.download = m.fileName || 'file';
+    a.textContent = '📄 ' + (m.fileName || 'Download file');
+    a.style.cssText = 'color:var(--accent);font-size:13px;';
+    bubble.appendChild(a);
+  } else {
+    // Reply preview
+    if (m.replyTo) {
+      const rp = document.createElement('div');
+      rp.style.cssText = 'border-left:3px solid var(--accent);padding:3px 7px;margin-bottom:5px;font-size:11px;color:var(--text2);background:rgba(61,232,160,0.06);border-radius:0 4px 4px 0;';
+      rp.innerHTML = '<span style="color:var(--accent);font-weight:700;display:block;font-size:10px;">' + (m.replyTo.senderName||'') + '</span>' + (m.replyTo.text||'').slice(0,60);
+      bubble.appendChild(rp);
+    }
+    const sp = document.createElement('span');
+    sp.textContent = m.text || '';
+    bubble.appendChild(sp);
+  }
 
   const timeEl = document.createElement('div');
   timeEl.className = 'dm-time';
-
   const timeStr = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
 
   if (isMe) {
@@ -11236,6 +11319,9 @@ function dmRenderMsg(m, key) {
   row.appendChild(bubble);
   row.appendChild(timeEl);
   msgsEl.appendChild(row);
+  
+  // Scroll to bottom
+  requestAnimationFrame(() => { msgsEl.scrollTop = msgsEl.scrollHeight; });
 }
 
 window.dmSend = function() {
@@ -11267,6 +11353,10 @@ window.dmSend = function() {
   set(ref(db, `social/dm/${dmRoomId}/lastMsg`), {
     text: text.slice(0, 60), ts: Date.now(), senderId: window._socUserId
   });
+  
+  // Re-enable send button (it was disabled above)
+  const sendBtnEl = document.getElementById('dm-send-btn');
+  if (sendBtnEl) sendBtnEl.disabled = false;
 };
 
 window.dmOnInput = function(ta) {
@@ -11905,11 +11995,17 @@ window.removeStoryImg = function() {
 
 window.submitStory = function() {
   const text = document.getElementById('story-text-input')?.value?.trim();
-  if (!text && !_storyImgDataLocal) { showToast('&#x26A0;&#xFE0F; Add text or photo'); return; }
+  if (!text && !_storyImgDataLocal) { showToast('⚠️ Add text or photo'); return; }
 
   const { ref, push } = window.socGetFB(); const db2 = window.socGetDB();
-  if (!db2) { showToast('&#x274C; Not connected'); return; }
+  if (!db2) { showToast('❌ Not connected'); return; }
 
+  // Validate Firebase connection and user ID
+  if (!window._socUserId) {
+    showToast('⚠️ Open Lobby first to share stories');
+    return;
+  }
+  
   push(ref(db2, 'social/stories'), {
     uid: window._socUserId,
     name: window._socName || 'Someone',
@@ -11919,9 +12015,12 @@ window.submitStory = function() {
     ts: Date.now(),
     expiresAt: Date.now() + 24*60*60*1000  // 24 hours
   }).then(() => {
-    showToast('&#x1F4F8; Story shared!');
+    showToast('📸 Story shared!');
     closeStoryUpload();
-  }).catch(() => showToast('&#x274C; Story failed'));
+  }).catch(err => {
+    console.error('Story push failed:', err);
+    showToast('❌ Story failed: ' + (err.message || 'Unknown error'));
+  });
 };
 
 // Listen for stories from Firebase
@@ -12380,6 +12479,18 @@ function socRenderFriendsListRT(friendsData) {
   const body = document.getElementById('soc-friends-body');
   if (!body) return;
   body.innerHTML = '';
+  
+  // Ensure window._socUserId is set (may not be if user hasn't visited lobby)
+  if (!window._socUserId) {
+    const active = (() => { try { return JSON.parse(localStorage.getItem('sl_active_profile')||'null'); } catch(e){ return null; } })();
+    const gp     = (() => { try { return JSON.parse(localStorage.getItem('sl_google_profile')||'null'); } catch(e){ return null; } })();
+    if (!window._socName)  window._socName  = active?.name  || gp?.name  || '';
+    if (!window._socPhoto) window._socPhoto = active?.photo || gp?.photo || '';
+    if (!window._socColor) window._socColor = active?.color || '#3de8a0';
+    // Generate a consistent socUserId from session
+    const sess = (() => { try { return JSON.parse(localStorage.getItem('sl_session')||'null'); } catch(e){ return null; } })();
+    if (sess) window._socUserId = 'su_' + sess.myId.replace('u_','');
+  }
 
   const entries = Object.entries(friendsData);
   if (!entries.length) {

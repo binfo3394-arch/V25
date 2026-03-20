@@ -4250,7 +4250,7 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 .soc-story-name{font-size:10px;color:var(--text2);max-width:54px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);}
 
 /* ── Story Viewer ── */
-.story-viewer{display:none;position:fixed;inset:0;background:#000;z-index:9100;flex-direction:column;align-items:center;justify-content:center;}
+.story-viewer{display:none;position:fixed;inset:0;background:#000;z-index:99000;flex-direction:column;align-items:center;justify-content:center;}
 .story-viewer.open{display:flex;}
 .story-progress-bars{position:absolute;top:0;left:0;right:0;display:flex;gap:4px;padding:12px 12px 0;z-index:4;}
 .story-progress-bar{flex:1;height:2px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;}
@@ -12330,13 +12330,19 @@ function renderStoriesBar() {
 }
 
 window.openStoryViewer = function(uid) {
-  const userStories = _socStories.filter(s => s.uid === uid).sort((a,b) => b.ts - a.ts);
-  if (!userStories.length) return;
-
+  if (!_socStories || !_socStories.length) {
+    if (window.socListenStories) socListenStories();
+    setTimeout(function(){ window.openStoryViewer(uid); }, 900);
+    return;
+  }
+  var userStories = _socStories.filter(function(s){ return s.uid === uid; }).sort(function(a,b){ return b.ts-a.ts; });
+  if (!userStories.length) { if(window.showToast) showToast('Story expired or not found'); return; }
   _storyViewerIdx = 0;
   window._storyViewerList = userStories;
+  var sv = document.getElementById('story-viewer');
+  if (sv) { sv.style.display='flex'; sv.classList.add('open'); }
   showStoryAt(0);
-  document.getElementById('story-viewer')?.classList.add('open');
+  setTimeout(function(){ if(window._storyEnhanceUpdate) window._storyEnhanceUpdate(0); }, 80);
 };
 
 function showStoryAt(idx) {
@@ -12412,8 +12418,8 @@ function showStoryAt(idx) {
   } catch(e) {}
 }
 
-window.storyNext = function(e) { if (e) e.stopPropagation(); showStoryAt(_storyViewerIdx + 1); };
-window.storyPrev = function(e) { if (e) e.stopPropagation(); showStoryAt(_storyViewerIdx - 1); };
+window.storyNext = function(e) { if(e) e.stopPropagation(); showStoryAt(_storyViewerIdx+1); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
+window.storyPrev = function(e) { if(e) e.stopPropagation(); showStoryAt(_storyViewerIdx-1); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
 
 window.storyTapHandler = function(e) {
   // Tap left half = prev, right half = next
@@ -12502,31 +12508,18 @@ window.sendStoryReply = function() {
   }).catch(function() { showToast('Reply failed'); });
 };
 
-// -- Patch showStoryAt to drive new badges --
-window.addEventListener('load', function() {
-  setTimeout(function() {
-    var _orig = window.showStoryAt;
-    if (!_orig) return;
-    window.showStoryAt = function(idx) {
-      _orig(idx);
-      setTimeout(function() {
-        var stories = window._storyViewerList || [];
-        if (idx < 0 || idx >= stories.length) return;
-        var story = stories[idx];
-        // Views
-        window.storyRecordView(story.id);
-        // Expire
-        window.storyShowExpire(story.ts);
-        // Delete button (own story only)
-        var delBtn = document.getElementById('story-delete-btn');
-        if (delBtn) delBtn.classList.toggle('visible', story.uid === window._socUserId);
-        // Reply bar (hide for own story)
-        var replyBar = document.getElementById('story-reply-bar');
-        if (replyBar) replyBar.style.display = (story.uid === window._socUserId) ? 'none' : 'flex';
-      }, 60);
-    };
-  }, 1800);
-});
+// -- _storyEnhanceUpdate: called directly from openStoryViewer/next/prev --
+window._storyEnhanceUpdate = function(idx) {
+  var stories = window._storyViewerList || [];
+  if (idx < 0 || idx >= stories.length) return;
+  var story = stories[idx];
+  if (window.storyRecordView) window.storyRecordView(story.id);
+  if (window.storyShowExpire) window.storyShowExpire(story.ts);
+  var delBtn = document.getElementById('story-delete-btn');
+  if (delBtn) delBtn.classList.toggle('visible', story.uid === window._socUserId);
+  var replyBar = document.getElementById('story-reply-bar');
+  if (replyBar) replyBar.style.display = (story.uid === window._socUserId) ? 'none' : 'flex';
+};
 
 console.log('%c Story Enhancements v9 loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
 // ====================================
@@ -12616,6 +12609,17 @@ function lobbyInfiniteScrollInit() {
 
 setTimeout(lobbyInfiniteScrollInit, 2000);
 
+// Retry socListenStories if stories still empty after load
+setTimeout(function(){
+  if((!window._socStories||!window._socStories.length)&&window.socListenStories) socListenStories();
+},3000);
+// Re-attach on tab focus
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&window.socListenStories){
+    var ss=document.getElementById('social-screen');
+    if(ss&&!ss.classList.contains('hidden')) socListenStories();
+  }
+});
 console.log('%c Lobby v6 FB-Like loaded ✓', 'color:#3de8a0;font-weight:bold;font-size:13px');
 </script>
 

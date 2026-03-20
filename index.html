@@ -8422,6 +8422,14 @@ window.socGetMyFriends = socGetMyFriends;
 window.socGetSentReqs = socGetSentReqs;
 window.socSaveSentReqs = socSaveSentReqs;
 window.socMakeFrRow = socMakeFrRow;
+// Live data access for non-module scripts
+Object.defineProperty(window, 'socPostsData', {
+  get: function() { return socPostsData; },
+  configurable: true
+});
+window.escHtml = escHtml;
+window.socRenderReactions = socRenderReactions;
+window.socRenderComments  = socRenderComments;
 
 // ── Update nav avatar ──
 function socRefreshNav() {
@@ -11039,7 +11047,7 @@ window.socToggleSavePost = function(postId) {
     if (btn) { btn.classList.remove('saved'); btn.title = 'Save'; }
     showToast('Post unsaved');
   } else {
-    const data = socPostsData[postId];
+    const data = window.socPostsData[postId];
     saved[postId] = { postId, author: data?.name||'?', text: (data?.text||'').slice(0,150), savedAt: Date.now(), photo: data?.image||'' };
     socSaveSavedPosts(saved);
     if (btn) { btn.classList.add('saved'); btn.title = 'Unsave'; }
@@ -11061,8 +11069,8 @@ window.openSavedPosts = function() {
     items.forEach(item => {
       const el = document.createElement('div');
       el.className = 'soc-saved-item';
-      el.innerHTML = `<div class="soc-saved-item-author">&#x1F516; ${escHtml(item.author)}</div>
-        <div class="soc-saved-item-text">${item.text ? escHtml(item.text.slice(0,100)) + (item.text.length>100?'&hellip;':'') : (item.photo ? '&#x1F4F7; Photo' : '')}</div>`;
+      el.innerHTML = `<div class="soc-saved-item-author">&#x1F516; ${window.escHtml(item.author)}</div>
+        <div class="soc-saved-item-text">${item.text ? window.escHtml(item.text.slice(0,100)) + (item.text.length>100?'&hellip;':'') : (item.photo ? '&#x1F4F7; Photo' : '')}</div>`;
       el.onclick = () => { closeSavedPosts(); socOpenFullPost(item.postId); };
       list.appendChild(el);
     });
@@ -11088,7 +11096,7 @@ window.socOpenOptions = function(e, postId, isMyPost) {
 
   // Update save label
   const saveItem = document.getElementById('soc-opt-save');
-  if (saveItem) saveItem.textContent = socIsPostSaved(postId) ? '&#x1F516; Unsave post' : '&#x1F516; Save post';
+  if (saveItem) saveItem.innerHTML = socIsPostSaved(postId) ? '&#x1F516; Unsave post' : '&#x1F516; Save post';
 
   // Position menu
   const rect = e.currentTarget.getBoundingClientRect();
@@ -11113,14 +11121,14 @@ document.addEventListener('click', () => document.getElementById('soc-post-optio
 /* ─── FULL POST MODAL ─── */
 window.socOpenFullPost = function(postId) {
   _currentFullPostId = postId;
-  const data = socPostsData[postId];
+  const data = window.socPostsData[postId];
   if (!data) return;
   const modal = document.getElementById('soc-fullpost-modal');
   const body  = document.getElementById('soc-fullpost-body');
   if (!modal || !body) return;
 
   function formatText(text) {
-    return escHtml(text||'')
+    return window.escHtml(text||'')
       .replace(/#(\w+)/g, '<span class="soc-hashtag" onclick="lobbyFilterByTag(\'#$1\');">#$1</span>')
       .replace(/@(\w+)/g, '<span class="soc-mention">@$1</span>');
   }
@@ -11130,8 +11138,8 @@ window.socOpenFullPost = function(postId) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <div style="width:44px;height:44px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-family:var(--mono);overflow:hidden;flex-shrink:0;" id="fp-av-${postId}"></div>
         <div>
-          <div style="font-size:14px;font-weight:700;">${escHtml(data.name||'Anonymous')}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${socFmtTime(data.ts)} &middot; &#x1F30D; Public</div>
+          <div style="font-size:14px;font-weight:700;">${window.escHtml(data.name||'Anonymous')}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${window.socFmtTime(data.ts)} &middot; &#x1F30D; Public</div>
         </div>
       </div>
       ${data.text ? `<div style="font-size:15px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word;margin-bottom:14px;">${formatText(data.text)}</div>` : ''}
@@ -11142,7 +11150,7 @@ window.socOpenFullPost = function(postId) {
       <div id="fp-reactions-${postId}" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
       <div style="display:flex;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);">
         <button onclick="socToggleLike('${postId}')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
-          <span id="fp-like-icon-${postId}">${data.reactions?.[socUserId]||'&#x1F90D;'}</span> Like
+          <span id="fp-like-icon-${postId}">${data.reactions?.[window._socUserId]||'&#x1F90D;'}</span> Like
         </button>
         <button onclick="socSharePost('${postId}')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">&#x21D7; Share</button>
       </div>
@@ -11158,12 +11166,25 @@ window.socOpenFullPost = function(postId) {
   const avEl = body.querySelector(`#fp-av-${postId}`);
   if (avEl) {
     if (data.photo) { const img = document.createElement('img'); img.src=data.photo; img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;'; avEl.appendChild(img); }
-    else { avEl.textContent=socIni(data.name); avEl.style.color=data.color||'#3de8a0'; }
+    else { avEl.textContent=window.socIni(data.name); avEl.style.color=data.color||'#3de8a0'; }
   }
 
-  // Render reactions and comments in full post
+  // Render reactions inline in fullpost modal
   const fpReactions = document.getElementById(`fp-reactions-${postId}`);
-  if (fpReactions) socRenderReactions(postId, data.reactions||{});
+  if (fpReactions) {
+    const counts = {};
+    const reactions = data.reactions || {};
+    Object.values(reactions).forEach(e => { if(e) counts[e]=(counts[e]||0)+1; });
+    const myR = reactions[window._socUserId] || null;
+    fpReactions.innerHTML = '';
+    Object.entries(counts).forEach(([emoji, cnt]) => {
+      const chip = document.createElement('div');
+      chip.className = 'soc-react-chip' + (myR===emoji?' reacted':'');
+      chip.innerHTML = `${emoji} <span>${cnt}</span>`;
+      chip.onclick = () => window.socToggleReact && window.socToggleReact(postId, emoji);
+      fpReactions.appendChild(chip);
+    });
+  }
 
   const fpCmtList = document.getElementById(`fp-cmt-list-${postId}`);
   if (fpCmtList && data.comments) {
@@ -11173,10 +11194,10 @@ window.socOpenFullPost = function(postId) {
       const avD = document.createElement('div');
       avD.style.cssText = 'width:28px;height:28px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;overflow:hidden;';
       if (cmt.photo) { const img=document.createElement('img'); img.src=cmt.photo; img.style.cssText='width:100%;height:100%;object-fit:cover;'; avD.appendChild(img); }
-      else { avD.textContent=socIni(cmt.name); avD.style.color=cmt.color||'#3de8a0'; }
+      else { avD.textContent=window.socIni(cmt.name); avD.style.color=cmt.color||'#3de8a0'; }
       const bd = document.createElement('div');
       bd.style.cssText = 'flex:1;background:var(--card);border-radius:10px;padding:7px 11px;';
-      bd.innerHTML = `<div style="font-size:11px;font-weight:700;color:${cmt.color||'#3de8a0'}">${escHtml(cmt.name)}</div><div style="font-size:13px;">${escHtml(cmt.text||'')}</div>`;
+      bd.innerHTML = `<div style="font-size:11px;font-weight:700;color:${cmt.color||'#3de8a0'}">${window.escHtml(cmt.name)}</div><div style="font-size:13px;">${window.escHtml(cmt.text||'')}</div>`;
       row.appendChild(avD); row.appendChild(bd);
       fpCmtList.appendChild(row);
     });
@@ -11191,13 +11212,39 @@ window.socPostCommentFP = function(postId) {
   const inp = document.getElementById(`fp-cmt-input-${postId}`);
   const text = (inp?.value||'').trim(); if (!text) return;
   inp.value = '';
-  socPostComment(postId); // reuse existing function
+  // Push comment directly to Firebase
+  const { ref, push } = window.socGetFB(); const db2 = window.socGetDB();
+  if (!db2) { showToast('\u274C Not connected'); return; }
+  push(ref(db2, `social/posts/${postId}/comments`), {
+    name: window._socName||'?',
+    photo: window._socPhoto||'',
+    color: window._socColor||'#3de8a0',
+    text, ts: Date.now(),
+    uid: window._socUserId||''
+  }).then(() => {
+    // Refresh full post modal comment list
+    const data = window.socPostsData[postId];
+    const fpList = document.getElementById(`fp-cmt-list-${postId}`);
+    if (fpList && data?.comments) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;margin-top:6px;';
+      const avD = document.createElement('div');
+      avD.style.cssText = 'width:28px;height:28px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;overflow:hidden;';
+      if (window._socPhoto) { const img=document.createElement('img'); img.src=window._socPhoto; img.style.cssText='width:100%;height:100%;object-fit:cover;'; avD.appendChild(img); }
+      else { avD.textContent=(window._socName||'?').slice(0,2).toUpperCase(); avD.style.color=window._socColor||'#3de8a0'; }
+      const bd = document.createElement('div');
+      bd.style.cssText = 'flex:1;background:var(--card);border-radius:10px;padding:7px 11px;';
+      bd.innerHTML = `<div style="font-size:11px;font-weight:700;color:${window._socColor||'#3de8a0'}">${window.escHtml(window._socName||'')}</div><div style="font-size:13px;">${window.escHtml(text)}</div>`;
+      row.appendChild(avD); row.appendChild(bd);
+      fpList.appendChild(row);
+    }
+  }).catch(() => showToast('\u274C Comment failed'));
 };
 
 /* ─── POST EDIT ─── */
 window.openSocEdit = function(postId) {
   _currentEditPostId = postId;
-  const data = socPostsData[postId];
+  const data = window.socPostsData[postId];
   if (!data) return;
   const ta = document.getElementById('soc-edit-textarea');
   if (ta) ta.value = data.text || '';
@@ -11220,7 +11267,7 @@ window.submitSocEdit = function() {
 
 /* ─── SHARE POST ─── */
 window.socSharePost = function(postId) {
-  const data = socPostsData[postId];
+  const data = window.socPostsData[postId];
   const shareText = (data?.text || '').slice(0, 100);
   const shareUrl  = location.href + '#post-' + postId;
 
@@ -11247,7 +11294,7 @@ window.lobbyFilterByTag = function(tag) {
   const tagLower = tag.toLowerCase();
   posts.forEach(card => {
     const pid = card.dataset.postId;
-    const data = socPostsData[pid];
+    const data = window.socPostsData[pid];
     const hasTag = (data?.text||'').toLowerCase().includes(tagLower.replace('#','#'));
     card.style.display = hasTag ? '' : 'none';
     if (hasTag) count++;
@@ -11265,7 +11312,7 @@ window.lobbyFilterByTag = function(tag) {
 /* ─── TRENDING TAGS ─── */
 window.socUpdateTrending = function() {
   const tagCounts = {};
-  Object.values(socPostsData).forEach(p => {
+  Object.values(window.socPostsData).forEach(p => {
     if (!p || !p.text) return;
     const tags = (p.text.match(/#\w+/g)||[]);
     tags.forEach(t => { tagCounts[t] = (tagCounts[t]||0)+1; });
@@ -11278,7 +11325,7 @@ window.socUpdateTrending = function() {
   sorted.forEach(([tag,cnt]) => {
     const row = document.createElement('div');
     row.className = 'soc-trending-tag';
-    row.innerHTML = `<span class="soc-trending-name">${escHtml(tag)}</span><span class="soc-trending-count">${cnt} post${cnt>1?'s':''}</span>`;
+    row.innerHTML = `<span class="soc-trending-name">${window.escHtml(tag)}</span><span class="soc-trending-count">${cnt} post${cnt>1?'s':''}</span>`;
     row.onclick = () => lobbyFilterByTag(tag);
     wrap.appendChild(row);
   });
@@ -11346,7 +11393,7 @@ function renderNotifications() {
     item.appendChild(av);
     const body = document.createElement('div');
     body.className = 'soc-notif-body';
-    body.innerHTML = `<div class="soc-notif-text"><strong>${escHtml(n.actorName||'Someone')}</strong> ${escHtml(n.text)}</div><div class="soc-notif-time">${socFmtTime(n.ts)}</div>`;
+    body.innerHTML = `<div class="soc-notif-text"><strong>${window.escHtml(n.actorName||'Someone')}</strong> ${window.escHtml(n.text)}</div><div class="soc-notif-time">${window.socFmtTime(n.ts)}</div>`;
     item.appendChild(body);
     item.onclick = () => { if (n.postId) socOpenFullPost(n.postId); item.classList.remove('unread'); n.read=true; };
     list.appendChild(item);
@@ -11377,7 +11424,7 @@ window.clearNotifications = function() {
 // Hook into socUpdatePost to generate notifications
 const _origSocUpdatePost2 = window.socUpdatePost;
 window.socUpdatePost = function(postId, newData) {
-  const oldData = socPostsData[postId] || {};
+  const oldData = window.socPostsData[postId] || {};
   if (_origSocUpdatePost2) _origSocUpdatePost2(postId, newData);
 
   // Detect new like on MY post
@@ -11542,7 +11589,7 @@ function showStoryAt(idx) {
   if (imgEl)  { imgEl.src = story.image || ''; imgEl.style.display = story.image ? 'block' : 'none'; }
   if (textEl) textEl.textContent = story.text || '';
   if (nameEl) nameEl.textContent = story.uid === window._socUserId ? 'Your Story' : (story.name||'');
-  if (timeEl) timeEl.textContent = socFmtTime(story.ts);
+  if (timeEl) timeEl.textContent = window.socFmtTime(story.ts);
   if (avEl) {
     avEl.innerHTML = '';
     if (story.photo) { const img=document.createElement('img'); img.src=story.photo; avEl.appendChild(img); }
@@ -11647,9 +11694,9 @@ setInterval(() => {
     const ts = parseInt(el.dataset.ts||0);
     if (ts) {
       const pid = el.closest('.soc-post')?.dataset?.postId;
-      const data = pid ? socPostsData[pid] : null;
+      const data = pid ? window.socPostsData[pid] : null;
       if (data) {
-        el.innerHTML = socFmtTime(data.ts) + ' &middot; <span class="soc-visibility-badge">&#x1F30D; Public</span>';
+        el.innerHTML = window.socFmtTime(data.ts) + ' &middot; <span class="soc-visibility-badge">&#x1F30D; Public</span>';
       }
     }
   });

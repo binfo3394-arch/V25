@@ -4373,6 +4373,264 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 /* ── Infinite scroll sentinel ── */
 .soc-scroll-sentinel{height:1px;}
 
+
+/* ════════════════════════════════
+   DM v2 + PROFILE v2 CSS UPGRADE
+════════════════════════════════ */
+
+/* ── DM Call Button ── */
+.dm-call-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card); color: var(--text2);
+  font-size: 15px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.dm-call-btn:hover { background: var(--card2); border-color: var(--border2); transform: scale(1.05); }
+.dm-video-btn-hdr { background: rgba(79,163,255,0.1); border-color: rgba(79,163,255,0.25); color: var(--blue); }
+.dm-video-btn-hdr:hover { background: rgba(79,163,255,0.18); }
+
+/* ── DM Info Panel ── */
+.dm-info-panel {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+  animation: slideDown 0.2s ease;
+}
+@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+.dm-info-peer-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px 8px;
+}
+.dm-info-action-btn {
+  flex: 1; padding: 8px 6px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text2);
+  font-family: var(--sans); font-size: 12px; cursor: pointer;
+  transition: background 0.15s; text-align: center;
+}
+.dm-info-action-btn:hover { background: var(--card2); color: var(--text); }
+.dm-info-action-btn.danger { color: var(--red); }
+.dm-info-action-btn.danger:hover { background: rgba(255,92,92,0.1); }
+
+/* ── DM Incoming Call ── */
+.dm-incoming-call {
+  position: absolute; top: 54px; left: 0; right: 0;
+  background: var(--panel); border-bottom: 1px solid var(--border2);
+  padding: 20px; text-align: center;
+  z-index: 10; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: slideDown 0.25s ease;
+}
+.dm-inc-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent-dim); border: 2px solid rgba(61,232,160,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin: 0 auto 10px;
+  animation: ringPulse 1.2s infinite;
+}
+.dm-inc-name  { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+.dm-inc-label { font-size: 12px; color: var(--text2); font-family: var(--mono); }
+.dm-inc-accept {
+  width: 54px; height: 54px; border-radius: 50%; border: none;
+  background: var(--accent); color: #000; font-size: 22px; cursor: pointer;
+  transition: transform 0.15s;
+}
+.dm-inc-accept:hover { transform: scale(1.1); }
+.dm-inc-decline {
+  width: 54px; height: 54px; border-radius: 50%; border: none;
+  background: var(--red); color: #fff; font-size: 22px; cursor: pointer;
+  transition: transform 0.15s;
+}
+.dm-inc-decline:hover { transform: scale(1.1); }
+
+/* ── DM Attach ── */
+.dm-attach-btn {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  font-size: 17px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.15s;
+}
+.dm-attach-btn:hover { background: var(--card2); color: var(--text); }
+.dm-attach-pop {
+  position: absolute; bottom: calc(100% + 8px); left: 0;
+  background: var(--card2); border: 1px solid var(--border2);
+  border-radius: 12px; overflow: hidden; min-width: 160px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5); z-index: 200;
+  animation: ctxPop 0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+.dm-attach-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--text);
+  transition: background 0.1s;
+}
+.dm-attach-item:hover { background: rgba(255,255,255,0.06); }
+
+/* ── DM Emoji ── */
+.dm-emoji-btn {
+  width: 36px; height: 36px; background: none; border: none;
+  font-size: 20px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s; border-radius: 8px;
+}
+.dm-emoji-btn:hover { transform: scale(1.2); background: var(--card); }
+.dm-emoji-pop {
+  position: absolute; bottom: calc(100% + 8px); left: 40px;
+  background: var(--card2); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5); z-index: 200;
+  width: 280px; animation: ctxPop 0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+.dm-emoji-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  gap: 2px; max-height: 200px; overflow-y: auto;
+}
+.dm-emoji-btn-item {
+  width: 32px; height: 32px; background: none; border: none;
+  font-size: 18px; cursor: pointer; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
+}
+.dm-emoji-btn-item:hover { background: rgba(255,255,255,0.1); transform: scale(1.2); }
+
+/* ── DM Preview Strip ── */
+.dm-preview-strip {
+  display: flex; gap: 8px; padding: 6px 12px;
+  background: var(--panel); border-top: 1px solid var(--border);
+  overflow-x: auto; flex-shrink: 0;
+}
+.dm-prev-item { position: relative; flex-shrink: 0; width: 56px; height: 56px; }
+.dm-prev-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); display: block; }
+.dm-prev-doc { width: 56px; height: 56px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 18px; gap: 2px; }
+.dm-prev-doc small { font-size: 7px; color: var(--text2); font-family: var(--mono); text-transform: uppercase; }
+.dm-prev-rm { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: var(--red); border: none; border-radius: 50%; color: #fff; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+/* ── DM Reply Bar ── */
+.dm-reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border-top: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 6px 10px; flex-shrink: 0; font-size: 12px; color: var(--text2);
+}
+.dm-reply-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── DM Message enhancements ── */
+.dm-msg-row { cursor: default; }
+.dm-msg-row:hover { background: rgba(255,255,255,0.02); border-radius: 10px; }
+.dm-bubble.dm-media { padding: 4px !important; background: transparent !important; border: none !important; }
+.dm-bubble.dm-media img { max-width: 240px; max-height: 200px; border-radius: 10px; display: block; cursor: zoom-in; object-fit: cover; }
+.dm-bubble.dm-media video { max-width: 240px; border-radius: 10px; display: block; }
+.dm-voice-player { display: flex; align-items: center; gap: 8px; min-width: 180px; max-width: 260px; padding: 2px 0; }
+.dm-vm-play { width: 32px; height: 32px; background: var(--accent); border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #000; flex-shrink: 0; }
+.dm-vm-progress { flex: 1; height: 3px; background: var(--border2); border-radius: 2px; cursor: pointer; position: relative; }
+.dm-vm-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s linear; pointer-events: none; }
+.dm-vm-dur { font-size: 10px; color: var(--text2); font-family: var(--mono); }
+
+/* ── DM reaction row ── */
+.dm-react-row { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; padding: 0 2px; }
+.dm-react-pill { background: var(--card2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 2px; }
+.dm-react-pill.mine { border-color: rgba(61,232,160,0.4); background: var(--accent-dim); }
+.dm-react-pill .r-cnt { font-size: 10px; color: var(--text2); font-family: var(--mono); }
+
+/* ── Friends Panel v2 ── */
+.soc-fr-online-badge {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 5px var(--accent);
+  flex-shrink: 0;
+}
+.soc-fr-last-seen {
+  font-size: 10px; color: var(--text3); font-family: var(--mono);
+}
+.soc-fr-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.soc-fr-btn {
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  cursor: pointer; white-space: nowrap; border: 1px solid var(--border);
+  background: var(--card); color: var(--text2); transition: all 0.15s;
+  font-family: var(--sans);
+}
+.soc-fr-btn:hover { border-color: rgba(61,232,160,0.3); color: var(--text); background: var(--card2); }
+.soc-fr-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.soc-fr-btn.primary:hover { opacity: 0.85; }
+.soc-fr-btn.danger { color: var(--red); }
+.soc-fr-btn.danger:hover { background: rgba(255,92,92,0.1); border-color: rgba(255,92,92,0.3); }
+
+/* ── Profile v2 Modal (FB-style full customization) ── */
+.priv-profile-modal {
+  max-width: 480px;
+  max-height: 92vh;
+}
+
+/* Cover photo */
+.priv-cover-area {
+  position: relative; width: 100%; height: 120px;
+  background: linear-gradient(135deg, var(--accent-dim), rgba(79,163,255,0.12));
+  border-radius: 12px; overflow: hidden; cursor: pointer;
+  margin-bottom: -36px; flex-shrink: 0;
+}
+.priv-cover-area img { width: 100%; height: 100%; object-fit: cover; }
+.priv-cover-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; font-size: 22px;
+}
+.priv-cover-area:hover .priv-cover-overlay { opacity: 1; }
+
+/* Avatar on cover */
+.priv-avatar-on-cover {
+  position: relative; z-index: 2;
+  margin: 0 0 10px 14px; display: inline-block;
+}
+
+/* Theme color picker */
+.priv-theme-colors {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+}
+.priv-theme-dot {
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: transform 0.15s, border-color 0.15s;
+}
+.priv-theme-dot:hover { transform: scale(1.15); }
+.priv-theme-dot.selected { border-color: #fff; transform: scale(1.1); }
+
+/* Profile public card preview */
+.priv-preview-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin-top: 16px;
+}
+.priv-preview-cover {
+  height: 60px;
+}
+.priv-preview-body {
+  padding: 0 14px 12px; margin-top: -24px;
+}
+.priv-preview-av {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 3px solid var(--panel); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; font-family: var(--mono);
+  background: var(--accent-dim); margin-bottom: 6px;
+}
+.priv-preview-name { font-size: 15px; font-weight: 700; }
+.priv-preview-bio  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* Field improvements */
+.priv-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.priv-field-label {
+  font-size: 10px; font-family: var(--mono); letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text2); margin-bottom: 5px; display: block;
+}
+.priv-field-input {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; color: var(--text);
+  font-family: var(--sans); font-size: 13px; outline: none;
+  transition: border-color 0.2s; resize: none; line-height: 1.5;
+}
+.priv-field-input:focus { border-color: rgba(61,232,160,0.4); }
+.priv-field-input::placeholder { color: var(--text3); }
+.priv-char-count { font-size: 10px; color: var(--text3); font-family: var(--mono); float: right; }
+
 </style>
 </head>
 <body>
@@ -4880,40 +5138,119 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 </div>
 <div class="priv-profile-overlay" id="priv-profile-overlay" onclick="closePrivProfileIfBg(event)">
   <div class="priv-profile-modal">
-    <div class="priv-modal-title">🪪 Private Profile</div>
-    <div class="priv-modal-sub">Google ගාවින් independent — device eke විතරක් save වෙනවා</div>
 
-    <!-- Avatar upload -->
-    <div class="priv-avatar-area">
-      <div class="priv-avatar-ring" onclick="document.getElementById('priv-pic-input').click()">
-        <div class="priv-initials" id="priv-av-initials">👤</div>
+    <!-- Title -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="priv-modal-title" style="margin-bottom:0">&#x1FA96; Profile</div>
+      <button onclick="closePrivProfile()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);">Close</button>
+    </div>
+
+    <!-- Cover Photo -->
+    <div class="priv-cover-area" id="priv-cover-area" onclick="privPickCover()">
+      <img id="priv-cover-img" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+      <div id="priv-cover-placeholder" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.4);font-size:13px;font-family:var(--mono);">&#x1F304; Add Cover Photo</div>
+      <div class="priv-cover-overlay">&#x1F4F7;</div>
+    </div>
+    <input type="file" id="priv-cover-input" accept="image/*" style="display:none" onchange="onPrivCoverSelect(this)">
+
+    <!-- Avatar (overlaps cover) -->
+    <div class="priv-avatar-on-cover">
+      <div class="priv-avatar-ring" onclick="document.getElementById('priv-pic-input').click()" style="margin-top:0;">
+        <div class="priv-initials" id="priv-av-initials">&#x1F464;</div>
         <img id="priv-av-img" src="" alt="" style="display:none;position:absolute;inset:0;border-radius:50%;width:90px;height:90px;object-fit:cover;">
-        <div class="priv-avatar-overlay">📷</div>
+        <div class="priv-avatar-overlay">&#x1F4F7;</div>
       </div>
-      <div class="priv-avatar-hint">Tap to upload photo</div>
       <input type="file" id="priv-pic-input" accept="image/*" style="display:none" onchange="onPrivPicSelect(this)">
     </div>
 
-    <!-- Name -->
-    <div class="field" style="margin-bottom:12px">
-      <label>Display Name</label>
-      <input type="text" id="priv-name-input" placeholder="Your name..." maxlength="40">
+    <!-- Live preview -->
+    <div class="priv-preview-card" id="priv-preview-card">
+      <div class="priv-preview-cover" id="priv-preview-cover" style="background:linear-gradient(135deg,var(--accent-dim),rgba(79,163,255,0.12));"></div>
+      <div class="priv-preview-body">
+        <div class="priv-preview-av" id="priv-preview-av">&#x1F464;</div>
+        <div class="priv-preview-name" id="priv-preview-name">Your Name</div>
+        <div class="priv-preview-bio"  id="priv-preview-bio">Your bio...</div>
+        <div style="margin-top:6px;display:flex;gap:10px;">
+          <span style="font-size:11px;color:var(--text3);font-family:var(--mono);" id="priv-preview-location-show"></span>
+          <span style="font-size:11px;color:var(--accent);font-family:var(--mono);" id="priv-preview-website-show"></span>
+        </div>
+      </div>
     </div>
 
-    <!-- Bio -->
-    <div class="field" style="margin-bottom:16px">
-      <label>Bio (optional)</label>
-      <textarea id="priv-bio-input" placeholder="Short bio..." maxlength="80" style="min-height:60px;resize:none"></textarea>
+    <!-- Form fields -->
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+
+      <div>
+        <label class="priv-field-label">Display Name <span class="priv-char-count" id="priv-name-count">0/40</span></label>
+        <input class="priv-field-input" type="text" id="priv-name-input" placeholder="Your name..." maxlength="40"
+          oninput="privLivePreview()">
+      </div>
+
+      <div>
+        <label class="priv-field-label">Bio <span class="priv-char-count" id="priv-bio-count">0/150</span></label>
+        <textarea class="priv-field-input" id="priv-bio-input" placeholder="Tell the world about yourself..." maxlength="150" rows="2"
+          oninput="privLivePreview()"></textarea>
+      </div>
+
+      <div class="priv-field-row">
+        <div>
+          <label class="priv-field-label">&#x1F4CD; Location</label>
+          <input class="priv-field-input" type="text" id="priv-location-input" placeholder="City, Country" maxlength="50"
+            oninput="privLivePreview()">
+        </div>
+        <div>
+          <label class="priv-field-label">&#x1F517; Website</label>
+          <input class="priv-field-input" type="text" id="priv-website-input" placeholder="https://..." maxlength="80"
+            oninput="privLivePreview()">
+        </div>
+      </div>
+
+      <div>
+        <label class="priv-field-label">&#x1F4BC; Work / Occupation</label>
+        <input class="priv-field-input" type="text" id="priv-work-input" placeholder="Job title or company..." maxlength="60">
+      </div>
+
+      <div>
+        <label class="priv-field-label">&#x1F3AB; Interests</label>
+        <input class="priv-field-input" type="text" id="priv-interests-input" placeholder="Music, Travel, Tech..." maxlength="80">
+      </div>
+
+      <!-- Theme color -->
+      <div>
+        <label class="priv-field-label">&#x1F3A8; Profile Color</label>
+        <div class="priv-theme-colors" id="priv-theme-colors">
+          <div class="priv-theme-dot selected" style="background:#3de8a0" data-color="#3de8a0" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#4fa3ff" data-color="#4fa3ff" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#ff7eb3" data-color="#ff7eb3" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#ffb347" data-color="#ffb347" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#c084fc" data-color="#c084fc" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#f87171" data-color="#f87171" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#38c7f0" data-color="#38c7f0" onclick="privSelectColor(this)"></div>
+          <div class="priv-theme-dot" style="background:#facc15" data-color="#facc15" onclick="privSelectColor(this)"></div>
+        </div>
+      </div>
+
+      <!-- Privacy toggle -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">&#x1F30D; Public Profile</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:2px;">Visible to all lobby users</div>
+        </div>
+        <label class="sl-toggle">
+          <input type="checkbox" id="priv-public-toggle" checked>
+          <span class="sl-toggle-slider"></span>
+        </label>
+      </div>
     </div>
 
     <!-- Saved profiles -->
-    <div id="priv-saved-section" style="display:none">
+    <div id="priv-saved-section" style="display:none;margin-top:14px;">
       <div class="priv-saved-label">Saved Profiles</div>
       <div class="priv-profiles-list" id="priv-profiles-list"></div>
     </div>
 
-    <div class="priv-modal-btns">
-      <button class="priv-btn-save" onclick="savePrivProfile()">Save Profile ✓</button>
+    <div class="priv-modal-btns" style="margin-top:16px;">
+      <button class="priv-btn-save" onclick="savePrivProfile()">&#x2713; Save Profile</button>
       <button class="priv-btn-cancel" onclick="closePrivProfile()">Cancel</button>
     </div>
   </div>
@@ -10540,17 +10877,47 @@ console.log('%c SecretLine Full Build loaded &#x2713;', 'color:#3de8a0;font-weig
   <!-- Header -->
   <div class="dm-header">
     <button class="dm-back-btn" onclick="closeDM()">&#x2039; Back</button>
-    <div class="dm-peer-av" id="dm-peer-av">?</div>
-    <div class="dm-peer-info">
+    <div class="dm-peer-av" id="dm-peer-av" onclick="dmViewProfile()" style="cursor:pointer">?</div>
+    <div class="dm-peer-info" onclick="dmViewProfile()" style="cursor:pointer;flex:1;min-width:0;">
       <div class="dm-peer-name" id="dm-peer-name">—</div>
       <div class="dm-peer-status" id="dm-peer-status">
         <span class="dm-online-dot" id="dm-online-dot" style="display:none"></span>
         <span id="dm-status-text">...</span>
       </div>
     </div>
+    <div style="display:flex;gap:5px;flex-shrink:0;">
+      <button class="dm-call-btn" onclick="dmStartCall(false)" title="Voice Call">&#x1F4DE;</button>
+      <button class="dm-call-btn dm-video-btn-hdr" onclick="dmStartCall(true)" title="Video Call">&#x1F4F9;</button>
+      <button class="dm-call-btn" onclick="dmToggleInfo()" id="dm-info-btn">&#x2139;&#xFE0F;</button>
+    </div>
   </div>
 
-  <!-- Messages -->
+  <!-- Info panel -->
+  <div class="dm-info-panel" id="dm-info-panel" style="display:none">
+    <div id="dm-info-peer-card" class="dm-info-peer-card"></div>
+    <div style="display:flex;gap:8px;padding:10px 14px 0;">
+      <button onclick="dmStartCall(false)" class="dm-info-action-btn">&#x1F4DE; Voice</button>
+      <button onclick="dmStartCall(true)"  class="dm-info-action-btn">&#x1F4F9; Video</button>
+      <button onclick="dmViewProfile()"    class="dm-info-action-btn">&#x1F464; Profile</button>
+      <button onclick="dmClearChat()"      class="dm-info-action-btn danger">&#x1F5D1; Clear</button>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--text3);font-family:var(--mono);text-align:center;">
+      &#x1F512; End-to-end encrypted
+    </div>
+  </div>
+
+  <!-- Incoming DM call -->
+  <div class="dm-incoming-call" id="dm-incoming-call" style="display:none">
+    <div class="dm-inc-avatar" id="dm-inc-avatar">&#x1F464;</div>
+    <div class="dm-inc-name"   id="dm-inc-name">—</div>
+    <div class="dm-inc-label"  id="dm-inc-label">Incoming Voice Call</div>
+    <div style="display:flex;gap:16px;margin-top:16px;">
+      <button class="dm-inc-accept"  onclick="dmAcceptCall()">&#x1F4DE;</button>
+      <button class="dm-inc-decline" onclick="dmDeclineCall()">&#x1F4F5;</button>
+    </div>
+  </div>
+
+  <!-- Messages area -->
   <div class="dm-msgs" id="dm-msgs">
     <div class="dm-empty" id="dm-empty">
       <div class="dm-empty-icon">&#x1F4AC;</div>
@@ -10561,21 +10928,75 @@ console.log('%c SecretLine Full Build loaded &#x2713;', 'color:#3de8a0;font-weig
 
   <!-- Typing indicator -->
   <div class="dm-typing" id="dm-typing">
-    <span id="dm-typing-name"></span> is typing...
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <span id="dm-typing-name"></span>&nbsp;typing...
+  </div>
+
+  <!-- Media preview strip -->
+  <div class="dm-preview-strip" id="dm-preview-strip" style="display:none"></div>
+
+  <!-- Reply bar -->
+  <div class="dm-reply-bar" id="dm-reply-bar" style="display:none">
+    <span style="color:var(--accent);font-size:13px;flex-shrink:0;">&#x21A9;</span>
+    <div class="dm-reply-text" id="dm-reply-text"></div>
+    <button onclick="dmClearReply()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0;">&#x2715;</button>
   </div>
 
   <!-- Input bar -->
-  <div class="dm-input-bar">
-    <div class="dm-input-wrap">
+  <div class="dm-input-bar" id="dm-input-bar">
+    <div style="position:relative;flex-shrink:0;">
+      <button class="dm-attach-btn" onclick="dmToggleAttach(event)">&#x1F4CE;</button>
+      <div class="dm-attach-pop" id="dm-attach-pop" style="display:none">
+        <div class="dm-attach-item" onclick="document.getElementById('dm-fi-image').click();dmCloseAttach()">&#x1F5BC;&#xFE0F; Photo</div>
+        <div class="dm-attach-item" onclick="document.getElementById('dm-fi-camera').click();dmCloseAttach()">&#x1F4F8; Camera</div>
+        <div class="dm-attach-item" onclick="document.getElementById('dm-fi-video').click();dmCloseAttach()">&#x1F3AC; Video</div>
+        <div class="dm-attach-item" onclick="document.getElementById('dm-fi-doc').click();dmCloseAttach()">&#x1F4C4; File</div>
+      </div>
+    </div>
+    <input type="file" id="dm-fi-image"  accept="image/*" style="display:none" onchange="dmOnFile(this,'image')">
+    <input type="file" id="dm-fi-camera" accept="image/*" capture="environment" style="display:none" onchange="dmOnFile(this,'image')">
+    <input type="file" id="dm-fi-video"  accept="video/*" style="display:none" onchange="dmOnFile(this,'video')">
+    <input type="file" id="dm-fi-doc"    accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.zip" style="display:none" onchange="dmOnFile(this,'doc')">
+
+    <button class="dm-emoji-btn" onclick="dmToggleEmoji(event)">&#x1F60A;</button>
+    <div class="dm-emoji-pop" id="dm-emoji-pop" style="display:none">
+      <div id="dm-emoji-grid" class="dm-emoji-grid"></div>
+    </div>
+
+    <div class="dm-rec-bar" id="dm-rec-bar" style="display:none;flex:1;align-items:center;gap:8px;background:var(--card);border:1px solid rgba(255,92,92,0.3);border-radius:11px;padding:0 12px;height:44px;">
+      <div class="rec-dot"></div>
+      <div class="rec-timer" id="dm-rec-timer">0:00</div>
+      <div class="rec-wave" id="dm-rec-wave" style="flex:1;display:flex;align-items:center;gap:2px;height:24px;overflow:hidden;"></div>
+      <button onclick="dmCancelVoice()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;">&#x2715;</button>
+    </div>
+
+    <div class="dm-input-wrap" id="dm-ti-wrap">
       <textarea class="dm-textarea" id="dm-textarea"
         placeholder="Message..." rows="1"
         oninput="dmOnInput(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend();}">
       </textarea>
     </div>
+    <button class="mic-btn" id="dm-mic-btn" onclick="dmToggleVoice()" title="Voice message">&#x1F3A4;</button>
     <button class="dm-send-btn" id="dm-send-btn" onclick="dmSend()" disabled>&#x27A4;</button>
   </div>
 
+</div>
+
+<!-- DM Active Call Overlay -->
+<div class="dm-call-overlay" id="dm-call-overlay" style="display:none;position:fixed;inset:0;background:#05070a;z-index:9500;flex-direction:column;align-items:center;justify-content:center;">
+  <video id="dm-remote-video" autoplay playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;"></video>
+  <video id="dm-local-video"  autoplay playsinline muted style="position:absolute;bottom:110px;right:14px;width:90px;height:130px;object-fit:cover;border-radius:12px;border:2px solid rgba(255,255,255,0.2);display:none;z-index:3;"></video>
+  <div class="dm-call-peer-av" id="dm-call-peer-av" style="width:90px;height:90px;border-radius:50%;background:var(--accent-dim);border:2px solid rgba(61,232,160,0.3);display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:16px;z-index:2;">&#x1F464;</div>
+  <div id="dm-call-peer-name" style="font-size:22px;font-weight:700;color:#fff;z-index:2;">—</div>
+  <div id="dm-call-status"    style="font-size:13px;color:rgba(255,255,255,0.5);font-family:var(--mono);margin-top:6px;z-index:2;">Calling...</div>
+  <div id="dm-call-timer"     style="font-size:14px;color:#fff;font-family:var(--mono);margin-top:4px;display:none;z-index:2;">00:00</div>
+  <div class="dm-call-controls" style="position:absolute;bottom:40px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;z-index:4;">
+    <button class="ctrl-btn" id="dm-mute-btn"  onclick="dmToggleMute()">&#x1F3A4;</button>
+    <button class="ctrl-btn end-call"           onclick="dmEndCall()">&#x1F4F5;</button>
+    <button class="ctrl-btn" id="dm-cam-btn"   onclick="dmToggleCam()">&#x1F4F7;</button>
+    <button class="ctrl-btn" id="dm-flip-btn"  onclick="dmFlipCam()" style="display:none;">&#x1F504;</button>
+  </div>
 </div>
 
 <script>
@@ -11726,6 +12147,1137 @@ function lobbyInfiniteScrollInit() {
 setTimeout(lobbyInfiniteScrollInit, 2000);
 
 console.log('%c Lobby v6 FB-Like loaded ✓', 'color:#3de8a0;font-weight:bold;font-size:13px');
+</script>
+
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  SecretLine — DM v2 · Profile v2 · Friends Realtime
+// ═══════════════════════════════════════════════════════
+
+/* ═══════════════════
+   PROFILE v2
+═══════════════════ */
+let _privCoverData    = '';
+let _privSelectedColor = '#3de8a0';
+let _privSocPublic    = true;
+
+window.privPickCover = function() {
+  document.getElementById('priv-cover-input').click();
+};
+
+window.onPrivCoverSelect = function(inp) {
+  const file = inp.files[0]; if (!file) return;
+  if (file.size > 3*1024*1024) { showToast('\u26A0\uFE0F Max 3MB'); return; }
+  const r = new FileReader();
+  r.onload = ev => {
+    _privCoverData = ev.target.result;
+    const img = document.getElementById('priv-cover-img');
+    const ph  = document.getElementById('priv-cover-placeholder');
+    if (img) { img.src = _privCoverData; img.style.display = 'block'; }
+    if (ph)  ph.style.display = 'none';
+    // Update preview
+    const prevCover = document.getElementById('priv-preview-cover');
+    if (prevCover) prevCover.style.background = `url(${_privCoverData}) center/cover no-repeat`;
+  };
+  r.readAsDataURL(file);
+};
+
+window.privSelectColor = function(el) {
+  document.querySelectorAll('.priv-theme-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  _privSelectedColor = el.dataset.color;
+  // Update preview avatar border
+  const prevAv = document.getElementById('priv-preview-av');
+  if (prevAv) { prevAv.style.color = _privSelectedColor; }
+};
+
+window.privLivePreview = function() {
+  const name     = document.getElementById('priv-name-input')?.value || '';
+  const bio      = document.getElementById('priv-bio-input')?.value || '';
+  const location = document.getElementById('priv-location-input')?.value || '';
+  const website  = document.getElementById('priv-website-input')?.value || '';
+
+  // Update char counts
+  const nc = document.getElementById('priv-name-count');
+  const bc = document.getElementById('priv-bio-count');
+  if (nc) nc.textContent = `${name.length}/40`;
+  if (bc) bc.textContent = `${bio.length}/150`;
+
+  // Update preview
+  const pn = document.getElementById('priv-preview-name');
+  const pb = document.getElementById('priv-preview-bio');
+  const pl = document.getElementById('priv-preview-location-show');
+  const pw = document.getElementById('priv-preview-website-show');
+  if (pn) pn.textContent = name || 'Your Name';
+  if (pb) pb.textContent = bio  || 'Your bio...';
+  if (pl) pl.textContent = location ? `\u{1F4CD} ${location}` : '';
+  if (pw) pw.textContent = website ? (website.replace('https://','').replace('http://','').split('/')[0]) : '';
+
+  // Update preview avatar
+  const pa = document.getElementById('priv-preview-av');
+  if (pa && name) {
+    pa.textContent = name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    pa.style.color = _privSelectedColor;
+  }
+};
+
+// Patch openPrivProfile to load new fields
+const _origOpenPriv = window.openPrivProfile;
+window.openPrivProfile = function() {
+  if (_origOpenPriv) _origOpenPriv.apply(this, arguments);
+
+  const active = (() => { try { return JSON.parse(localStorage.getItem('sl_active_profile')||'null'); } catch(e){ return null; } })();
+
+  // Load extra fields
+  if (active) {
+    ['location','website','work','interests'].forEach(field => {
+      const el = document.getElementById(`priv-${field}-input`);
+      if (el && active[field]) el.value = active[field];
+    });
+    // Cover
+    if (active.cover) {
+      _privCoverData = active.cover;
+      const img = document.getElementById('priv-cover-img');
+      const ph  = document.getElementById('priv-cover-placeholder');
+      if (img) { img.src = active.cover; img.style.display = 'block'; }
+      if (ph)  ph.style.display = 'none';
+      const prevCover = document.getElementById('priv-preview-cover');
+      if (prevCover) prevCover.style.background = `url(${active.cover}) center/cover no-repeat`;
+    }
+    // Color
+    if (active.color) {
+      _privSelectedColor = active.color;
+      document.querySelectorAll('.priv-theme-dot').forEach(d => {
+        d.classList.toggle('selected', d.dataset.color === active.color);
+      });
+    }
+    // Public toggle
+    const tog = document.getElementById('priv-public-toggle');
+    if (tog) tog.checked = active.public !== false;
+  }
+
+  privLivePreview();
+};
+
+// Patch savePrivProfile to include new fields
+const _origSavePriv = window.savePrivProfile;
+window.savePrivProfile = function() {
+  // Add extra fields before saving
+  const extraFields = ['location','website','work','interests'];
+  extraFields.forEach(field => {
+    const el = document.getElementById(`priv-${field}-input`);
+    if (!el) return;
+    // Store in a temp place, orig save fn will pick it up via localStorage override below
+  });
+
+  // Actually we patch localStorage after orig saves
+  if (_origSavePriv) _origSavePriv.apply(this, arguments);
+
+  // Enhance the saved profile with new fields
+  try {
+    const active = JSON.parse(localStorage.getItem('sl_active_profile')||'null');
+    if (!active) return;
+
+    active.cover     = _privCoverData || active.cover || '';
+    active.color     = _privSelectedColor || active.color || '#3de8a0';
+    active.location  = document.getElementById('priv-location-input')?.value?.trim() || '';
+    active.website   = document.getElementById('priv-website-input')?.value?.trim() || '';
+    active.work      = document.getElementById('priv-work-input')?.value?.trim() || '';
+    active.interests = document.getElementById('priv-interests-input')?.value?.trim() || '';
+    active.public    = document.getElementById('priv-public-toggle')?.checked !== false;
+
+    localStorage.setItem('sl_active_profile', JSON.stringify(active));
+
+    // Also update the saved profiles list
+    const PRIV_KEY = 'sl_private_profiles';
+    const list = JSON.parse(localStorage.getItem(PRIV_KEY)||'[]');
+    const idx  = list.findIndex(p => p.id === active.id);
+    if (idx >= 0) list[idx] = active;
+    localStorage.setItem(PRIV_KEY, JSON.stringify(list));
+
+    // Update social presence with new profile data
+    if (window.__db && window.__fbx && window._socUserId) {
+      const { ref, set } = window.__fbx;
+      set(ref(window.__db, `social/presence/${window._socUserId}`), {
+        name:      active.name,
+        photo:     active.photo || '',
+        cover:     active.cover || '',
+        color:     active.color || '#3de8a0',
+        bio:       active.bio || '',
+        location:  active.location || '',
+        website:   active.website || '',
+        work:      active.work || '',
+        interests: active.interests || '',
+        ts: Date.now()
+      }).catch(() => {});
+    }
+
+    // Update window state
+    window._socName  = active.name;
+    window._socPhoto = active.photo || '';
+    window._socColor = active.color || '#3de8a0';
+
+    showToast('\u2705 Profile updated!');
+  } catch(e) { console.error('Profile save extra:', e); }
+};
+
+
+/* ═══════════════════
+   FRIENDS REALTIME
+═══════════════════ */
+let _frRealtimeUnsub = null;
+
+window.socStartFriendsRealtime = function() {
+  if (!window.__db || !window.__fbx || !window._socUserId) {
+    setTimeout(socStartFriendsRealtime, 1000); return;
+  }
+  if (_frRealtimeUnsub) return; // already listening
+
+  const { ref, onValue } = window.__fbx;
+  const db = window.__db;
+
+  // Listen to my friends list in Firebase
+  _frRealtimeUnsub = onValue(ref(db, `social/friends/${window._socUserId}`), snap => {
+    const friendsData = snap.val() || {};
+    // Update localStorage friends
+    const local = {};
+    Object.entries(friendsData).forEach(([uid, f]) => {
+      local[uid] = { name: f.name||'?', photo: f.photo||'', ts: f.ts||Date.now() };
+    });
+    localStorage.setItem('soc_friends', JSON.stringify(local));
+
+    // Update badge counts
+    const count = Object.keys(friendsData).length;
+    // If friends panel open and on friends tab, refresh
+    const panel = document.getElementById('soc-friends-panel');
+    if (panel?.classList.contains('open') && window.socFriendsTab === 'friends') {
+      socRenderFriendsListRT(friendsData);
+    }
+  });
+
+  // Also listen to online status of friends
+  onValue(ref(db, `social/presence`), snap => {
+    const presence = snap.val() || {};
+    window._lobbyPresenceData = presence;
+
+    // Update friend rows in panel if open
+    const panel = document.getElementById('soc-friends-panel');
+    if (panel?.classList.contains('open') && window.socFriendsTab === 'friends') {
+      document.querySelectorAll('.soc-fr-row[data-uid]').forEach(row => {
+        const uid = row.dataset.uid;
+        const online = !!presence[uid];
+        const led = row.querySelector('.soc-fr-online-badge');
+        if (led) led.style.display = online ? 'block' : 'none';
+        const sub = row.querySelector('.soc-fr-last-seen');
+        if (sub) sub.textContent = online ? 'Online now' : '';
+      });
+    }
+  });
+};
+
+function socRenderFriendsListRT(friendsData) {
+  const body = document.getElementById('soc-friends-body');
+  if (!body) return;
+  body.innerHTML = '';
+
+  const entries = Object.entries(friendsData);
+  if (!entries.length) {
+    const e = document.createElement('div');
+    e.className = 'soc-friends-empty';
+    e.textContent = 'No friends yet. Send friend requests!';
+    body.appendChild(e);
+    return;
+  }
+
+  const presence = window._lobbyPresenceData || {};
+
+  entries.sort(([ua,],[ub,]) => {
+    // Online friends first
+    const ao = !!presence[ua], bo = !!presence[ub];
+    if (ao !== bo) return ao ? -1 : 1;
+    return 0;
+  }).forEach(([uid, f]) => {
+    const online = !!presence[uid];
+    const row = document.createElement('div');
+    row.className = 'soc-friend-row';
+    row.dataset.uid = uid;
+
+    // Avatar
+    const av = document.createElement('div');
+    av.className = 'soc-fr-av';
+    if (f.photo) { const img=document.createElement('img'); img.src=f.photo; av.appendChild(img); }
+    else { av.textContent=(f.name||'?').slice(0,2).toUpperCase(); av.style.color='#3de8a0'; }
+
+    // Info
+    const inf = document.createElement('div'); inf.className='soc-fr-info'; inf.style.flex='1';
+    const nm  = document.createElement('div'); nm.className='soc-fr-name'; nm.textContent=f.name||'?';
+    const sub = document.createElement('div');
+    sub.className = 'soc-fr-last-seen';
+    sub.textContent = online ? 'Online now' : '';
+    inf.appendChild(nm); inf.appendChild(sub);
+
+    // Online badge
+    const led = document.createElement('div');
+    led.className = 'soc-fr-online-badge';
+    led.style.display = online ? 'block' : 'none';
+
+    // Action buttons
+    const actions = document.createElement('div'); actions.className='soc-fr-actions';
+
+    const dmBtn = document.createElement('button');
+    dmBtn.className = 'soc-fr-btn primary';
+    dmBtn.innerHTML = '&#x1F4AC;';
+    dmBtn.title = 'Message';
+    dmBtn.onclick = () => {
+      closeFriendsPanel();
+      openDM({ uid, name: f.name||'?', photo: f.photo||'', color: f.color||'#3de8a0' });
+    };
+
+    const callBtn = document.createElement('button');
+    callBtn.className = 'soc-fr-btn';
+    callBtn.innerHTML = '&#x1F4DE;';
+    callBtn.title = 'Voice Call';
+    callBtn.onclick = () => {
+      closeFriendsPanel();
+      openDM({ uid, name: f.name||'?', photo: f.photo||'', color: f.color||'#3de8a0' });
+      setTimeout(() => dmStartCall(false), 500);
+    };
+
+    const videoBtn = document.createElement('button');
+    videoBtn.className = 'soc-fr-btn';
+    videoBtn.innerHTML = '&#x1F4F9;';
+    videoBtn.title = 'Video Call';
+    videoBtn.onclick = () => {
+      closeFriendsPanel();
+      openDM({ uid, name: f.name||'?', photo: f.photo||'', color: f.color||'#3de8a0' });
+      setTimeout(() => dmStartCall(true), 500);
+    };
+
+    const profBtn = document.createElement('button');
+    profBtn.className = 'soc-fr-btn';
+    profBtn.innerHTML = '&#x1F464;';
+    profBtn.title = 'View Profile';
+    profBtn.onclick = () => {
+      const pres = (window._lobbyPresenceData||{})[uid] || f;
+      socShowProfile({ uid, ...pres });
+    };
+
+    actions.appendChild(dmBtn);
+    actions.appendChild(callBtn);
+    actions.appendChild(videoBtn);
+    actions.appendChild(profBtn);
+
+    row.appendChild(av); row.appendChild(inf); row.appendChild(led); row.appendChild(actions);
+    body.appendChild(row);
+  });
+}
+
+// Patch openFriendsPanel to use realtime render
+const _origOpenFriends = window.openFriendsPanel;
+window.openFriendsPanel = function() {
+  if (_origOpenFriends) _origOpenFriends.apply(this, arguments);
+  // Start realtime if not already running
+  if (!_frRealtimeUnsub) socStartFriendsRealtime();
+};
+
+// Patch switchFTab to use RT friends render
+const _origSwitchFTab = window.switchFTab;
+window.switchFTab = function(tab) {
+  if (_origSwitchFTab) _origSwitchFTab(tab);
+  if (tab === 'friends') {
+    // Render from Firebase realtime data
+    if (window.__db && window.__fbx) {
+      const { ref, get } = window.__fbx;
+      get(ref(window.__db, `social/friends/${window._socUserId}`)).then(snap => {
+        socRenderFriendsListRT(snap.val() || {});
+      }).catch(() => {});
+    }
+  }
+};
+
+
+/* ═══════════════════
+   DM v2 - CALLS
+═══════════════════ */
+let _dmCallPc       = null;
+let _dmCallStream   = null;
+let _dmCallType     = null;   // 'voice' | 'video'
+let _dmCallRole     = null;   // 'caller' | 'callee'
+let _dmCallTimerInt = null;
+let _dmCallSecs     = 0;
+let _dmIsMuted      = false;
+let _dmIsCamOff     = false;
+let _dmIsFrontCam   = true;
+let _dmCallSigUnsub = null;
+let _dmPendingOffer = null;
+
+const DM_ICE = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+]};
+
+function dmSigPath() {
+  if (!dmRoomId) return null;
+  return `social/dm/${dmRoomId}/call_signal`;
+}
+
+function dmShowCallOverlay(show) {
+  const ov = document.getElementById('dm-call-overlay');
+  if (ov) ov.style.display = show ? 'flex' : 'none';
+}
+
+function dmUpdateCallUI(peerName, peerPhoto, status) {
+  const nameEl   = document.getElementById('dm-call-peer-name');
+  const statusEl = document.getElementById('dm-call-status');
+  const avEl     = document.getElementById('dm-call-peer-av');
+  if (nameEl)   nameEl.textContent = peerName || '—';
+  if (statusEl) statusEl.textContent = status || 'Calling...';
+  if (avEl) {
+    avEl.innerHTML = '';
+    if (peerPhoto) {
+      const img = document.createElement('img');
+      img.src = peerPhoto;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+      avEl.appendChild(img);
+    } else {
+      avEl.textContent = (peerName||'?').slice(0,2).toUpperCase();
+    }
+  }
+}
+
+function dmStartCallTimer() {
+  _dmCallSecs = 0;
+  document.getElementById('dm-call-timer').style.display = 'block';
+  clearInterval(_dmCallTimerInt);
+  _dmCallTimerInt = setInterval(() => {
+    _dmCallSecs++;
+    const m = String(Math.floor(_dmCallSecs/60)).padStart(2,'0');
+    const s = String(_dmCallSecs%60).padStart(2,'0');
+    const el = document.getElementById('dm-call-timer');
+    if (el) el.textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+window.dmStartCall = async function(withVideo) {
+  if (!dmRoomId) { showToast('\u26A0\uFE0F Open a DM first'); return; }
+  if (_dmCallPc)  { showToast('\u26A0\uFE0F Already in a call'); return; }
+  if (!window.isSecureContext) { showToast('\u274C HTTPS required for calls'); return; }
+
+  _dmCallType = withVideo ? 'video' : 'voice';
+  _dmCallRole = 'caller';
+  _dmIsFrontCam = true;
+
+  try {
+    _dmCallStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+      video: withVideo ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } : false
+    });
+  } catch(e) {
+    showToast('\u274C Mic/camera access denied');
+    return;
+  }
+
+  dmShowCallOverlay(true);
+  dmUpdateCallUI(dmPeer?.name, dmPeer?.photo, 'Ringing...');
+  document.getElementById('dm-call-status').textContent = 'Ringing...';
+
+  if (withVideo) {
+    const lv = document.getElementById('dm-local-video');
+    if (lv) { lv.srcObject = _dmCallStream; lv.style.display = 'block'; }
+    document.getElementById('dm-flip-btn').style.display = 'flex';
+  }
+
+  _dmCallPc = new RTCPeerConnection(DM_ICE);
+  _dmCallStream.getTracks().forEach(t => _dmCallPc.addTrack(t, _dmCallStream));
+
+  _dmCallPc.ontrack = ev => {
+    const rv = document.getElementById('dm-remote-video');
+    if (rv && ev.streams[0]) { rv.srcObject = ev.streams[0]; rv.style.display = withVideo ? 'block' : 'none'; }
+    document.getElementById('dm-call-status').textContent = 'Connected ✓';
+    dmStartCallTimer();
+  };
+
+  _dmCallPc.onconnectionstatechange = () => {
+    if (['disconnected','failed','closed'].includes(_dmCallPc?.connectionState)) dmEndCall();
+  };
+
+  const { ref, set, push, onValue, remove } = window.__fbx;
+  const db = window.__db;
+
+  _dmCallPc.onicecandidate = ev => {
+    if (ev.candidate && dmSigPath()) {
+      push(ref(db, dmSigPath() + '/candidates_caller'), ev.candidate.toJSON());
+    }
+  };
+
+  const offer = await _dmCallPc.createOffer();
+  await _dmCallPc.setLocalDescription(offer);
+  await set(ref(db, dmSigPath()), {
+    type: 'offer', callType: _dmCallType,
+    offer: { type: offer.type, sdp: offer.sdp },
+    callerName: window._socName||'?',
+    callerPhoto: window._socPhoto||'',
+    callerUid: window._socUserId
+  });
+
+  // Listen for answer
+  _dmCallSigUnsub = onValue(ref(db, dmSigPath()), async snap => {
+    const data = snap.val();
+    if (!data || !_dmCallPc) return;
+    if (data.type === 'answer' && _dmCallPc.signalingState === 'have-local-offer') {
+      await _dmCallPc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      // Listen ICE from callee
+      onValue(ref(db, dmSigPath() + '/candidates_callee'), s => {
+        if (!s.exists() || !_dmCallPc) return;
+        s.forEach(child => {
+          const c = child.val();
+          if (c && _dmCallPc.remoteDescription) {
+            _dmCallPc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+          }
+        });
+      });
+    }
+    if (data.type === 'declined') { showToast('\u1F4F5 Call declined'); dmEndCall(true); }
+  });
+};
+
+// Listen for incoming DM calls
+window.dmListenCalls = function() {
+  if (!dmRoomId || !window.__fbx || !window.__db) return;
+  const { ref, onValue } = window.__fbx;
+  const db = window.__db;
+
+  onValue(ref(db, dmSigPath()), async snap => {
+    const data = snap.val();
+    if (!data) return;
+
+    if (data.type === 'offer' && !_dmCallPc && data.callerUid !== window._socUserId) {
+      _dmPendingOffer = data;
+      // Show incoming call UI
+      const inc = document.getElementById('dm-incoming-call');
+      const incN = document.getElementById('dm-inc-name');
+      const incL = document.getElementById('dm-inc-label');
+      const incA = document.getElementById('dm-inc-avatar');
+      if (inc) inc.style.display = 'block';
+      if (incN) incN.textContent = data.callerName || '?';
+      if (incL) incL.textContent = data.callType === 'video' ? '\u{1F4F9} Incoming Video Call' : '\u{1F4DE} Incoming Voice Call';
+      if (incA) {
+        if (data.callerPhoto) {
+          incA.innerHTML = `<img src="${data.callerPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+          incA.textContent = (data.callerName||'?').slice(0,2).toUpperCase();
+        }
+      }
+    }
+  });
+};
+
+window.dmAcceptCall = async function() {
+  if (!_dmPendingOffer) return;
+  document.getElementById('dm-incoming-call').style.display = 'none';
+
+  const data = _dmPendingOffer;
+  _dmPendingOffer = null;
+  _dmCallType = data.callType || 'voice';
+  _dmCallRole = 'callee';
+  const withVideo = _dmCallType === 'video';
+
+  try {
+    _dmCallStream = await navigator.mediaDevices.getUserMedia({
+      audio: true, video: withVideo
+    });
+  } catch(e) { showToast('\u274C Mic access denied'); return; }
+
+  dmShowCallOverlay(true);
+  dmUpdateCallUI(data.callerName, data.callerPhoto, 'Connecting...');
+
+  if (withVideo) {
+    const lv = document.getElementById('dm-local-video');
+    if (lv) { lv.srcObject = _dmCallStream; lv.style.display = 'block'; }
+  }
+
+  _dmCallPc = new RTCPeerConnection(DM_ICE);
+  _dmCallStream.getTracks().forEach(t => _dmCallPc.addTrack(t, _dmCallStream));
+
+  _dmCallPc.ontrack = ev => {
+    const rv = document.getElementById('dm-remote-video');
+    if (rv && ev.streams[0]) { rv.srcObject = ev.streams[0]; rv.style.display = withVideo ? 'block' : 'none'; }
+    document.getElementById('dm-call-status').textContent = 'Connected ✓';
+    dmStartCallTimer();
+  };
+
+  _dmCallPc.onconnectionstatechange = () => {
+    if (['disconnected','failed','closed'].includes(_dmCallPc?.connectionState)) dmEndCall();
+  };
+
+  const { ref, set, push, onValue } = window.__fbx;
+  const db = window.__db;
+
+  _dmCallPc.onicecandidate = ev => {
+    if (ev.candidate && dmSigPath()) {
+      push(ref(db, dmSigPath() + '/candidates_callee'), ev.candidate.toJSON());
+    }
+  };
+
+  await _dmCallPc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+  // Listen ICE from caller
+  onValue(ref(db, dmSigPath() + '/candidates_caller'), s => {
+    if (!s.exists() || !_dmCallPc) return;
+    s.forEach(child => {
+      const c = child.val();
+      if (c && _dmCallPc.remoteDescription) {
+        _dmCallPc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+      }
+    });
+  });
+
+  const answer = await _dmCallPc.createAnswer();
+  await _dmCallPc.setLocalDescription(answer);
+  await set(ref(db, dmSigPath()), {
+    type: 'answer',
+    answer: { type: answer.type, sdp: answer.sdp }
+  });
+};
+
+window.dmDeclineCall = function() {
+  document.getElementById('dm-incoming-call').style.display = 'none';
+  if (dmSigPath() && window.__fbx) {
+    const { ref, set } = window.__fbx;
+    set(ref(window.__db, dmSigPath()), { type: 'declined' }).catch(()=>{});
+  }
+  _dmPendingOffer = null;
+};
+
+window.dmEndCall = async function(skipFb) {
+  clearInterval(_dmCallTimerInt);
+  _dmCallTimerInt = null; _dmCallSecs = 0;
+
+  if (!skipFb && dmSigPath() && window.__fbx) {
+    const { ref, remove } = window.__fbx;
+    remove(ref(window.__db, dmSigPath())).catch(()=>{});
+  }
+
+  if (_dmCallPc) { _dmCallPc.close(); _dmCallPc = null; }
+  if (_dmCallStream) { _dmCallStream.getTracks().forEach(t => t.stop()); _dmCallStream = null; }
+  if (_dmCallSigUnsub) { _dmCallSigUnsub(); _dmCallSigUnsub = null; }
+
+  const rv = document.getElementById('dm-remote-video');
+  const lv = document.getElementById('dm-local-video');
+  if (rv) { rv.srcObject = null; rv.style.display = 'none'; }
+  if (lv) { lv.srcObject = null; lv.style.display = 'none'; }
+
+  document.getElementById('dm-call-timer').style.display = 'none';
+  document.getElementById('dm-flip-btn').style.display   = 'none';
+  document.getElementById('dm-incoming-call').style.display = 'none';
+  dmShowCallOverlay(false);
+
+  _dmCallType = null; _dmCallRole = null;
+  _dmIsMuted = false; _dmIsCamOff = false;
+  document.getElementById('dm-mute-btn').textContent = '\u{1F3A4}';
+  document.getElementById('dm-cam-btn').textContent  = '\u{1F4F7}';
+};
+
+window.dmToggleMute = function() {
+  if (!_dmCallStream) return;
+  _dmIsMuted = !_dmIsMuted;
+  _dmCallStream.getAudioTracks().forEach(t => t.enabled = !_dmIsMuted);
+  const btn = document.getElementById('dm-mute-btn');
+  if (btn) btn.textContent = _dmIsMuted ? '\u{1F507}' : '\u{1F3A4}';
+};
+
+window.dmToggleCam = function() {
+  if (!_dmCallStream) return;
+  const vt = _dmCallStream.getVideoTracks();
+  if (!vt.length) return;
+  _dmIsCamOff = !_dmIsCamOff;
+  vt.forEach(t => t.enabled = !_dmIsCamOff);
+  const btn = document.getElementById('dm-cam-btn');
+  if (btn) btn.textContent = _dmIsCamOff ? '\u{1F4F5}' : '\u{1F4F7}';
+};
+
+window.dmFlipCam = async function() {
+  if (!_dmCallStream || _dmCallType !== 'video') return;
+  _dmIsFrontCam = !_dmIsFrontCam;
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      audio: false, video: { facingMode: _dmIsFrontCam ? 'user' : 'environment' }
+    });
+    const newVT = newStream.getVideoTracks()[0];
+    const senders = _dmCallPc?.getSenders().filter(s => s.track?.kind === 'video') || [];
+    await Promise.all(senders.map(s => s.replaceTrack(newVT)));
+    _dmCallStream.getVideoTracks().forEach(t => t.stop());
+    const lv = document.getElementById('dm-local-video');
+    if (lv) lv.srcObject = new MediaStream([newVT, ..._dmCallStream.getAudioTracks()]);
+    showToast(_dmIsFrontCam ? '\u{1F933} Front camera' : '\u{1F4F7} Rear camera');
+  } catch(e) {
+    _dmIsFrontCam = !_dmIsFrontCam;
+    showToast('\u274C Cannot switch camera');
+  }
+};
+
+
+/* ═══════════════════
+   DM v2 - MEDIA SEND
+═══════════════════ */
+let _dmPendingFiles = [];
+let _dmReplyTo      = null;
+
+window.dmViewProfile = function() {
+  if (!dmPeer) return;
+  const pres = (window._lobbyPresenceData||{})[dmPeer.uid] || dmPeer;
+  socShowProfile({ uid: dmPeer.uid, ...pres });
+};
+
+window.dmToggleInfo = function() {
+  const panel  = document.getElementById('dm-info-panel');
+  const btn    = document.getElementById('dm-info-btn');
+  if (!panel) return;
+  const open = panel.style.display === 'none' || !panel.style.display;
+  panel.style.display = open ? 'block' : 'none';
+  // Fill peer card
+  if (open && dmPeer) {
+    const card = document.getElementById('dm-info-peer-card');
+    if (card) {
+      const pres = (window._lobbyPresenceData||{})[dmPeer.uid] || dmPeer;
+      const color = pres.color || dmPeer.color || '#3de8a0';
+      card.innerHTML = '';
+      // Avatar
+      const av = document.createElement('div');
+      av.style.cssText = 'width:48px;height:48px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-family:var(--mono);overflow:hidden;flex-shrink:0;';
+      if (pres.photo || dmPeer.photo) {
+        const img=document.createElement('img'); img.src=pres.photo||dmPeer.photo;
+        img.style.cssText='width:100%;height:100%;object-fit:cover;'; av.appendChild(img);
+      } else {
+        av.textContent=(dmPeer.name||'?').slice(0,2).toUpperCase(); av.style.color=color;
+      }
+      // Info
+      const info = document.createElement('div');
+      info.innerHTML = `<div style="font-size:14px;font-weight:700;">${window.escHtml?window.escHtml(dmPeer.name||'?'):(dmPeer.name||'?')}</div>
+        ${pres.bio?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">${pres.bio}</div>`:''}
+        ${pres.location?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono);">&#x1F4CD; ${pres.location}</div>`:''}`;
+      card.appendChild(av); card.appendChild(info);
+    }
+  }
+};
+
+window.dmClearChat = function() {
+  if (!confirm('Clear all messages in this DM?')) return;
+  if (!dmRoomId || !window.__fbx) return;
+  const { ref, remove } = window.__fbx;
+  remove(ref(window.__db, `social/dm/${dmRoomId}/messages`))
+    .then(() => {
+      document.getElementById('dm-msgs').innerHTML = '';
+      document.getElementById('dm-empty').style.display = 'flex';
+      showToast('\u{1F5D1} Chat cleared');
+    });
+};
+
+window.dmToggleAttach = function(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('dm-attach-pop');
+  if (pop) pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
+};
+
+window.dmCloseAttach = function() {
+  const pop = document.getElementById('dm-attach-pop');
+  if (pop) pop.style.display = 'none';
+};
+
+document.addEventListener('click', () => {
+  document.getElementById('dm-attach-pop')?.style && (document.getElementById('dm-attach-pop').style.display = 'none');
+  document.getElementById('dm-emoji-pop')?.style && (document.getElementById('dm-emoji-pop').style.display = 'none');
+});
+
+window.dmOnFile = function(inp, type) {
+  Array.from(inp.files||[]).forEach(file => {
+    if (file.size > 50*1024*1024) { showToast('\u26A0\uFE0F Max 50MB'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const mType = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'doc';
+      _dmPendingFiles.push({ mType, dataUrl: ev.target.result, name: file.name, size: file.size });
+      dmUpdatePreviewStrip();
+    };
+    reader.readAsDataURL(file);
+  });
+  inp.value = '';
+};
+
+function dmUpdatePreviewStrip() {
+  const strip = document.getElementById('dm-preview-strip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  strip.style.display = _dmPendingFiles.length ? 'flex' : 'none';
+  _dmPendingFiles.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'dm-prev-item';
+    if (f.mType === 'image') {
+      item.innerHTML = `<img class="dm-prev-thumb" src="${f.dataUrl}"><button class="dm-prev-rm" onclick="dmRmFile(${i})">\u2715</button>`;
+    } else {
+      const ext = f.name.split('.').pop().toUpperCase();
+      item.innerHTML = `<div class="dm-prev-doc"><span>\u{1F4C4}</span><small>${ext}</small></div><button class="dm-prev-rm" onclick="dmRmFile(${i})">\u2715</button>`;
+    }
+    strip.appendChild(item);
+  });
+}
+
+window.dmRmFile = function(i) {
+  _dmPendingFiles.splice(i, 1);
+  dmUpdatePreviewStrip();
+};
+
+// DM Reply
+window.dmReply = function(key, senderName, text) {
+  _dmReplyTo = { key, senderName, text };
+  const bar = document.getElementById('dm-reply-bar');
+  const txt = document.getElementById('dm-reply-text');
+  if (bar) bar.style.display = 'flex';
+  if (txt) txt.textContent = `${senderName}: ${text.slice(0,60)}`;
+  document.getElementById('dm-textarea')?.focus();
+};
+
+window.dmClearReply = function() {
+  _dmReplyTo = null;
+  const bar = document.getElementById('dm-reply-bar');
+  if (bar) bar.style.display = 'none';
+};
+
+// Patch dmSend to include media files + reply
+const _origDmSend = window.dmSend;
+window.dmSend = function() {
+  // Send pending files
+  if (_dmPendingFiles.length > 0) {
+    if (!dmRoomId || !window.__fbx) return;
+    const { ref, push, set } = window.__fbx;
+    const db = window.__db;
+    _dmPendingFiles.forEach(f => {
+      push(ref(db, `social/dm/${dmRoomId}/messages`), {
+        type: f.mType, dataUrl: f.dataUrl, fileName: f.name, fileSize: f.size,
+        senderId: window._socUserId, senderName: window._socName||'?',
+        senderPhoto: window._socPhoto||'', ts: Date.now(), seen: false
+      });
+    });
+    _dmPendingFiles = [];
+    dmUpdatePreviewStrip();
+    // Update lastMsg
+    set(ref(db, `social/dm/${dmRoomId}/lastMsg`), { text: '\u{1F5BC} Photo', ts: Date.now(), senderId: window._socUserId });
+    return;
+  }
+
+  // Include reply in message
+  if (_dmReplyTo && window.__fbx && dmRoomId) {
+    const ta = document.getElementById('dm-textarea');
+    const text = (ta?.value||'').trim();
+    if (!text) return;
+    ta.value = ''; ta.style.height = 'auto';
+    document.getElementById('dm-send-btn').disabled = true;
+    const { ref, push, set } = window.__fbx;
+    push(ref(window.__db, `social/dm/${dmRoomId}/messages`), {
+      text, senderId: window._socUserId, senderName: window._socName||'?',
+      senderPhoto: window._socPhoto||'', ts: Date.now(), seen: false,
+      replyTo: _dmReplyTo
+    });
+    set(ref(window.__db, `social/dm/${dmRoomId}/lastMsg`), { text: text.slice(0,60), ts: Date.now(), senderId: window._socUserId });
+    dmClearReply();
+    document.getElementById('dm-send-btn').disabled = false;
+    return;
+  }
+
+  if (_origDmSend) _origDmSend.apply(this, arguments);
+};
+
+/* ═══════════════════
+   DM v2 - EMOJI
+═══════════════════ */
+const DM_EMOJIS = [
+  '\u{1F600}','\u{1F603}','\u{1F604}','\u{1F601}','\u{1F606}','\u{1F605}','\u{1F923}','\u{1F602}',
+  '\u{1F642}','\u{1F643}','\u{1F609}','\u{1F60A}','\u{1F607}','\u{1F970}','\u{1F60D}','\u{1F929}',
+  '\u{1F618}','\u{1F617}','\u{1F619}','\u{1F61A}','\u263A}','\u{1F972}','\u{1F60B}','\u{1F61B}',
+  '\u{1F61C}','\u{1F92A}','\u{1F61D}','\u{1F911}','\u{1F917}','\u{1F92D}','\u{1F92B}','\u{1F914}',
+  '\u{1F910}','\u{1F928}','\u{1F925}','\u{1F60F}','\u{1F612}','\u{1F644}','\u{1F62C}','\u{1F62E}',
+  '\u2764\uFE0F','\u{1F9E1}','\u{1F49B}','\u{1F49A}','\u{1F499}','\u{1F49C}','\u{1F5A4}','\u{1F90D}',
+  '\u{1F44D}','\u{1F44E}','\u{1F44F}','\u{1F91D}','\u{1F64F}','\u{1F44A}','\u{1F4AA}','\u{1F91E}',
+  '\u{1F525}','\u2B50','\u{1F4AB}','\u{1F4A5}','\u{1F4A6}','\u{1F389}','\u{1F38A}','\u{1F381}',
+];
+
+window.dmToggleEmoji = function(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('dm-emoji-pop');
+  if (!pop) return;
+  const open = pop.style.display === 'none' || !pop.style.display;
+  pop.style.display = open ? 'block' : 'none';
+  if (open && !pop.dataset.built) {
+    pop.dataset.built = '1';
+    const grid = document.getElementById('dm-emoji-grid');
+    if (grid) {
+      DM_EMOJIS.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.className = 'dm-emoji-btn-item';
+        btn.textContent = emoji;
+        btn.onclick = () => {
+          const ta = document.getElementById('dm-textarea');
+          if (ta) {
+            const pos = ta.selectionStart || ta.value.length;
+            ta.value = ta.value.slice(0,pos) + emoji + ta.value.slice(pos);
+            ta.selectionStart = ta.selectionEnd = pos + emoji.length;
+            ta.focus();
+            dmOnInput(ta);
+          }
+          pop.style.display = 'none';
+        };
+        grid.appendChild(btn);
+      });
+    }
+  }
+};
+
+
+/* ═══════════════════
+   DM v2 - VOICE MSG
+═══════════════════ */
+let _dmMediaRec     = null;
+let _dmVoiceChunks  = [];
+let _dmVoiceSecs    = 0;
+let _dmVoiceTimer   = null;
+let _dmVoiceStream  = null;
+let _dmIsRecording  = false;
+let _dmVoiceAnimFr  = null;
+
+window.dmToggleVoice = async function() {
+  if (_dmIsRecording) {
+    dmStopVoice();
+  } else {
+    await dmStartVoice();
+  }
+};
+
+async function dmStartVoice() {
+  try {
+    _dmVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) { showToast('\u274C Mic access denied'); return; }
+
+  _dmVoiceChunks = []; _dmVoiceSecs = 0; _dmIsRecording = true;
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+  _dmMediaRec = new MediaRecorder(_dmVoiceStream, { mimeType });
+  _dmMediaRec.ondataavailable = e => { if (e.data.size > 0) _dmVoiceChunks.push(e.data); };
+  _dmMediaRec.onstop = () => dmSendVoiceMsg(mimeType, _dmVoiceSecs);
+  _dmMediaRec.start(100);
+
+  document.getElementById('dm-ti-wrap').style.display = 'none';
+  document.getElementById('dm-rec-bar').style.display = 'flex';
+  document.getElementById('dm-mic-btn').classList.add('recording');
+
+  // Build wave bars
+  const wave = document.getElementById('dm-rec-wave');
+  if (wave) {
+    wave.innerHTML = '';
+    for (let i=0; i<20; i++) {
+      const b = document.createElement('div');
+      b.className = 'rec-wave-bar'; b.style.height = '4px'; wave.appendChild(b);
+    }
+  }
+
+  _dmVoiceTimer = setInterval(() => {
+    _dmVoiceSecs++;
+    const m = Math.floor(_dmVoiceSecs/60), s = String(_dmVoiceSecs%60).padStart(2,'0');
+    const el = document.getElementById('dm-rec-timer');
+    if (el) el.textContent = `${m}:${s}`;
+    if (_dmVoiceSecs >= 300) dmStopVoice();
+  }, 1000);
+}
+
+function dmStopVoice() {
+  if (!_dmIsRecording) return;
+  _dmIsRecording = false;
+  clearInterval(_dmVoiceTimer);
+  if (_dmMediaRec?.state !== 'inactive') _dmMediaRec.stop();
+  if (_dmVoiceStream) { _dmVoiceStream.getTracks().forEach(t => t.stop()); _dmVoiceStream = null; }
+  dmResetVoiceUI();
+}
+
+window.dmCancelVoice = function() {
+  _dmIsRecording = false;
+  clearInterval(_dmVoiceTimer);
+  if (_dmMediaRec?.state !== 'inactive') { _dmMediaRec.ondataavailable=null; _dmMediaRec.onstop=null; _dmMediaRec.stop(); }
+  if (_dmVoiceStream) { _dmVoiceStream.getTracks().forEach(t => t.stop()); _dmVoiceStream = null; }
+  _dmVoiceChunks = [];
+  dmResetVoiceUI();
+  showToast('\u{1F5D1} Voice message cancelled');
+};
+
+function dmResetVoiceUI() {
+  document.getElementById('dm-ti-wrap').style.display = '';
+  document.getElementById('dm-rec-bar').style.display = 'none';
+  document.getElementById('dm-mic-btn').classList.remove('recording');
+  document.getElementById('dm-rec-timer').textContent = '0:00';
+}
+
+async function dmSendVoiceMsg(mimeType, duration) {
+  if (!_dmVoiceChunks.length) return;
+  const blob = new Blob(_dmVoiceChunks, { type: mimeType });
+  _dmVoiceChunks = [];
+  const reader = new FileReader();
+  reader.onload = ev => {
+    if (!dmRoomId || !window.__fbx) return;
+    const { ref, push, set } = window.__fbx;
+    push(ref(window.__db, `social/dm/${dmRoomId}/messages`), {
+      type: 'voice', dataUrl: ev.target.result, voiceDuration: duration,
+      fileName: `voice_${Date.now()}.webm`, fileSize: blob.size,
+      senderId: window._socUserId, senderName: window._socName||'?',
+      senderPhoto: window._socPhoto||'', ts: Date.now(), seen: false
+    });
+    set(ref(window.__db, `social/dm/${dmRoomId}/lastMsg`), {
+      text: '\u{1F3A4} Voice message', ts: Date.now(), senderId: window._socUserId
+    });
+  };
+  reader.readAsDataURL(blob);
+}
+
+
+/* ═══════════════════
+   DM v2 - MSG RENDER
+═══════════════════ */
+// Patch dmRenderMsg to handle media + reply + voice
+const _origDmRenderMsg = window.dmRenderMsg;
+window.dmRenderMsg = function(m, key) {
+  const msgsEl = document.getElementById('dm-msgs');
+  if (!msgsEl) return;
+
+  const isMe = m.senderId === window._socUserId;
+  const row  = document.createElement('div');
+  row.className = 'dm-msg-row ' + (isMe ? 'mine' : 'theirs');
+  row.dataset.key = key || '';
+
+  // Right-click / long-press context for reply
+  row.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const bubble = row.querySelector('.dm-bubble');
+    const text   = bubble?.textContent || '';
+    const sender = isMe ? (window._socName||'You') : (m.senderName||'?');
+    dmReply(key, sender, text);
+  });
+  let lpT = null;
+  row.addEventListener('pointerdown', e => { lpT = setTimeout(() => {
+    const bubble = row.querySelector('.dm-bubble');
+    const text   = bubble?.textContent || '';
+    const sender = isMe ? (window._socName||'You') : (m.senderName||'?');
+    dmReply(key, sender, text);
+  }, 600); });
+  row.addEventListener('pointerup',   () => clearTimeout(lpT));
+  row.addEventListener('pointermove', () => clearTimeout(lpT));
+
+  const bubble = document.createElement('div');
+  bubble.className = 'dm-bubble';
+
+  // Reply preview
+  if (m.replyTo) {
+    const rp = document.createElement('div');
+    rp.style.cssText = 'border-left:3px solid var(--accent);padding:3px 7px;margin-bottom:5px;font-size:11px;color:var(--text2);border-radius:0 4px 4px 0;background:rgba(61,232,160,0.06);';
+    rp.innerHTML = `<span style="color:var(--accent);font-weight:700;display:block;font-size:10px;">${m.replyTo.senderName||'?'}</span>${(m.replyTo.text||'').slice(0,60)}`;
+    bubble.appendChild(rp);
+  }
+
+  if (m.type === 'text' || !m.type) {
+    const sp = document.createElement('span');
+    sp.textContent = m.text || '';
+    bubble.appendChild(sp);
+  } else if (m.type === 'image') {
+    bubble.classList.add('dm-media');
+    const img = document.createElement('img');
+    img.src = m.dataUrl || '';
+    img.alt = m.fileName || 'photo';
+    img.onclick = () => { window.openLb && openLb(m.dataUrl); };
+    bubble.appendChild(img);
+  } else if (m.type === 'video') {
+    bubble.classList.add('dm-media');
+    const vid = document.createElement('video');
+    vid.src = m.dataUrl || ''; vid.controls = true;
+    vid.style.cssText = 'max-width:240px;border-radius:10px;display:block;';
+    bubble.appendChild(vid);
+  } else if (m.type === 'voice') {
+    const dur = m.voiceDuration || 0;
+    const audio = new Audio(m.dataUrl);
+    let rafId = null;
+    const player = document.createElement('div');
+    player.className = 'dm-voice-player';
+    const playBtn = document.createElement('button'); playBtn.className='dm-vm-play'; playBtn.textContent='▶';
+    const progWrap = document.createElement('div');
+    const prog = document.createElement('div'); prog.className='dm-vm-progress';
+    const fill = document.createElement('div'); fill.className='dm-vm-fill'; prog.appendChild(fill);
+    const durEl = document.createElement('div'); durEl.className='dm-vm-dur';
+    const fmtD = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    durEl.textContent = fmtD(dur);
+    progWrap.appendChild(prog); progWrap.appendChild(durEl);
+    player.appendChild(playBtn); player.appendChild(progWrap);
+    playBtn.onclick = () => {
+      if (audio.paused) {
+        audio.play(); playBtn.textContent='⏸';
+        function tick() {
+          const pct = audio.duration ? (audio.currentTime/audio.duration)*100 : 0;
+          fill.style.width = pct + '%';
+          durEl.textContent = fmtD(Math.floor(audio.currentTime)) + ' / ' + fmtD(dur);
+          if (!audio.paused) rafId = requestAnimationFrame(tick);
+        }
+        rafId = requestAnimationFrame(tick);
+      } else { audio.pause(); playBtn.textContent='▶'; cancelAnimationFrame(rafId); }
+    };
+    audio.onended = () => { playBtn.textContent='▶'; fill.style.width='0%'; durEl.textContent=fmtD(dur); cancelAnimationFrame(rafId); };
+    prog.onclick = e => { const r=prog.getBoundingClientRect(); if(audio.duration) audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
+    bubble.appendChild(player);
+  } else if (m.type === 'doc') {
+    const FILE_ICONS2 = { pdf:'\u{1F4C4}', doc:'\u{1F4DD}', docx:'\u{1F4DD}', xls:'\u{1F4CA}', xlsx:'\u{1F4CA}', txt:'\u{1F4C3}', zip:'\u{1F5DC}' };
+    const ext = (m.fileName||'').split('.').pop().toLowerCase();
+    const a = document.createElement('a');
+    a.href = m.dataUrl || '#'; a.download = m.fileName || 'file';
+    a.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:inherit;max-width:220px;';
+    a.innerHTML = `<span style="font-size:22px">${FILE_ICONS2[ext]||'\u{1F4C1}'}</span><div><div style="font-size:12px;font-weight:600;">${m.fileName||'file'}</div><div style="font-size:10px;color:var(--text2)">Tap to download</div></div>`;
+    bubble.appendChild(a);
+  }
+
+  const timeEl = document.createElement('div');
+  timeEl.className = 'dm-time';
+  const ts = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+
+  if (isMe) {
+    const ticks = document.createElement('span');
+    ticks.className = 'dm-ticks' + (m.seen ? ' seen' : '');
+    ticks.dataset.key = key || '';
+    ticks.innerHTML = m.seen ? '&#x2713;&#x2713;' : '&#x2713;';
+    timeEl.innerHTML = ts + ' ';
+    timeEl.appendChild(ticks);
+  } else {
+    timeEl.textContent = ts;
+  }
+
+  row.appendChild(bubble);
+  row.appendChild(timeEl);
+
+  // Remove dm-empty
+  const empty = document.getElementById('dm-empty');
+  if (empty) empty.style.display = 'none';
+
+  msgsEl.appendChild(row);
+  // Scroll to bottom
+  requestAnimationFrame(() => { msgsEl.scrollTop = msgsEl.scrollHeight; });
+};
+
+// Patch openDM to start call listener
+const _origOpenDM = window.openDM;
+window.openDM = function(peer) {
+  if (_origOpenDM) _origOpenDM.apply(this, arguments);
+  // Start listening for calls in this DM
+  setTimeout(() => dmListenCalls(), 500);
+};
+
+// Start friends realtime when social area opens
+const _origOpenSocArea3 = window.openSocialArea;
+window.openSocialArea = function() {
+  if (_origOpenSocArea3) _origOpenSocArea3.apply(this, arguments);
+  setTimeout(() => socStartFriendsRealtime(), 1500);
+};
+
+console.log('%c DM v2 + Profile v2 + Friends RT loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
 </script>
 
 </body>

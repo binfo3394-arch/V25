@@ -8914,51 +8914,63 @@ window.socRenderPost = function socRenderPost(postId, data) {
       .replace(/@(\w+)/g, '<span class="soc-mention">@$1</span>');
   }
 
-  card.innerHTML = `
-    <div class="soc-post-head">
-      <div class="soc-post-av" onclick="socShowProfileFromPost('${postId}')"></div>
-      <div class="soc-post-meta">
-        <div class="soc-post-name" onclick="socShowProfileFromPost('${postId}')">${escHtml(data.name||'Anonymous')}</div>
-        <div class="soc-post-time" data-ts="${data.ts||0}">${socFmtTime(data.ts)} &middot; <span class="soc-visibility-badge">&#x1F30D; Public</span></div>
-      </div>
-      <button class="soc-post-save-btn ${isSaved?'saved':''}" id="save-btn-${postId}" onclick="socToggleSavePost('${postId}')" title="${isSaved?'Unsave':'Save'}">&#x1F516;</button>
-      <button class="soc-post-options-btn" onclick="socOpenOptions(event,'${postId}',${isMyPost})" title="Options">&#x22EF;</button>
-    </div>
-    ${data.text ? `<div class="soc-post-text">${formatPostText(data.text)}${data.edited?'<span style="font-size:10px;color:var(--text3);margin-left:6px;font-family:var(--mono)">(edited)</span>':''}</div>` : ''}
-    ${data.image ? `<div class="soc-post-media-wrap ratio-4-5" id="media-wrap-${postId}"><img class="soc-post-img" src="${data.image}" alt="" onclick="socOpenFullPost('${postId}')" onload="socSetAspectRatio(this,'media-wrap-${postId}')"><button class="soc-media-expand" onclick="socOpenFullPost('${postId}')" title="Expand">&#x2922;</button><span class="soc-media-type-badge">&#x1F4F7; Photo</span></div>` : ''}
-    ${data.video ? `<div class="soc-post-media-wrap ratio-16-9" id="media-wrap-${postId}"><video class="soc-post-video" src="${data.video}" controls playsinline></video><span class="soc-media-type-badge">&#x1F3AC; Video</span></div>` : ''}
-    <div class="soc-post-reactions" id="reactions-${postId}"></div>
-    <div class="soc-post-actions">
-      <button class="soc-act-btn ${myReaction?'liked':''}" id="like-btn-${postId}" onclick="socToggleLike('${postId}')">
-        <span class="soc-act-icon" id="like-icon-${postId}">${myReaction||'&#x1F90D;'}</span>
-        <span id="like-count-${postId}">${totalLikes||''}</span> Like
-      </button>
-      <button class="soc-act-btn" onclick="socToggleComments('${postId}')">
-        <span class="soc-act-icon">&#x1F4AC;</span>
-        <span id="cmt-count-${postId}">${comments.length||''}</span> Comment
-      </button>
-      <button class="soc-act-btn" onclick="socSharePost('${postId}')">
-        <span class="soc-act-icon">&#x21D7;</span> Share
-      </button>
-      <button class="soc-act-btn" onclick="socReactPick(event,'${postId}')">
-        <span class="soc-act-icon">&#x1F604;</span> React
-      </button>
-    </div>
-    <div class="soc-comments" id="comments-${postId}">
-      <div id="cmt-list-${postId}"></div>
-      <div id="cmt-reply-bar-${postId}" class="soc-cmt-reply-bar">
-        <span style="color:var(--accent);font-size:11px;">&#x21A9;</span>
-        <span class="soc-cmt-reply-text"></span>
-        <button class="soc-cmt-reply-close" onclick="socClearCmtReply('${postId}')">&#x2715;</button>
-      </div>
-      <div class="soc-cmt-input-wrap">
-        <div class="soc-cmt-av-small my-av"></div>
-        <input class="soc-cmt-input" id="cmt-input-${postId}" placeholder="Comment කරන්න..." maxlength="300"
-          onkeydown="if(event.key==='Enter')socPostComment('${postId}')">
-        <button class="soc-cmt-send" onclick="socPostComment('${postId}')">&#x27A4;</button>
-      </div>
-    </div>
-  `;
+  // Build post HTML without nested template literals (Android compatibility)
+  const textHtml   = data.text
+    ? '<div class="soc-post-text">' + formatPostText(data.text) +
+      (data.edited ? '<span style="font-size:10px;color:var(--text3);margin-left:6px;font-family:var(--mono)">(edited)</span>' : '') +
+      '</div>' : '';
+  const imageHtml  = data.image
+    ? '<div class="soc-post-media-wrap ratio-4-5" id="media-wrap-' + postId + '">' +
+      '<img class="soc-post-img" src="' + data.image + '" alt="" onclick="socOpenFullPost(\'' + postId + '\')" onload="socSetAspectRatio(this,\'media-wrap-' + postId + '\')">' +
+      '<button class="soc-media-expand" onclick="socOpenFullPost(\'' + postId + '\')" title="Expand">&#x2922;</button>' +
+      '<span class="soc-media-type-badge">&#x1F4F7; Photo</span></div>' : '';
+  const videoHtml  = data.video
+    ? '<div class="soc-post-media-wrap ratio-16-9" id="media-wrap-' + postId + '">' +
+      '<video class="soc-post-video" src="' + data.video + '" controls playsinline></video>' +
+      '<span class="soc-media-type-badge">&#x1F3AC; Video</span></div>' : '';
+
+  card.innerHTML =
+    '<div class="soc-post-head">' +
+      '<div class="soc-post-av" onclick="socShowProfileFromPost(\'' + postId + '\')"></div>' +
+      '<div class="soc-post-meta">' +
+        '<div class="soc-post-name" onclick="socShowProfileFromPost(\'' + postId + '\')">' + escHtml(data.name||'Anonymous') + '</div>' +
+        '<div class="soc-post-time" data-ts="' + (data.ts||0) + '">' + socFmtTime(data.ts) + ' &middot; <span class="soc-visibility-badge">&#x1F30D; Public</span></div>' +
+      '</div>' +
+      '<button class="soc-post-save-btn ' + (isSaved?'saved':'') + '" id="save-btn-' + postId + '" onclick="socToggleSavePost(\'' + postId + '\')" title="' + (isSaved?'Unsave':'Save') + '">&#x1F516;</button>' +
+      '<button class="soc-post-options-btn" onclick="socOpenOptions(event,\'' + postId + '\',' + isMyPost + ')" title="Options">&#x22EF;</button>' +
+    '</div>' +
+    textHtml + imageHtml + videoHtml +
+    '<div class="soc-post-reactions" id="reactions-' + postId + '"></div>' +
+    '<div class="soc-post-actions">' +
+      '<button class="soc-act-btn ' + (myReaction?'liked':'') + '" id="like-btn-' + postId + '" onclick="socToggleLike(\'' + postId + '\')">' +
+        '<span class="soc-act-icon" id="like-icon-' + postId + '">' + (myReaction||'&#x1F90D;') + '</span>' +
+        '<span id="like-count-' + postId + '">' + (totalLikes||'') + '</span> Like' +
+      '</button>' +
+      '<button class="soc-act-btn" onclick="socToggleComments(\'' + postId + '\')">' +
+        '<span class="soc-act-icon">&#x1F4AC;</span>' +
+        '<span id="cmt-count-' + postId + '">' + (comments.length||'') + '</span> Comment' +
+      '</button>' +
+      '<button class="soc-act-btn" onclick="socSharePost(\'' + postId + '\')">' +
+        '<span class="soc-act-icon">&#x21D7;</span> Share' +
+      '</button>' +
+      '<button class="soc-act-btn" onclick="socReactPick(event,\'' + postId + '\')">' +
+        '<span class="soc-act-icon">&#x1F604;</span> React' +
+      '</button>' +
+    '</div>' +
+    '<div class="soc-comments" id="comments-' + postId + '">' +
+      '<div id="cmt-list-' + postId + '"></div>' +
+      '<div id="cmt-reply-bar-' + postId + '" class="soc-cmt-reply-bar">' +
+        '<span style="color:var(--accent);font-size:11px;">&#x21A9;</span>' +
+        '<span class="soc-cmt-reply-text"></span>' +
+        '<button class="soc-cmt-reply-close" onclick="socClearCmtReply(\'' + postId + '\')">&#x2715;</button>' +
+      '</div>' +
+      '<div class="soc-cmt-input-wrap">' +
+        '<div class="soc-cmt-av-small my-av"></div>' +
+        '<input class="soc-cmt-input" id="cmt-input-' + postId + '" placeholder="Comment කරන්න..." maxlength="300"' +
+          ' onkeydown="if(event.key===\'Enter\')socPostComment(\'' + postId + '\')">' +
+        '<button class="soc-cmt-send" onclick="socPostComment(\'' + postId + '\')">&#x27A4;</button>' +
+      '</div>' +
+    '</div>';
 
   // Set avatar
   const av = card.querySelector('.soc-post-av');
@@ -11644,34 +11656,36 @@ window.socOpenFullPost = function(postId) {
       .replace(/@(\w+)/g, '<span class="soc-mention">@$1</span>');
   }
 
-  body.innerHTML = `
-    <div style="padding:16px 16px 0;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <div style="width:44px;height:44px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-family:var(--mono);overflow:hidden;flex-shrink:0;" id="fp-av-${postId}"></div>
-        <div>
-          <div style="font-size:14px;font-weight:700;">${window.escHtml(data.name||'Anonymous')}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${window.socFmtTime(data.ts)} &middot; &#x1F30D; Public</div>
-        </div>
-      </div>
-      ${data.text ? `<div style="font-size:15px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word;margin-bottom:14px;">${formatText(data.text)}</div>` : ''}
-    </div>
-    ${data.image ? `<div style="width:100%;background:var(--card);"><img src="${data.image}" style="width:100%;max-height:500px;object-fit:contain;display:block;"></div>` : ''}
-    ${data.video ? `<video src="${data.video}" controls playsinline style="width:100%;max-height:400px;background:#000;display:block;"></video>` : ''}
-    <div style="padding:10px 16px;border-top:1px solid var(--border);margin-top:10px;">
-      <div id="fp-reactions-${postId}" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
-      <div style="display:flex;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);">
-        <button onclick="socToggleLike('${postId}')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
-          <span id="fp-like-icon-${postId}">${data.reactions?.[window._socUserId]||'&#x1F90D;'}</span> Like
-        </button>
-        <button onclick="socSharePost('${postId}')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">&#x21D7; Share</button>
-      </div>
-      <div id="fp-cmt-list-${postId}" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-        <input id="fp-cmt-input-${postId}" placeholder="Comment කරන්න..." style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:8px 14px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;" maxlength="300" onkeydown="if(event.key==='Enter')socPostCommentFP('${postId}')">
-        <button onclick="socPostCommentFP('${postId}')" style="width:34px;height:34px;background:var(--accent);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;flex-shrink:0;">&#x27A4;</button>
-      </div>
-    </div>
-  `;
+  const fpTextHtml  = data.text ? '<div style="font-size:15px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word;margin-bottom:14px;">' + formatText(data.text) + '</div>' : '';
+  const fpImgHtml   = data.image ? '<div style="width:100%;background:var(--card);"><img src="' + data.image + '" style="width:100%;max-height:500px;object-fit:contain;display:block;"></div>' : '';
+  const fpVidHtml   = data.video ? '<video src="' + data.video + '" controls playsinline style="width:100%;max-height:400px;background:#000;display:block;"></video>' : '';
+  const fpMyReact   = (data.reactions && data.reactions[window._socUserId]) || '&#x1F90D;';
+
+  body.innerHTML =
+    '<div style="padding:16px 16px 0;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+        '<div style="width:44px;height:44px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-family:var(--mono);overflow:hidden;flex-shrink:0;" id="fp-av-' + postId + '"></div>' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;">' + window.escHtml(data.name||'Anonymous') + '</div>' +
+          '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);">' + window.socFmtTime(data.ts) + ' &middot; &#x1F30D; Public</div>' +
+        '</div>' +
+      '</div>' + fpTextHtml +
+    '</div>' +
+    fpImgHtml + fpVidHtml +
+    '<div style="padding:10px 16px;border-top:1px solid var(--border);margin-top:10px;">' +
+      '<div id="fp-reactions-' + postId + '" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>' +
+      '<div style="display:flex;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);">' +
+        '<button onclick="socToggleLike(\'' + postId + '\')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">' +
+          '<span id="fp-like-icon-' + postId + '">' + fpMyReact + '</span> Like' +
+        '</button>' +
+        '<button onclick="socSharePost(\'' + postId + '\')" style="flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">&#x21D7; Share</button>' +
+      '</div>' +
+      '<div id="fp-cmt-list-' + postId + '" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px;align-items:center;">' +
+        '<input id="fp-cmt-input-' + postId + '" placeholder="Comment කරන්න..." style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:8px 14px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;" maxlength="300" onkeydown="if(event.key===\'Enter\')socPostCommentFP(\'' + postId + '\')">' +
+        '<button onclick="socPostCommentFP(\'' + postId + '\')" style="width:34px;height:34px;background:var(--accent);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;flex-shrink:0;">&#x27A4;</button>' +
+      '</div>' +
+    '</div>';
 
   // Set avatar
   const avEl = body.querySelector(`#fp-av-${postId}`);
@@ -12310,7 +12324,7 @@ window.privLivePreview = function() {
   const pw = document.getElementById('priv-preview-website-show');
   if (pn) pn.textContent = name || 'Your Name';
   if (pb) pb.textContent = bio  || 'Your bio...';
-  if (pl) pl.textContent = location ? `\u{1F4CD} ${location}` : '';
+  if (pl) pl.textContent = location ? `📍 ${location}` : '';
   if (pw) pw.textContent = website ? (website.replace('https://','').replace('http://','').split('/')[0]) : '';
 
   // Update preview avatar
@@ -12772,7 +12786,7 @@ window.dmListenCalls = function() {
       const incA = document.getElementById('dm-inc-avatar');
       if (inc) inc.style.display = 'block';
       if (incN) incN.textContent = data.callerName || '?';
-      if (incL) incL.textContent = data.callType === 'video' ? '\u{1F4F9} Incoming Video Call' : '\u{1F4DE} Incoming Voice Call';
+      if (incL) incL.textContent = data.callType === 'video' ? '📹 Incoming Video Call' : '📞 Incoming Voice Call';
       if (incA) {
         if (data.callerPhoto) {
           incA.innerHTML = `<img src="${data.callerPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
@@ -12886,8 +12900,8 @@ window.dmEndCall = async function(skipFb) {
 
   _dmCallType = null; _dmCallRole = null;
   _dmIsMuted = false; _dmIsCamOff = false;
-  document.getElementById('dm-mute-btn').textContent = '\u{1F3A4}';
-  document.getElementById('dm-cam-btn').textContent  = '\u{1F4F7}';
+  document.getElementById('dm-mute-btn').textContent = '🎤';
+  document.getElementById('dm-cam-btn').textContent  = '📷';
 };
 
 window.dmToggleMute = function() {
@@ -12895,7 +12909,7 @@ window.dmToggleMute = function() {
   _dmIsMuted = !_dmIsMuted;
   _dmCallStream.getAudioTracks().forEach(t => t.enabled = !_dmIsMuted);
   const btn = document.getElementById('dm-mute-btn');
-  if (btn) btn.textContent = _dmIsMuted ? '\u{1F507}' : '\u{1F3A4}';
+  if (btn) btn.textContent = _dmIsMuted ? '🔇' : '🎤';
 };
 
 window.dmToggleCam = function() {
@@ -12905,7 +12919,7 @@ window.dmToggleCam = function() {
   _dmIsCamOff = !_dmIsCamOff;
   vt.forEach(t => t.enabled = !_dmIsCamOff);
   const btn = document.getElementById('dm-cam-btn');
-  if (btn) btn.textContent = _dmIsCamOff ? '\u{1F4F5}' : '\u{1F4F7}';
+  if (btn) btn.textContent = _dmIsCamOff ? '📵' : '📷';
 };
 
 window.dmFlipCam = async function() {
@@ -12921,7 +12935,7 @@ window.dmFlipCam = async function() {
     _dmCallStream.getVideoTracks().forEach(t => t.stop());
     const lv = document.getElementById('dm-local-video');
     if (lv) lv.srcObject = new MediaStream([newVT, ..._dmCallStream.getAudioTracks()]);
-    showToast(_dmIsFrontCam ? '\u{1F933} Front camera' : '\u{1F4F7} Rear camera');
+    showToast(_dmIsFrontCam ? '🤳 Front camera' : '📷 Rear camera');
   } catch(e) {
     _dmIsFrontCam = !_dmIsFrontCam;
     showToast('\u274C Cannot switch camera');
@@ -12965,9 +12979,10 @@ window.dmToggleInfo = function() {
       }
       // Info
       const info = document.createElement('div');
-      info.innerHTML = `<div style="font-size:14px;font-weight:700;">${window.escHtml?window.escHtml(dmPeer.name||'?'):(dmPeer.name||'?')}</div>
-        ${pres.bio?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">${pres.bio}</div>`:''}
-        ${pres.location?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono);">&#x1F4CD; ${pres.location}</div>`:''}`;
+      const safeName = (window.escHtml ? window.escHtml(dmPeer.name||'?') : (dmPeer.name||'?'));
+      info.innerHTML = '<div style="font-size:14px;font-weight:700;">' + safeName + '</div>' +
+        (pres.bio ? '<div style="font-size:11px;color:var(--text2);margin-top:2px;">' + (window.escHtml?window.escHtml(pres.bio):pres.bio) + '</div>' : '') +
+        (pres.location ? '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);">📍 ' + (window.escHtml?window.escHtml(pres.location):pres.location) + '</div>' : '');
       card.appendChild(av); card.appendChild(info);
     }
   }
@@ -12981,7 +12996,7 @@ window.dmClearChat = function() {
     .then(() => {
       document.getElementById('dm-msgs').innerHTML = '';
       document.getElementById('dm-empty').style.display = 'flex';
-      showToast('\u{1F5D1} Chat cleared');
+      showToast('🗑 Chat cleared');
     });
 };
 
@@ -13027,7 +13042,7 @@ function dmUpdatePreviewStrip() {
       item.innerHTML = `<img class="dm-prev-thumb" src="${f.dataUrl}"><button class="dm-prev-rm" onclick="dmRmFile(${i})">\u2715</button>`;
     } else {
       const ext = f.name.split('.').pop().toUpperCase();
-      item.innerHTML = `<div class="dm-prev-doc"><span>\u{1F4C4}</span><small>${ext}</small></div><button class="dm-prev-rm" onclick="dmRmFile(${i})">\u2715</button>`;
+      item.innerHTML = `<div class="dm-prev-doc"><span>📄</span><small>${ext}</small></div><button class="dm-prev-rm" onclick="dmRmFile(${i})">\u2715</button>`;
     }
     strip.appendChild(item);
   });
@@ -13072,7 +13087,7 @@ window.dmSend = function() {
     _dmPendingFiles = [];
     dmUpdatePreviewStrip();
     // Update lastMsg
-    set(ref(db, `social/dm/${dmRoomId}/lastMsg`), { text: '\u{1F5BC} Photo', ts: Date.now(), senderId: window._socUserId });
+    set(ref(db, `social/dm/${dmRoomId}/lastMsg`), { text: '🖼 Photo', ts: Date.now(), senderId: window._socUserId });
     return;
   }
 
@@ -13102,14 +13117,14 @@ window.dmSend = function() {
    DM v2 - EMOJI
 ═══════════════════ */
 const DM_EMOJIS = [
-  '\u{1F600}','\u{1F603}','\u{1F604}','\u{1F601}','\u{1F606}','\u{1F605}','\u{1F923}','\u{1F602}',
-  '\u{1F642}','\u{1F643}','\u{1F609}','\u{1F60A}','\u{1F607}','\u{1F970}','\u{1F60D}','\u{1F929}',
-  '\u{1F618}','\u{1F617}','\u{1F619}','\u{1F61A}','\u263A}','\u{1F972}','\u{1F60B}','\u{1F61B}',
-  '\u{1F61C}','\u{1F92A}','\u{1F61D}','\u{1F911}','\u{1F917}','\u{1F92D}','\u{1F92B}','\u{1F914}',
-  '\u{1F910}','\u{1F928}','\u{1F925}','\u{1F60F}','\u{1F612}','\u{1F644}','\u{1F62C}','\u{1F62E}',
-  '\u2764\uFE0F','\u{1F9E1}','\u{1F49B}','\u{1F49A}','\u{1F499}','\u{1F49C}','\u{1F5A4}','\u{1F90D}',
-  '\u{1F44D}','\u{1F44E}','\u{1F44F}','\u{1F91D}','\u{1F64F}','\u{1F44A}','\u{1F4AA}','\u{1F91E}',
-  '\u{1F525}','\u2B50','\u{1F4AB}','\u{1F4A5}','\u{1F4A6}','\u{1F389}','\u{1F38A}','\u{1F381}',
+  '😀','😃','😄','😁','😆','😅','🤣','😂',
+  '🙂','🙃','😉','😊','😇','🥰','😍','🤩',
+  '😘','😗','😙','😚','☺','🥲','😋','😛',
+  '😜','🤪','😝','🤑','🤗','🤭','🤫','🤔',
+  '🤐','🤨','🤥','😏','😒','🙄','😬','😮',
+  '\u2764\uFE0F','🧡','💛','💚','💙','💜','🖤','🤍',
+  '👍','👎','👏','🤝','🙏','👊','💪','🤞',
+  '🔥','\u2B50','💫','💥','💦','🎉','🎊','🎁',
 ];
 
 window.dmToggleEmoji = function(e) {
@@ -13214,7 +13229,7 @@ window.dmCancelVoice = function() {
   if (_dmVoiceStream) { _dmVoiceStream.getTracks().forEach(t => t.stop()); _dmVoiceStream = null; }
   _dmVoiceChunks = [];
   dmResetVoiceUI();
-  showToast('\u{1F5D1} Voice message cancelled');
+  showToast('🗑 Voice message cancelled');
 };
 
 function dmResetVoiceUI() {
@@ -13239,7 +13254,7 @@ async function dmSendVoiceMsg(mimeType, duration) {
       senderPhoto: window._socPhoto||'', ts: Date.now(), seen: false
     });
     set(ref(window.__db, `social/dm/${dmRoomId}/lastMsg`), {
-      text: '\u{1F3A4} Voice message', ts: Date.now(), senderId: window._socUserId
+      text: '🎤 Voice message', ts: Date.now(), senderId: window._socUserId
     });
   };
   reader.readAsDataURL(blob);
@@ -13337,12 +13352,12 @@ window.dmRenderMsg = function(m, key) {
     prog.onclick = e => { const r=prog.getBoundingClientRect(); if(audio.duration) audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
     bubble.appendChild(player);
   } else if (m.type === 'doc') {
-    const FILE_ICONS2 = { pdf:'\u{1F4C4}', doc:'\u{1F4DD}', docx:'\u{1F4DD}', xls:'\u{1F4CA}', xlsx:'\u{1F4CA}', txt:'\u{1F4C3}', zip:'\u{1F5DC}' };
+    const FILE_ICONS2 = { pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊', txt:'📃', zip:'🗜' };
     const ext = (m.fileName||'').split('.').pop().toLowerCase();
     const a = document.createElement('a');
     a.href = m.dataUrl || '#'; a.download = m.fileName || 'file';
     a.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:inherit;max-width:220px;';
-    a.innerHTML = `<span style="font-size:22px">${FILE_ICONS2[ext]||'\u{1F4C1}'}</span><div><div style="font-size:12px;font-weight:600;">${m.fileName||'file'}</div><div style="font-size:10px;color:var(--text2)">Tap to download</div></div>`;
+    a.innerHTML = `<span style="font-size:22px">${FILE_ICONS2[ext]||'📁'}</span><div><div style="font-size:12px;font-weight:600;">${m.fileName||'file'}</div><div style="font-size:10px;color:var(--text2)">Tap to download</div></div>`;
     bubble.appendChild(a);
   }
 

@@ -4632,6 +4632,63 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 .priv-field-input::placeholder { color: var(--text3); }
 .priv-char-count { font-size: 10px; color: var(--text3); font-family: var(--mono); float: right; }
 
+
+/* ── DM Notification Toast ── */
+.dm-notif-toast {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%) translateY(-120px);
+  z-index: 99990;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  max-width: min(360px, calc(100vw - 24px));
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.3s;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dm-notif-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: all;
+}
+.dm-nt-av {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  border: 2px solid rgba(61,232,160,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; font-family: var(--mono);
+  color: var(--accent); flex-shrink: 0; overflow: hidden;
+}
+.dm-nt-body { flex: 1; min-width: 0; }
+.dm-nt-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dm-nt-msg {
+  font-size: 12px; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px; font-family: var(--sans);
+}
+.dm-nt-close {
+  background: none; border: none; color: var(--text3);
+  font-size: 14px; cursor: pointer; padding: 4px;
+  flex-shrink: 0; line-height: 1; border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+.dm-nt-close:hover { color: var(--red); background: rgba(255,92,92,0.1); }
+
 </style>
 </head>
 <body>
@@ -4826,16 +4883,9 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
     <div class="lobby-online-count" id="lobby-online-count">0</div>
   </div>
 
-  <!-- Stories Bar -->
+  <!-- Stories Bar — fully rendered by JS -->
   <div class="soc-stories-bar" id="soc-stories-bar">
-    <!-- Add story button -->
-    <div class="soc-story-item" onclick="openStoryUpload()">
-      <div class="soc-story-ring add-story">
-        <div class="soc-story-ring-inner">+</div>
-      </div>
-      <div class="soc-story-name">Your Story</div>
-    </div>
-    <!-- Stories rendered by JS here -->
+    <!-- Populated by renderStoriesBar() -->
   </div>
 
   <!-- Body -->
@@ -11412,26 +11462,157 @@ window.addEventListener('load', () => {
   }, 2000);
 });
 
-/* ─── Notify badge for incoming DMs ─── */
-function checkDMNotifications() {
-  if (!window.__db || !window.__fbx || !window._socUserId) return;
-  const { ref, onValue } = window.__fbx;
+/* ─── DM Real-time Notification System ─── */
+
+// Track last seen msg timestamps per DM room
+let _dmLastSeen = {};
+try { _dmLastSeen = JSON.parse(localStorage.getItem('dm_last_seen') || '{}'); } catch(e) {}
+
+// Active DM notification listeners per room
+let _dmNotifListeners = {};
+
+// Request browser notification permission
+window.requestDMNotifPermission = function() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+};
+
+// Show in-app DM notification toast
+function showDMNotifToast(senderName, senderPhoto, text, roomId) {
+  // Don't show if DM overlay is open and showing same room
+  const overlay = document.getElementById('dm-overlay');
+  if (overlay && overlay.classList.contains('open') && dmRoomId === roomId) return;
+
+  // Browser notification (if permitted and tab not active)
+  if (document.hidden && Notification.permission === 'granted') {
+    const notif = new Notification('💬 ' + senderName, {
+      body: text.slice(0, 80),
+      icon: senderPhoto || '',
+      tag: 'dm-' + roomId,
+      silent: false
+    });
+    notif.onclick = () => {
+      window.focus();
+      notif.close();
+    };
+  }
+
+  // In-app toast notification
+  const toast = document.getElementById('dm-notif-toast');
+  if (!toast) return;
+
+  const av   = toast.querySelector('.dm-nt-av');
+  const nm   = toast.querySelector('.dm-nt-name');
+  const msg  = toast.querySelector('.dm-nt-msg');
+
+  if (av) {
+    av.innerHTML = '';
+    if (senderPhoto) {
+      const img = document.createElement('img');
+      img.src = senderPhoto;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+      av.appendChild(img);
+    } else {
+      av.textContent = senderName.slice(0, 2).toUpperCase();
+    }
+  }
+  if (nm)  nm.textContent  = senderName;
+  if (msg) msg.textContent = text.slice(0, 60) + (text.length > 60 ? '...' : '');
+
+  // Store roomId for tap action
+  toast.dataset.roomId = roomId || '';
+
+  // Play sound
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.start(); osc.stop(ctx.currentTime + 0.2);
+    setTimeout(() => ctx.close(), 500);
+  } catch(e) {}
+
+  // Show toast
+  toast.classList.add('show');
+  clearTimeout(window._dmNotifTimer);
+  window._dmNotifTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+
+  // Update friends badge count
+  const badge = document.getElementById('soc-friends-badge');
+  if (badge) {
+    const cur = parseInt(badge.textContent) || 0;
+    badge.textContent = cur + 1;
+    badge.classList.add('show');
+  }
+}
+
+// Start listening for DM notifications for all friends
+function startDMNotifications() {
+  if (!window.__db || !window.__fbx || !window._socUserId) {
+    setTimeout(startDMNotifications, 1000);
+    return;
+  }
+
+  const { ref, onValue, onChildAdded } = window.__fbx;
   const db = window.__db;
 
-  const myFriends = socGetMyFriends();
-  Object.entries(myFriends).forEach(([uid]) => {
-    const roomId = dmGetRoomId(window._socUserId, uid);
-    onValue(ref(db, `social/dm/${roomId}/lastMsg`), snap => {
-      const last = snap.val();
-      if (last && last.senderId !== window._socUserId && last.ts > (Date.now() - 300000)) {
-        // New message in last 5 minutes from peer
-        const badge = document.getElementById('soc-friends-badge');
-        if (badge && dmOverlay?.classList.contains('open') === false) {
-          // Only notify if DM not open
+  // Listen to friends list and set up DM listeners
+  onValue(ref(db, 'social/friends/' + window._socUserId), snap => {
+    const friends = snap.val() || {};
+
+    // Remove old listeners
+    Object.values(_dmNotifListeners).forEach(fn => { try { fn(); } catch(e) {} });
+    _dmNotifListeners = {};
+
+    // Set up listener for each friend's DM room
+    Object.entries(friends).forEach(([uid, f]) => {
+      const roomId = dmGetRoomId(window._socUserId, uid);
+
+      const unsub = onChildAdded(ref(db, 'social/dm/' + roomId + '/messages'), snap => {
+        const msg = snap.val();
+        if (!msg || msg.senderId === window._socUserId) return;
+
+        // Check if this is a NEW message (after we started listening)
+        const lastSeen = _dmLastSeen[roomId] || 0;
+        if (msg.ts && msg.ts <= lastSeen) return;
+
+        // Update last seen
+        _dmLastSeen[roomId] = Date.now();
+        try { localStorage.setItem('dm_last_seen', JSON.stringify(_dmLastSeen)); } catch(e) {}
+
+        // Determine message preview text
+        let previewText = msg.text || '';
+        if (!previewText) {
+          if (msg.type === 'image') previewText = '📷 Photo';
+          else if (msg.type === 'voice') previewText = '🎙️ Voice message';
+          else if (msg.type === 'video') previewText = '🎬 Video';
+          else if (msg.type === 'doc')   previewText = '📄 ' + (msg.fileName || 'File');
+          else previewText = '💬 Message';
         }
-      }
-    }, { onlyOnce: true });
+
+        const senderName  = msg.senderName  || f.name  || '?';
+        const senderPhoto = msg.senderPhoto || f.photo || '';
+
+        showDMNotifToast(senderName, senderPhoto, previewText, roomId);
+      });
+
+      // Mark initial messages as seen (don't notify for old messages)
+      _dmLastSeen[roomId] = _dmLastSeen[roomId] || Date.now();
+
+      _dmNotifListeners[uid] = unsub;
+    });
   });
+}
+
+function checkDMNotifications() {
+  // Legacy function - now handled by startDMNotifications
+  startDMNotifications();
 }
 
 // Keyboard: Escape closes DM
@@ -12039,17 +12220,25 @@ window.submitStory = function() {
 
 // Listen for stories from Firebase
 function socListenStories() {
-  const { ref, onValue } = window.socGetFB(); const db2 = window.socGetDB();
-  if (!db2) return;
+  // Retry until Firebase ready
+  if (!window.socGetFB || !window.socGetDB()) {
+    setTimeout(socListenStories, 800);
+    return;
+  }
+  const { ref, onValue } = window.socGetFB();
+  const db2 = window.socGetDB();
+  if (!db2) { setTimeout(socListenStories, 800); return; }
 
-  onValue(ref(db2, 'social/stories'), snap => {
+  // Cancel previous listener
+  if (window._storiesUnsub) { try { window._storiesUnsub(); } catch(e){} }
+
+  window._storiesUnsub = onValue(ref(db2, 'social/stories'), snap => {
     const all = snap.val() || {};
     const now = Date.now();
-    // Filter: only show last 24h stories
     _socStories = Object.entries(all)
       .map(([id, s]) => ({ id, ...s }))
-      .filter(s => s.ts && (now - s.ts) < 24*60*60*1000)
-      .sort((a,b) => b.ts - a.ts);
+      .filter(s => s.ts && (now - s.ts) < 24 * 60 * 60 * 1000)
+      .sort((a, b) => b.ts - a.ts);
     renderStoriesBar();
   });
 }
@@ -12058,39 +12247,82 @@ function renderStoriesBar() {
   const bar = document.getElementById('soc-stories-bar');
   if (!bar) return;
 
-  // Keep the "Add story" button (first child)
-  const addBtn = bar.querySelector('.soc-story-item');
+  // Keep "Add story" button
+  const addBtn = bar.querySelector('.soc-story-item[data-add]');
+  // Rebuild entire bar to avoid stale nodes
   bar.innerHTML = '';
-  if (addBtn) bar.appendChild(addBtn);
 
-  // Group by user (latest story per user)
+  // Add story button (always first)
+  const addItem = document.createElement('div');
+  addItem.className = 'soc-story-item';
+  addItem.dataset.add = '1';
+  addItem.innerHTML =
+    '<div class="soc-story-ring add-story">' +
+      '<div class="soc-story-ring-inner">+</div>' +
+    '</div>' +
+    '<div class="soc-story-name">Your Story</div>';
+  addItem.onclick = openStoryUpload;
+  bar.appendChild(addItem);
+
+  if (!_socStories || !_socStories.length) return;
+
+  // Group by user — show own story first
   const byUser = {};
   _socStories.forEach(s => {
     if (!byUser[s.uid] || s.ts > byUser[s.uid].ts) byUser[s.uid] = s;
   });
 
-  // Render
-  const seenStories = JSON.parse(localStorage.getItem('soc_seen_stories')||'{}');
+  const seenStories = JSON.parse(localStorage.getItem('soc_seen_stories') || '{}');
+  const myUid = window._socUserId || '';
 
-  Object.values(byUser).forEach(story => {
-    const seen = seenStories[story.id];
-    const item = document.createElement('div');
+  // Sort: own story first, then others newest first
+  const entries = Object.values(byUser).sort((a, b) => {
+    if (a.uid === myUid) return -1;
+    if (b.uid === myUid) return 1;
+    return b.ts - a.ts;
+  });
+
+  entries.forEach(story => {
+    const isMe  = story.uid === myUid;
+    const seen  = !!seenStories[story.id];
+
+    const item  = document.createElement('div');
     item.className = 'soc-story-item';
 
-    const ring = document.createElement('div');
-    ring.className = 'soc-story-ring' + (seen ? ' seen' : '');
+    // Ring with gradient border if unseen
+    const ring  = document.createElement('div');
+    ring.className = 'soc-story-ring' + (seen && !isMe ? ' seen' : '');
+
     const inner = document.createElement('div');
     inner.className = 'soc-story-ring-inner';
-    if (story.photo) { const img=document.createElement('img'); img.src=story.photo; inner.appendChild(img); }
-    else { inner.textContent = (story.name||'?').slice(0,2).toUpperCase(); inner.style.color='var(--accent)'; }
+
+    // Show avatar photo if available, else initials
+    if (story.photo) {
+      const img = document.createElement('img');
+      img.src = story.photo;
+      img.onerror = () => { img.style.display='none'; inner.textContent = (story.name||'?').slice(0,2).toUpperCase(); };
+      inner.appendChild(img);
+    } else if (story.image) {
+      // Story has image - show thumbnail
+      const img = document.createElement('img');
+      img.src = story.image;
+      img.onerror = () => { img.style.display='none'; inner.textContent = (story.name||'?').slice(0,2).toUpperCase(); };
+      inner.appendChild(img);
+    } else {
+      // Text story - show initials with color
+      inner.textContent = (story.name||'?').slice(0,2).toUpperCase();
+      inner.style.color = story.color || 'var(--accent)';
+      inner.style.background = (story.color || '#3de8a0') + '22';
+    }
+
     ring.appendChild(inner);
 
-    const name = document.createElement('div');
-    name.className = 'soc-story-name';
-    name.textContent = story.uid === window._socUserId ? 'Your Story' : story.name;
+    const nameEl = document.createElement('div');
+    nameEl.className = 'soc-story-name';
+    nameEl.textContent = isMe ? 'Your Story' : (story.name || '?');
 
     item.appendChild(ring);
-    item.appendChild(name);
+    item.appendChild(nameEl);
     item.onclick = () => openStoryViewer(story.uid);
     bar.appendChild(item);
   });
@@ -13404,6 +13636,81 @@ window.openSocialArea = function() {
 };
 
 console.log('%c DM v2 + Profile v2 + Friends RT loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
+</script>
+
+
+<!-- ════ DM NOTIFICATION TOAST ════ -->
+<div class="dm-notif-toast" id="dm-notif-toast" onclick="dmNotifTap(this)">
+  <div class="dm-nt-av">?</div>
+  <div class="dm-nt-body">
+    <div class="dm-nt-name"></div>
+    <div class="dm-nt-msg"></div>
+  </div>
+  <button class="dm-nt-close" onclick="event.stopPropagation();this.closest('.dm-notif-toast').classList.remove('show')">&#x2715;</button>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DM Notification Init + Story Fix
+// ═══════════════════════════════════════════════════
+
+// Tap on DM toast → open that DM
+window.dmNotifTap = function(toast) {
+  const roomId = toast.dataset.roomId;
+  toast.classList.remove('show');
+  if (!roomId) return;
+
+  // Find the peer from roomId
+  const parts = roomId.split('__dm__');
+  if (parts.length !== 2) return;
+  const peerUid = parts.find(p => p !== window._socUserId);
+  if (!peerUid) return;
+
+  // Get peer data from presence or friends
+  const presence = window._lobbyPresenceData || {};
+  const friends  = (() => { try { return JSON.parse(localStorage.getItem('soc_friends')||'{}'); } catch(e){ return {}; } })();
+  const peerData = presence[peerUid] || friends[peerUid] || {};
+
+  // Make sure social screen is showing
+  const socialScreen = document.getElementById('social-screen');
+  const setupScreen  = document.getElementById('setup-screen');
+  if (setupScreen && !setupScreen.classList.contains('hidden')) {
+    // Open social area first if not open
+    if (window.openSocialArea) openSocialArea();
+    setTimeout(() => {
+      openDM({ uid: peerUid, name: peerData.name||'?', photo: peerData.photo||'', color: peerData.color||'#3de8a0' });
+    }, 600);
+  } else {
+    openDM({ uid: peerUid, name: peerData.name||'?', photo: peerData.photo||'', color: peerData.color||'#3de8a0' });
+  }
+};
+
+// Hook startDMNotifications into openSocialArea
+const _origOpenSocArea4 = window.openSocialArea;
+window.openSocialArea = function() {
+  if (_origOpenSocArea4) _origOpenSocArea4.apply(this, arguments);
+  // Request notification permission
+  if (window.requestDMNotifPermission) requestDMNotifPermission();
+  // Start DM notification listener (after module sets _socUserId)
+  setTimeout(() => {
+    if (window.startDMNotifications) startDMNotifications();
+    // Also retry socListenStories to ensure stories load
+    if (window.socListenStories) socListenStories();
+  }, 1200);
+};
+
+// Auto-start DM notifications if already in social area
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const socialScreen = document.getElementById('social-screen');
+    if (socialScreen && !socialScreen.classList.contains('hidden')) {
+      if (window.startDMNotifications) startDMNotifications();
+    }
+  }, 3000);
+});
+
+console.log('%c DM Notifications + Story Fix loaded ✓', 'color:#3de8a0;font-weight:bold');
 </script>
 
 </body>

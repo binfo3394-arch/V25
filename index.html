@@ -4265,6 +4265,15 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 .story-viewer-text{position:absolute;bottom:80px;left:0;right:0;text-align:center;color:#fff;font-size:15px;padding:0 20px;text-shadow:0 2px 8px rgba(0,0,0,0.8);z-index:3;}
 .story-tap-prev,.story-tap-next{position:absolute;top:0;bottom:0;width:40%;z-index:5;cursor:pointer;background:transparent;border:none;}
 .story-tap-prev{left:0;}.story-tap-next{right:0;}
+/* == STORY ENHANCEMENTS CSS == */
+.story-views-badge{position:absolute;top:58px;left:14px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:20px;z-index:6;display:flex;align-items:center;gap:4px;pointer-events:none;}
+.story-delete-btn{position:absolute;top:54px;right:12px;background:rgba(255,92,92,0.18);border:1px solid rgba(255,92,92,0.35);color:#ff8a8a;font-size:11px;font-family:var(--mono);padding:5px 11px;border-radius:20px;cursor:pointer;z-index:6;display:none;}
+.story-delete-btn.visible{display:block;}
+.story-expire-badge{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:10px;font-family:var(--mono);padding:3px 10px;border-radius:20px;z-index:6;pointer-events:none;}
+.story-reply-bar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:10px 14px 20px;background:linear-gradient(to top,rgba(0,0,0,0.75),transparent);z-index:7;}
+.story-reply-input{flex:1;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:24px;padding:9px 16px;color:#fff;font-family:var(--sans);font-size:13px;outline:none;}
+.story-reply-input::placeholder{color:rgba(255,255,255,0.4);}
+.story-reply-send{background:var(--accent);border:none;border-radius:50%;width:38px;height:38px;color:#000;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 
 /* ── Story Upload Sheet ── */
 .story-upload-sheet{display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);align-items:flex-end;justify-content:center;}
@@ -12420,8 +12429,108 @@ window.closeStoryViewer = function(e) {
   clearTimeout(_storyProgressTimer);
   document.getElementById('story-viewer')?.classList.remove('open');
   window._storyViewerList = null;
-  renderStoriesBar(); // refresh seen status
+  // Clear reply input
+  var ri = document.getElementById('story-reply-input');
+  if (ri) ri.value = '';
+  // Stop views listener
+  if (window._storyViewsUnsub) { try { window._storyViewsUnsub(); } catch(x){} window._storyViewsUnsub = null; }
+  renderStoriesBar();
 };
+
+// ======= STORY ENHANCEMENTS v9 =======
+
+// -- Views count (Firebase realtime) --
+window.storyRecordView = function(storyId) {
+  if (!storyId || !window._socUserId) return;
+  try {
+    var fb = window.socGetFB(); var db2 = window.socGetDB(); if (!db2) return;
+    fb.set(fb.ref(db2, 'social/story_views/' + storyId + '/' + window._socUserId), true);
+    if (window._storyViewsUnsub) { try { window._storyViewsUnsub(); } catch(x){} }
+    window._storyViewsUnsub = fb.onValue(fb.ref(db2, 'social/story_views/' + storyId), function(snap) {
+      var c = snap.val() ? Object.keys(snap.val()).length : 0;
+      var b = document.getElementById('story-views-badge');
+      if (b) b.textContent = '\uD83D\uDC41 ' + c + ' view' + (c !== 1 ? 's' : '');
+    });
+  } catch(x) { console.warn('storyRecordView error', x); }
+};
+
+// -- Expire timer badge --
+window.storyShowExpire = function(ts) {
+  var b = document.getElementById('story-expire-badge'); if (!b || !ts) return;
+  var ms = (ts + 86400000) - Date.now();
+  if (ms <= 0) { b.textContent = 'Expired'; return; }
+  var h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  b.textContent = (h > 0 ? h + 'h ' : '') + m + 'm left';
+};
+
+// -- Delete own story --
+window.deleteCurrentStory = function(e) {
+  if (e) e.stopPropagation();
+  var stories = window._storyViewerList || [];
+  var story = stories[_storyViewerIdx];
+  if (!story || story.uid !== window._socUserId) return;
+  if (!confirm('Delete this story?')) return;
+  var fb = window.socGetFB(); var db2 = window.socGetDB();
+  if (!db2) { showToast('Not connected'); return; }
+  fb.remove(fb.ref(db2, 'social/stories/' + story.id)).then(function() {
+    showToast('\uD83D\uDDD1 Story deleted');
+    closeStoryViewer();
+  }).catch(function() { showToast('Delete failed'); });
+};
+
+// -- Story reply (sends as DM) --
+window.sendStoryReply = function() {
+  var input = document.getElementById('story-reply-input');
+  var text = (input ? input.value : '').trim(); if (!text) return;
+  var stories = window._storyViewerList || [];
+  var story = stories[_storyViewerIdx]; if (!story) return;
+  if (story.uid === window._socUserId) { showToast('Cannot reply to own story'); return; }
+  var uids = [window._socUserId, story.uid].sort();
+  var roomId = uids[0] + '__dm__' + uids[1];
+  var fb = window.socGetFB(); var db2 = window.socGetDB();
+  if (!db2) { showToast('Not connected'); return; }
+  fb.push(fb.ref(db2, 'social/dms/' + roomId + '/messages'), {
+    senderId: window._socUserId,
+    name: window._socName || 'You',
+    photo: window._socPhoto || '',
+    color: window._socColor || '#3de8a0',
+    type: 'text',
+    text: '\uD83D\uDCF8 Story reply: ' + text,
+    ts: Date.now()
+  }).then(function() {
+    input.value = '';
+    showToast('\u2713 Replied to ' + (story.name || 'story'));
+  }).catch(function() { showToast('Reply failed'); });
+};
+
+// -- Patch showStoryAt to drive new badges --
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    var _orig = window.showStoryAt;
+    if (!_orig) return;
+    window.showStoryAt = function(idx) {
+      _orig(idx);
+      setTimeout(function() {
+        var stories = window._storyViewerList || [];
+        if (idx < 0 || idx >= stories.length) return;
+        var story = stories[idx];
+        // Views
+        window.storyRecordView(story.id);
+        // Expire
+        window.storyShowExpire(story.ts);
+        // Delete button (own story only)
+        var delBtn = document.getElementById('story-delete-btn');
+        if (delBtn) delBtn.classList.toggle('visible', story.uid === window._socUserId);
+        // Reply bar (hide for own story)
+        var replyBar = document.getElementById('story-reply-bar');
+        if (replyBar) replyBar.style.display = (story.uid === window._socUserId) ? 'none' : 'flex';
+      }, 60);
+    };
+  }, 1800);
+});
+
+console.log('%c Story Enhancements v9 loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
+// ====================================
 
 /* ─── REACTION FLOAT ANIMATION ─── */
 function spawnReactFloat(emoji, x, y) {
@@ -13667,8 +13776,15 @@ console.log('%c DM v2 + Profile v2 + Friends RT loaded \u2713', 'color:#3de8a0;f
   </div>
   <img class="story-viewer-img" id="story-viewer-img" src="" alt="">
   <div class="story-viewer-text" id="story-viewer-text"></div>
+  <div class="story-views-badge" id="story-views-badge">&#x1F441; 0</div>
+  <button class="story-delete-btn" id="story-delete-btn" onclick="deleteCurrentStory(event)">&#x1F5D1; Delete</button>
+  <div class="story-expire-badge" id="story-expire-badge"></div>
   <div class="story-tap-prev" onclick="storyPrev(event)"></div>
   <div class="story-tap-next" onclick="storyNext(event)"></div>
+  <div class="story-reply-bar" id="story-reply-bar" onclick="event.stopPropagation()" style="display:none">
+    <input class="story-reply-input" id="story-reply-input" placeholder="Reply to story..." maxlength="200">
+    <button class="story-reply-send" onclick="sendStoryReply()">&#x27A4;</button>
+  </div>
 </div>
 
 <!-- ════ STORY UPLOAD SHEET ════ -->

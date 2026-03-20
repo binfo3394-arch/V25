@@ -12418,19 +12418,24 @@ function showStoryAt(idx) {
   } catch(e) {}
 }
 
-window.storyNext = function(e) { if(e) e.stopPropagation(); showStoryAt(_storyViewerIdx+1); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
-window.storyPrev = function(e) { if(e) e.stopPropagation(); showStoryAt(_storyViewerIdx-1); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
+window.storyNext = function(e) { if(e&&e.stopPropagation) e.stopPropagation(); var nxt=_storyViewerIdx+1; showStoryAt(nxt); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
+window.storyPrev = function(e) { if(e&&e.stopPropagation) e.stopPropagation(); var prv=_storyViewerIdx-1; showStoryAt(prv); setTimeout(function(){if(window._storyEnhanceUpdate)window._storyEnhanceUpdate(_storyViewerIdx);},80); };
 
 window.storyTapHandler = function(e) {
-  // Tap left half = prev, right half = next
-  const x = e.clientX;
-  const w = window.innerWidth;
+  // Only handle taps on the bare viewer background, not on any interactive element
+  var tag = e.target.tagName;
+  if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A') return;
+  var cl = e.target.className || '';
+  if (cl.indexOf('story-tap-') >= 0) return; // handled by tap zones
+  if (cl.indexOf('story-viewer-header') >= 0) return;
+  if (cl.indexOf('story-reply') >= 0) return;
+  var x = e.clientX, w = window.innerWidth;
   if (x < w * 0.35) storyPrev(e);
   else storyNext(e);
 };
 
 window.closeStoryViewer = function(e) {
-  if (e) e.stopPropagation();
+  if (e && e.stopPropagation) e.stopPropagation();
   clearTimeout(_storyProgressTimer);
   document.getElementById('story-viewer')?.classList.remove('open');
   window._storyViewerList = null;
@@ -12523,6 +12528,37 @@ window._storyEnhanceUpdate = function(idx) {
 
 console.log('%c Story Enhancements v9 loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
 // ====================================
+
+// Bind story viewer click events via JS (more reliable than inline onclick)
+(function bindStoryEvents() {
+  function _bind() {
+    var sv  = document.getElementById('story-viewer');
+    var tp  = document.getElementById('story-tap-prev');
+    var tn  = document.getElementById('story-tap-next');
+    if (!sv) { setTimeout(_bind, 300); return; }
+
+    // Main viewer click = tap nav (only on bare background)
+    sv.addEventListener('click', function(e) {
+      var t = e.target;
+      // Ignore if click is on any interactive child
+      if (t.tagName === 'BUTTON' || t.tagName === 'INPUT') return;
+      if (t.closest && (t.closest('.story-viewer-header') ||
+          t.closest('.story-reply-bar') ||
+          t.closest('.story-delete-btn') ||
+          t.closest('#story-tap-prev') ||
+          t.closest('#story-tap-next'))) return;
+      // Left 35% = prev, rest = next
+      if (e.clientX < window.innerWidth * 0.35) window.storyPrev();
+      else window.storyNext();
+    });
+
+    // Tap zones
+    if (tp) tp.addEventListener('click', function(e) { e.stopPropagation(); window.storyPrev(); });
+    if (tn) tn.addEventListener('click', function(e) { e.stopPropagation(); window.storyNext(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _bind);
+  else _bind();
+})();
 
 /* ─── REACTION FLOAT ANIMATION ─── */
 function spawnReactFloat(emoji, x, y) {
@@ -13769,24 +13805,24 @@ console.log('%c DM v2 + Profile v2 + Friends RT loaded \u2713', 'color:#3de8a0;f
 
 
 <!-- ════ STORY VIEWER ════ -->
-<div class="story-viewer" id="story-viewer" onclick="storyTapHandler(event)">
+<div class="story-viewer" id="story-viewer">
   <div class="story-progress-bars" id="story-progress-bars"></div>
   <div class="story-viewer-header" id="story-viewer-header">
     <div class="story-viewer-av" id="story-viewer-av">&#x1F464;</div>
     <div class="story-viewer-name" id="story-viewer-name"></div>
     <div class="story-viewer-time" id="story-viewer-time"></div>
-    <button class="story-viewer-close" onclick="closeStoryViewer(event)">&#x2715;</button>
+    <button class="story-viewer-close" id="story-close-btn" onclick="event.stopPropagation();closeStoryViewer();">&#x2715;</button>
   </div>
   <img class="story-viewer-img" id="story-viewer-img" src="" alt="">
   <div class="story-viewer-text" id="story-viewer-text"></div>
   <div class="story-views-badge" id="story-views-badge">&#x1F441; 0</div>
-  <button class="story-delete-btn" id="story-delete-btn" onclick="deleteCurrentStory(event)">&#x1F5D1; Delete</button>
+  <button class="story-delete-btn" id="story-delete-btn" onclick="event.stopPropagation();deleteCurrentStory();">&#x1F5D1; Delete</button>
   <div class="story-expire-badge" id="story-expire-badge"></div>
-  <div class="story-tap-prev" onclick="storyPrev(event)"></div>
-  <div class="story-tap-next" onclick="storyNext(event)"></div>
+  <div class="story-tap-prev" id="story-tap-prev"></div>
+  <div class="story-tap-next" id="story-tap-next"></div>
   <div class="story-reply-bar" id="story-reply-bar" onclick="event.stopPropagation()" style="display:none">
     <input class="story-reply-input" id="story-reply-input" placeholder="Reply to story..." maxlength="200">
-    <button class="story-reply-send" onclick="sendStoryReply()">&#x27A4;</button>
+    <button class="story-reply-send" onclick="event.stopPropagation();sendStoryReply();">&#x27A4;</button>
   </div>
 </div>
 

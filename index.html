@@ -4238,6 +4238,7 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
   display:flex;align-items:center;gap:10px;padding:10px 12px;
   overflow-x:auto;flex-shrink:0;background:var(--panel);
   border-bottom:1px solid var(--border);scrollbar-width:none;
+  min-height:84px;
 }
 .soc-stories-bar::-webkit-scrollbar{display:none;}
 .soc-story-item{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;cursor:pointer;-webkit-user-select:none;user-select:none;}
@@ -12209,9 +12210,27 @@ window.submitStory = function() {
     text: text || '',
     ts: Date.now(),
     expiresAt: Date.now() + 24*60*60*1000  // 24 hours
-  }).then(() => {
+  }).then(ref => {
     showToast('📸 Story shared!');
     closeStoryUpload();
+    // Immediately show in stories bar without waiting for Firebase listener
+    if (ref && ref.key) {
+      const newStory = {
+        id: ref.key,
+        uid: window._socUserId,
+        name: window._socName || 'Someone',
+        photo: window._socPhoto || '',
+        image: _storyImgDataLocal,
+        text: document.getElementById('story-text-input')?.value?.trim() || '',
+        ts: Date.now()
+      };
+      if (!_socStories) _socStories = [];
+      // Remove old story from same user, add new one
+      _socStories = _socStories.filter(s => s.uid !== window._socUserId);
+      _socStories.unshift(newStory);
+      renderStoriesBar();
+    }
+    _storyImgDataLocal = '';
   }).catch(err => {
     console.error('Story push failed:', err);
     showToast('❌ Story failed: ' + (err.message || 'Unknown error'));
@@ -12353,7 +12372,28 @@ function showStoryAt(idx) {
   const timeEl = document.getElementById('story-viewer-time');
 
   if (imgEl)  { imgEl.src = story.image || ''; imgEl.style.display = story.image ? 'block' : 'none'; }
-  if (textEl) textEl.textContent = story.text || '';
+  if (textEl) {
+    textEl.textContent = story.text || '';
+    // For text-only stories, make text bigger and centered
+    if (!story.image && story.text) {
+      textEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+        'font-size:22px;font-weight:700;color:#fff;text-align:center;padding:20px;' +
+        'text-shadow:0 2px 12px rgba(0,0,0,0.8);width:90%;z-index:3;line-height:1.5;';
+    } else {
+      textEl.style.cssText = 'position:absolute;bottom:80px;left:0;right:0;text-align:center;' +
+        'color:#fff;font-size:15px;padding:0 20px;text-shadow:0 2px 8px rgba(0,0,0,0.8);z-index:3;';
+    }
+  }
+  // Background for text-only stories
+  const viewerBg = document.getElementById('story-viewer');
+  if (viewerBg) {
+    if (!story.image) {
+      const color = story.color || '#3de8a0';
+      viewerBg.style.background = 'linear-gradient(135deg, ' + color + '33, #05070a 60%)';
+    } else {
+      viewerBg.style.background = '#000';
+    }
+  }
   if (nameEl) nameEl.textContent = story.uid === window._socUserId ? 'Your Story' : (story.name||'');
   if (timeEl) timeEl.textContent = window.socFmtTime(story.ts);
   if (avEl) {
@@ -12447,11 +12487,15 @@ window.socDoReact = function(emoji) {
 const _origOpenSocialArea2 = window.openSocialArea;
 window.openSocialArea = function() {
   if (_origOpenSocialArea2) _origOpenSocialArea2.apply(this, arguments);
-  // Give module time to set window._socUserId etc
+  
+  // Show "Add story" button immediately (before Firebase loads)
+  renderStoriesBar();
+  
+  // Then start Firebase listeners
   setTimeout(() => {
     socListenStories();
     socUpdateTrending();
-  }, 800);
+  }, 600);
 };
 
 /* ─── POST TIMESTAMPS LIVE UPDATE ─── */

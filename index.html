@@ -11596,6 +11596,37 @@ function checkDMNotifications() {
   startDMNotifications();
 }
 
+// Story Reply Notification Listener
+var _storyReplyNotifUnsub = null;
+var _storyReplyNotifSeen  = {};
+window.startStoryReplyNotifications = function() {
+  if (!window.__db || !window.__fbx || !window._socUserId) {
+    setTimeout(window.startStoryReplyNotifications, 1200); return;
+  }
+  var fbx=window.__fbx, db=window.__db, uid=window._socUserId;
+  if (_storyReplyNotifUnsub) { try{_storyReplyNotifUnsub();}catch(x){} }
+  // Mark existing as seen so we don't show old notifs
+  try {
+    fbx.get(fbx.ref(db,'social/dm_notifications/'+uid)).then(function(snap){
+      var existing=snap.val()||{};
+      Object.keys(existing).forEach(function(k){_storyReplyNotifSeen[k]=true;});
+      _listenStoryReplies(fbx,db,uid);
+    }).catch(function(){ _listenStoryReplies(fbx,db,uid); });
+  } catch(x) { _listenStoryReplies(fbx,db,uid); }
+};
+function _listenStoryReplies(fbx,db,uid) {
+  _storyReplyNotifUnsub = fbx.onChildAdded(fbx.ref(db,'social/dm_notifications/'+uid), function(snap) {
+    var key=snap.key; if (_storyReplyNotifSeen[key]) return;
+    _storyReplyNotifSeen[key]=true;
+    var d=snap.val(); if(!d||d.type!=='story_reply') return;
+    var nm=d.senderName||'Someone', ph=d.senderPhoto||'', txt=d.text||'Story reply', rid=d.roomId||'';
+    if (window.showDMNotifToast) showDMNotifToast(nm, ph, txt, rid);
+    else if (window.showToast) showToast('\uD83D\uDCF8 '+nm+' replied to your story!');
+    // Remove notification after showing
+    setTimeout(function(){try{fbx.remove(fbx.ref(db,'social/dm_notifications/'+uid+'/'+key));}catch(x){}}, 4000);
+  });
+}
+
 // Keyboard: Escape closes DM
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
@@ -12437,13 +12468,15 @@ window.storyTapHandler = function(e) {
 window.closeStoryViewer = function(e) {
   if (e && e.stopPropagation) e.stopPropagation();
   clearTimeout(_storyProgressTimer);
-  document.getElementById('story-viewer')?.classList.remove('open');
+  var sv = document.getElementById('story-viewer');
+  if (sv) { sv.classList.remove('open'); sv.style.display='none'; }
   window._storyViewerList = null;
-  // Clear reply input
   var ri = document.getElementById('story-reply-input');
   if (ri) ri.value = '';
-  // Stop views listener
   if (window._storyViewsUnsub) { try { window._storyViewsUnsub(); } catch(x){} window._storyViewsUnsub = null; }
+  // Show social/lobby screen
+  var ss = document.getElementById('social-screen');
+  if (ss) { ss.classList.remove('hidden'); ss.style.display=''; }
   renderStoriesBar();
 };
 
@@ -12499,17 +12532,22 @@ window.sendStoryReply = function() {
   var roomId = uids[0] + '__dm__' + uids[1];
   var fb = window.socGetFB(); var db2 = window.socGetDB();
   if (!db2) { showToast('Not connected'); return; }
+  var msgText = '\uD83D\uDCF8 Story reply: ' + text;
+  var myName=window._socName||'Someone', myPhoto=window._socPhoto||'', myUid=window._socUserId, now=Date.now();
   fb.push(fb.ref(db2, 'social/dms/' + roomId + '/messages'), {
-    senderId: window._socUserId,
-    name: window._socName || 'You',
-    photo: window._socPhoto || '',
-    color: window._socColor || '#3de8a0',
-    type: 'text',
-    text: '\uD83D\uDCF8 Story reply: ' + text,
-    ts: Date.now()
+    senderId: myUid, senderName: myName, senderPhoto: myPhoto,
+    name: myName, photo: myPhoto, color: window._socColor||'#3de8a0',
+    type: 'text', text: msgText, ts: now
   }).then(function() {
     input.value = '';
     showToast('\u2713 Replied to ' + (story.name || 'story'));
+    // Write notification for receiver
+    try {
+      fb.set(fb.ref(db2, 'social/dm_notifications/' + story.uid + '/' + myUid + '_' + now), {
+        senderName: myName, senderPhoto: myPhoto, senderUid: myUid,
+        text: msgText, roomId: roomId, ts: now, type: 'story_reply'
+      });
+    } catch(ex) {}
   }).catch(function() { showToast('Reply failed'); });
 };
 
@@ -13902,6 +13940,7 @@ window.openSocialArea = function() {
   // Start DM notification listener (after module sets _socUserId)
   setTimeout(() => {
     if (window.startDMNotifications) startDMNotifications();
+    if (window.startStoryReplyNotifications) startStoryReplyNotifications();
     // Also retry socListenStories to ensure stories load
     if (window.socListenStories) socListenStories();
   }, 1200);

@@ -5012,41 +5012,6 @@ body.theme-light { --bg:#f8fafc; --panel:#ffffff; --card:#f1f5f9; --card2:#e2e8f
 </div>
 
 
-<!-- ════ STORY VIEWER ════ -->
-<div class="story-viewer" id="story-viewer" onclick="storyTapHandler(event)">
-  <div class="story-progress-bars" id="story-progress-bars"></div>
-  <div class="story-viewer-header" id="story-viewer-header">
-    <div class="story-viewer-av" id="story-viewer-av">&#x1F464;</div>
-    <div class="story-viewer-name" id="story-viewer-name"></div>
-    <div class="story-viewer-time" id="story-viewer-time"></div>
-    <button class="story-viewer-close" onclick="closeStoryViewer(event)">&#x2715;</button>
-  </div>
-  <img class="story-viewer-img" id="story-viewer-img" src="" alt="">
-  <div class="story-viewer-text" id="story-viewer-text"></div>
-  <div class="story-tap-prev" onclick="storyPrev(event)"></div>
-  <div class="story-tap-next" onclick="storyNext(event)"></div>
-</div>
-
-<!-- ════ STORY UPLOAD SHEET ════ -->
-<div class="story-upload-sheet" id="story-upload-sheet" onclick="if(event.target===this)closeStoryUpload()">
-  <div class="story-upload-card">
-    <div style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
-      <span>&#x1F4F7; Add Story</span>
-      <button onclick="closeStoryUpload()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);">Cancel</button>
-    </div>
-    <textarea id="story-text-input" placeholder="What's on your mind? (optional)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;min-height:80px;outline:none;margin-bottom:12px;line-height:1.6;" maxlength="200"></textarea>
-    <div id="story-img-preview-wrap" style="display:none;margin-bottom:12px;position:relative;">
-      <img id="story-img-preview" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:cover;display:block;">
-      <button onclick="removeStoryImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;width:24px;height:24px;color:#fff;font-size:12px;cursor:pointer;">&#x2715;</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button onclick="document.getElementById('story-img-input').click()" style="flex:1;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;">&#x1F4F7; Photo</button>
-      <input type="file" id="story-img-input" accept="image/*" style="display:none" onchange="onStoryImgSelect(this)">
-    </div>
-    <button onclick="submitStory()" style="width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:var(--display);font-size:14px;font-weight:700;cursor:pointer;">Share Story &#x1F680;</button>
-  </div>
-</div>
-
 <!-- ════ NOTIFICATION PANEL ════ -->
 <div class="soc-notif-panel" id="soc-notif-panel">
   <div class="soc-notif-head">
@@ -13690,6 +13655,41 @@ window.openSocialArea = function() {
 console.log('%c DM v2 + Profile v2 + Friends RT loaded \u2713', 'color:#3de8a0;font-weight:bold;font-size:13px');
 </script>
 
+
+<!-- ════ STORY VIEWER ════ -->
+<div class="story-viewer" id="story-viewer" onclick="storyTapHandler(event)">
+  <div class="story-progress-bars" id="story-progress-bars"></div>
+  <div class="story-viewer-header" id="story-viewer-header">
+    <div class="story-viewer-av" id="story-viewer-av">&#x1F464;</div>
+    <div class="story-viewer-name" id="story-viewer-name"></div>
+    <div class="story-viewer-time" id="story-viewer-time"></div>
+    <button class="story-viewer-close" onclick="closeStoryViewer(event)">&#x2715;</button>
+  </div>
+  <img class="story-viewer-img" id="story-viewer-img" src="" alt="">
+  <div class="story-viewer-text" id="story-viewer-text"></div>
+  <div class="story-tap-prev" onclick="storyPrev(event)"></div>
+  <div class="story-tap-next" onclick="storyNext(event)"></div>
+</div>
+
+<!-- ════ STORY UPLOAD SHEET ════ -->
+<div class="story-upload-sheet" id="story-upload-sheet" onclick="if(event.target===this)closeStoryUpload()">
+  <div class="story-upload-card">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+      <span>&#x1F4F7; Add Story</span>
+      <button onclick="closeStoryUpload()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);">Cancel</button>
+    </div>
+    <textarea id="story-text-input" placeholder="What's on your mind? (optional)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;min-height:80px;outline:none;margin-bottom:12px;line-height:1.6;" maxlength="200"></textarea>
+    <div id="story-img-preview-wrap" style="display:none;margin-bottom:12px;position:relative;">
+      <img id="story-img-preview" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:cover;display:block;">
+      <button onclick="removeStoryImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;width:24px;height:24px;color:#fff;font-size:12px;cursor:pointer;">&#x2715;</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button onclick="document.getElementById('story-img-input').click()" style="flex:1;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;">&#x1F4F7; Photo</button>
+      <input type="file" id="story-img-input" accept="image/*" style="display:none" onchange="onStoryImgSelect(this)">
+    </div>
+    <button onclick="submitStory()" style="width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:var(--display);font-size:14px;font-weight:700;cursor:pointer;">Share Story &#x1F680;</button>
+  </div>
+</div>
 
 <!-- ════ DM NOTIFICATION TOAST ════ -->
 <div class="dm-notif-toast" id="dm-notif-toast" onclick="dmNotifTap(this)">

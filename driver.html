@@ -590,7 +590,7 @@ input:checked+.d-ts-slider::before{transform:translateX(22px);}
       <div class="vinfo-row"><div class="vinfo-lbl">Total Trips</div><div class="vinfo-val" id="vInfoTrips">0</div></div>
       <div class="vinfo-row"><div class="vinfo-lbl">Member Since</div><div class="vinfo-val" id="vInfoSince">—</div></div>
       <div style="margin-top:18px;padding:12px 14px;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.2);border-radius:12px;font-size:0.78rem;color:var(--muted);line-height:1.6;">
-        ⚠️ Vehicle details change කරන්නට support@ridego.lk ලෙ contact කරන්න.
+        ⚠️ Vehicle details change කරන්නට <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="12616762627d606652607b7677757d3c7e79">[email&#160;protected]</a> ලෙ contact කරන්න.
       </div>
     </div>
   </div>
@@ -657,7 +657,7 @@ input:checked+.d-ts-slider::before{transform:translateX(22px);}
 
 <div id="toast"></div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" defer></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" defer></script>
 <script>
 // ══ FIREBASE ══
 const firebaseConfig={apiKey:"AIzaSyARwN5Iho-m96PWEQOAbKIJhPyEjOM7ZVA",authDomain:"tuktuk-d428d.firebaseapp.com",databaseURL:"https://tuktuk-d428d-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"tuktuk-d428d",storageBucket:"tuktuk-d428d.firebasestorage.app",messagingSenderId:"1064642828578",appId:"1:1064642828578:web:02086769db0e407a41ed7b"};
@@ -1273,7 +1273,8 @@ let _pc=null, _localStream=null, _remoteStream=null;
 const _iceServers={iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'}
+  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'stun:stun.relay.metered.ca:80'},
 ]};
 
 function _setCallUI(name, status, sub){
@@ -1293,42 +1294,47 @@ async function startInAppCall(){
   _setCallUI(riderName,'Connecting mic...','In-App Call • Calling...');
   overlay('scInAppCall',true);
 
-  // 1. Mic
   try{
-    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
   }catch(e){
     toast('🎙️ Mic access denied — Settings ලෙ allow කරන්න');
     overlay('scInAppCall',false); return;
   }
 
-  // 2. PeerConnection
+  if(_pc){try{_pc.close();}catch(e){} _pc=null;}
   _pc=new RTCPeerConnection(_iceServers);
   _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
-  _remoteStream=new MediaStream();
+
   const ra=document.getElementById('remoteAudio');
-  ra.srcObject=_remoteStream;
-  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+  _pc.ontrack=e=>{
+    if(ra.srcObject!==e.streams[0]){
+      ra.srcObject=e.streams[0];
+      ra.play().catch(()=>{});
+    }
+  };
 
   const rideId=currentRideId;
   _pc.onicecandidate=e=>{
     if(e.candidate&&rideId)
       rtdb.ref('calls/'+rideId+'/callerCandidates').push(e.candidate.toJSON());
   };
-  _pc.onconnectionstatechange=()=>{
-    const s=_pc.connectionState;
-    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
-    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  _pc.oniceconnectionstatechange=()=>{
+    const s=_pc.iceConnectionState;
+    console.log('ICE (driver caller):', s);
+    if(s==='connected'||s==='completed'){
+      document.getElementById('iapStatus').textContent='Connected 🟢';
+      startCallTimer();
+      ra.play().catch(()=>{});
+    } else if(s==='failed'){ endInAppCall(); }
+    else if(s==='disconnected'){ document.getElementById('iapStatus').textContent='Reconnecting...'; }
   };
 
-  // 3. Create offer
-  const offer=await _pc.createOffer();
+  const offer=await _pc.createOffer({offerToReceiveAudio:true});
   await _pc.setLocalDescription(offer);
   await rtdb.ref('calls/'+rideId).set({
     offer:{type:offer.type,sdp:offer.sdp},
     status:'calling', callerId:currentDriver?.uid||'driver', ts:Date.now()
   });
-
-  // 4. Signal Firestore
   db.collection('rides').doc(rideId).update({
     inAppCallFromDriver:true, inAppCallStatus:'calling',
     inAppCallAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1336,32 +1342,29 @@ async function startInAppCall(){
 
   document.getElementById('iapStatus').textContent='Calling...';
 
-  // 5. Listen for answer (RTDB)
   rtdb.ref('calls/'+rideId+'/answer').on('value',async snap=>{
     const ans=snap.val();
     if(ans&&_pc&&!_pc.currentRemoteDescription){
-      await _pc.setRemoteDescription(new RTCSessionDescription(ans));
+      try{ await _pc.setRemoteDescription(new RTCSessionDescription(ans)); }
+      catch(e){ console.warn('setRemoteDesc error:',e); }
     }
   });
   rtdb.ref('calls/'+rideId+'/calleeCandidates').on('child_added',snap=>{
     const c=snap.val();
-    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    if(c&&_pc&&_pc.remoteDescription)
+      _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
   });
 
-  // 6. Firestore decline/end listener
   if(iapCallListener){iapCallListener();iapCallListener=null;}
   iapCallListener=db.collection('rides').doc(rideId).onSnapshot(snap=>{
     const d=snap.data();
-    if(d?.inAppCallStatus==='declined'){
-      toast('📵 Rider declined the call');
-      endInAppCall();
-    }
+    if(d?.inAppCallStatus==='declined'){ toast('📵 Rider declined'); endInAppCall(); }
+    else if(d?.inAppCallStatus==='ended'){ endInAppCall(); }
   });
   setTimeout(()=>{
     if(document.getElementById('scInAppCall').classList.contains('active')&&
        document.getElementById('iapStatus').textContent==='Calling...'){
-      toast('📵 No answer');
-      endInAppCall();
+      toast('📵 No answer'); endInAppCall();
     }
   },30000);
 }
@@ -1374,31 +1377,39 @@ async function answerIncomingCall(){
   overlay('scInAppCall',true);
 
   try{
-    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
   }catch(e){
     toast('🎙️ Mic access denied');
     overlay('scInAppCall',false); return;
   }
 
+  if(_pc){try{_pc.close();}catch(e){} _pc=null;}
   _pc=new RTCPeerConnection(_iceServers);
   _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
-  _remoteStream=new MediaStream();
+
   const ra=document.getElementById('remoteAudio');
-  ra.srcObject=_remoteStream;
-  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+  _pc.ontrack=e=>{
+    if(ra.srcObject!==e.streams[0]){
+      ra.srcObject=e.streams[0];
+      ra.play().catch(()=>{});
+    }
+  };
 
   const rideId=currentRideId;
   _pc.onicecandidate=e=>{
     if(e.candidate&&rideId)
       rtdb.ref('calls/'+rideId+'/calleeCandidates').push(e.candidate.toJSON());
   };
-  _pc.onconnectionstatechange=()=>{
-    const s=_pc.connectionState;
-    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
-    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  _pc.oniceconnectionstatechange=()=>{
+    const s=_pc.iceConnectionState;
+    console.log('ICE (driver answer):', s);
+    if(s==='connected'||s==='completed'){
+      document.getElementById('iapStatus').textContent='Connected 🟢';
+      startCallTimer();
+      ra.play().catch(()=>{});
+    } else if(s==='failed'){ endInAppCall(); }
   };
 
-  // Get offer
   const offerSnap=await rtdb.ref('calls/'+rideId+'/offer').get();
   const offerData=offerSnap.val();
   if(!offerData){ toast('Call data error'); overlay('scInAppCall',false); return; }
@@ -1409,12 +1420,10 @@ async function answerIncomingCall(){
 
   rtdb.ref('calls/'+rideId+'/callerCandidates').on('child_added',snap=>{
     const c=snap.val();
-    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    if(c&&_pc&&_pc.remoteDescription)
+      _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
   });
-
   db.collection('rides').doc(rideId).update({inAppCallStatus:'answered'}).catch(()=>{});
-  document.getElementById('iapStatus').textContent='Connected 🟢';
-  startCallTimer();
 }
 
 function startCallTimer(){
@@ -1676,8 +1685,4 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 function setErr(m){document.getElementById('authErr').textContent=m;}
 function getEMsg(c){return({'auth/user-not-found':'User නෑ','auth/wrong-password':'Password වැරදියි','auth/email-already-in-use':'Email used','auth/weak-password':'Min 6 chars','auth/invalid-credential':'Email/password wrong'}[c]||c);}
 let toastT;
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);}
-document.addEventListener('touchstart',()=>{},true);
-</script>
-</body>
-</html>
+function toast(m){const t=do

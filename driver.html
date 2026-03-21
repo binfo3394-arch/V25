@@ -280,6 +280,25 @@ body{font-family:'DM Sans',sans-serif;color:#f0f0f8;position:fixed;inset:0;}
 /* CALL REQUEST TOAST */
 #callReqBadge{position:fixed;top:calc(var(--sat)+70px);left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:99px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;z-index:200;display:none;cursor:pointer;box-shadow:0 4px 18px rgba(39,174,96,0.4);white-space:nowrap;-webkit-tap-highlight-color:transparent;}
 
+/* VEHICLE INFO / SETTINGS / PROFILE MODALS */
+#scVehicleInfo,#scDriverSettings,#scDriverProfile{z-index:80;background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;}
+.vinfo-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);}
+.vinfo-lbl{font-size:0.82rem;color:var(--muted);}
+.vinfo-val{font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;}
+.dsettings-section{font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:8px 0 6px;}
+.dsettings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);}
+.dsettings-lbl{font-size:0.88rem;color:var(--text);}
+.d-toggle-sw{position:relative;width:48px;height:26px;flex-shrink:0;}
+.d-toggle-sw input{opacity:0;width:0;height:0;}
+.d-ts-slider{position:absolute;inset:0;background:var(--border);border-radius:99px;transition:0.3s;cursor:pointer;}
+.d-ts-slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+input:checked+.d-ts-slider{background:var(--green);}
+input:checked+.d-ts-slider::before{transform:translateX(22px);}
+
+/* Fix ride actions to 2x2 grid with navigate */
+.ride-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.ract.main-act{grid-column:1/-1;}
+
 /* TOAST */
 #toast{position:fixed;bottom:calc(var(--sab)+80px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:99px;font-size:0.82rem;z-index:999;transition:all 0.3s;opacity:0;white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
@@ -416,6 +435,7 @@ body{font-family:'DM Sans',sans-serif;color:#f0f0f8;position:fixed;inset:0;}
           <button class="ract" onclick="openDriverChat()">💬 Chat</button>
           <div class="unread-badge" id="chatUnreadBadge">0</div>
         </div>
+        <button class="ract" onclick="openNavigate()">🗺️ Navigate</button>
         <button class="ract main-act" id="mainActBtn" onclick="handleMainAction()">🚀 Arrived at Pickup</button>
       </div>
     </div>
@@ -434,8 +454,9 @@ body{font-family:'DM Sans',sans-serif;color:#f0f0f8;position:fixed;inset:0;}
     </div>
     <div class="sb-item" onclick="openEarnings();closeSidebar()"><span class="sb-ic">💰</span> Earnings & Stats</div>
     <div class="sb-item" onclick="openEarnings();closeSidebar()"><span class="sb-ic">📋</span> Trip History</div>
-    <div class="sb-item" onclick="toast('Vehicle info — '+( driverProfile?.vehiclePlate||'—'));closeSidebar()"><span class="sb-ic">🚗</span> Vehicle Info</div>
-    <div class="sb-item" onclick="toast('Settings coming soon');closeSidebar()"><span class="sb-ic">⚙️</span> Settings</div>
+    <div class="sb-item" onclick="openVehicleInfo();closeSidebar()"><span class="sb-ic">🚗</span> Vehicle Info</div>
+    <div class="sb-item" onclick="openDriverSettings();closeSidebar()"><span class="sb-ic">⚙️</span> Settings</div>
+    <div class="sb-item" onclick="openDriverProfile();closeSidebar()"><span class="sb-ic">👤</span> My Profile</div>
     <div class="sb-item red" onclick="doLogout()"><span class="sb-ic">🚪</span> Log Out</div>
   </div>
 </div>
@@ -550,6 +571,90 @@ body{font-family:'DM Sans',sans-serif;color:#f0f0f8;position:fixed;inset:0;}
 
 <div id="callReqBadge" onclick="dismissCallReq()">📞 Rider is calling! Tap to dismiss</div>
 <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
+
+<!-- VEHICLE INFO MODAL -->
+<div class="screen" id="scVehicleInfo">
+  <div class="earn-box">
+    <div class="earn-head">
+      <div class="earn-title">🚗 Vehicle Info</div>
+      <button class="earn-close" onclick="overlay('scVehicleInfo',false)">✕</button>
+    </div>
+    <div style="padding:20px 18px;">
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-size:3.5rem;margin-bottom:8px;" id="vInfoIcon">🛺</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;" id="vInfoType">Tuk-Tuk</div>
+      </div>
+      <div class="vinfo-row"><div class="vinfo-lbl">Vehicle Plate</div><div class="vinfo-val" id="vInfoPlate">—</div></div>
+      <div class="vinfo-row"><div class="vinfo-lbl">NIC Number</div><div class="vinfo-val" id="vInfoNIC">—</div></div>
+      <div class="vinfo-row"><div class="vinfo-lbl">Rating</div><div class="vinfo-val" id="vInfoRating">⭐ 5.0</div></div>
+      <div class="vinfo-row"><div class="vinfo-lbl">Total Trips</div><div class="vinfo-val" id="vInfoTrips">0</div></div>
+      <div class="vinfo-row"><div class="vinfo-lbl">Member Since</div><div class="vinfo-val" id="vInfoSince">—</div></div>
+      <div style="margin-top:18px;padding:12px 14px;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.2);border-radius:12px;font-size:0.78rem;color:var(--muted);line-height:1.6;">
+        ⚠️ Vehicle details change කරන්නට support@ridego.lk ලෙ contact කරන්න.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVER SETTINGS MODAL -->
+<div class="screen" id="scDriverSettings">
+  <div class="earn-box">
+    <div class="earn-head">
+      <div class="earn-title">⚙️ Settings</div>
+      <button class="earn-close" onclick="overlay('scDriverSettings',false)">✕</button>
+    </div>
+    <div style="padding:12px 18px;overflow-y:auto;max-height:70vh;padding-bottom:calc(var(--sab)+16px);">
+      <div class="dsettings-section">Ride Requests</div>
+      <div class="dsettings-row">
+        <div class="dsettings-lbl">Auto-accept rides</div>
+        <label class="d-toggle-sw"><input type="checkbox" id="dAutoAccept" onchange="dSaveSetting('autoAccept',this.checked)"><span class="d-ts-slider"></span></label>
+      </div>
+      <div class="dsettings-row">
+        <div class="dsettings-lbl">Sound alerts</div>
+        <label class="d-toggle-sw"><input type="checkbox" id="dSoundAlert" checked onchange="dSaveSetting('soundAlert',this.checked)"><span class="d-ts-slider"></span></label>
+      </div>
+      <div class="dsettings-row">
+        <div class="dsettings-lbl">Vibration</div>
+        <label class="d-toggle-sw"><input type="checkbox" id="dVibration" checked onchange="dSaveSetting('vibration',this.checked)"><span class="d-ts-slider"></span></label>
+      </div>
+      <div class="dsettings-section" style="margin-top:14px;">Navigation</div>
+      <div class="dsettings-row">
+        <div class="dsettings-lbl">Default nav app</div>
+        <select id="dNavApp" onchange="dSaveSetting('navApp',this.value)" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.83rem;">
+          <option value="google">Google Maps</option>
+          <option value="waze">Waze</option>
+        </select>
+      </div>
+      <div class="dsettings-section" style="margin-top:14px;">Account</div>
+      <div class="dsettings-row tap" onclick="dChangePassword()" style="cursor:pointer;">
+        <div class="dsettings-lbl">Change Password</div>
+        <span style="color:var(--muted);font-size:0.85rem;">→</span>
+      </div>
+      <div style="padding:16px 0 4px;text-align:center;color:var(--muted);font-size:0.72rem;">RideGo Driver v2.0 • Sri Lanka 🇱🇰</div>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVER PROFILE MODAL -->
+<div class="screen" id="scDriverProfile">
+  <div class="earn-box">
+    <div class="earn-head">
+      <div class="earn-title">👤 My Profile</div>
+      <button class="earn-close" onclick="overlay('scDriverProfile',false)">✕</button>
+    </div>
+    <div style="padding:20px 18px;overflow-y:auto;max-height:70vh;padding-bottom:calc(var(--sab)+16px);">
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 10px;" id="dprofAvi">🚗</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--text);" id="dprofNameDisp">—</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;" id="dprofEmailDisp">—</div>
+      </div>
+      <div style="margin-bottom:13px;"><label style="font-size:0.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;display:block;">Full Name</label><input id="dprofNameInp" style="width:100%;padding:13px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;" placeholder="Your name"></div>
+      <div style="margin-bottom:13px;"><label style="font-size:0.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;display:block;">Phone</label><input id="dprofPhoneInp" type="tel" style="width:100%;padding:13px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;" placeholder="+94 77 123 4567"></div>
+      <button onclick="saveDriverProfile()" style="width:100%;padding:14px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;border:none;border-radius:12px;cursor:pointer;margin-top:6px;">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" async defer></script>
@@ -571,6 +676,9 @@ let chatListener=null,callReqListener=null;
 let selVType='tuk';
 const VTICONS={tuk:'🛺',car:'🚗',bike:'🏍️',xl:'🚐'};
 const VTNAMES={tuk:'Tuk-Tuk',car:'Car',bike:'Bike',xl:'Van/XL'};
+// Live ride tracking
+let _rideTraveledMeters=0,_lastDriverPos=null;
+let _liveFareDisplayInterval=null;
 
 setTimeout(()=>{document.getElementById('ldProg').style.width='100%';},100);
 
@@ -672,6 +780,35 @@ function updateProfileUI(){
   document.getElementById('statRating').textContent=rating;
 }
 
+// ══ FARE CONFIG (same as rider) ══
+const FARE_CONFIG = {
+  tuk:  { base:150, baseKm:1, perKm:100,  name:'Tuk-Tuk' },
+  car:  { base:150, baseKm:1, perKm:130,  name:'Car' },
+  bike: { base:150, baseKm:1, perKm:80,   name:'Bike' },
+  xl:   { base:150, baseKm:1, perKm:200,  name:'Van/XL' },
+};
+
+function calcFare(type, distMeters){
+  const cfg = FARE_CONFIG[type] || FARE_CONFIG.tuk;
+  const totalKm = distMeters / 1000;
+  if(totalKm <= cfg.baseKm) return { total: cfg.base, km: totalKm };
+  const extraKm = totalKm - cfg.baseKm;
+  const total = cfg.base + Math.round(extraKm * cfg.perKm);
+  return { total, km: totalKm };
+}
+
+function haversineMeters(a, b){
+  const R=6371000;
+  const φ1=a.lat*Math.PI/180, φ2=b.lat*Math.PI/180;
+  const Δφ=(b.lat-a.lat)*Math.PI/180, Δλ=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function formatDist(m){
+  return m<1000 ? Math.round(m)+'m' : (m/1000).toFixed(2)+'km';
+}
+
 // ══ ONLINE TOGGLE ══
 async function toggleOnline(){
   if(!isOnline&&!navigator.geolocation){toast('❌ GPS support නෑ');return;}
@@ -691,14 +828,34 @@ async function toggleOnline(){
 
 function startGPS(){
   if(locWatchId)return;
+  let lastPushTime = 0;
   locWatchId=navigator.geolocation.watchPosition(pos=>{
-    const loc={lat:pos.coords.latitude,lng:pos.coords.longitude,ts:Date.now()};
-    if(currentDriver)rtdb.ref('drivers/'+currentDriver.uid+'/location').set(loc).catch(e=>console.error('RTDB:',e.message));
-    placeDriverMarker(loc);
-    if(!currentRideId)map.panTo(loc);
+    const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    const now = Date.now();
+
+    // Push to RTDB every 2s
+    if(now - lastPushTime >= 2000){
+      lastPushTime = now;
+      if(currentDriver) rtdb.ref('drivers/'+currentDriver.uid+'/location').set({
+        lat:loc.lat, lng:loc.lng,
+        acc: Math.round(pos.coords.accuracy||0),
+        ts: now
+      }).catch(e=>console.error('RTDB:',e.message));
+    }
+
+    // Smooth marker
+    if(driverMarker) animateMarker(driverMarker, loc);
+    else placeDriverMarker(loc);
+
+    // Update live distance/fare during ride
+    if(currentRideId && ridePhase==='dest'){
+      updateLiveRideFare(loc);
+    }
+
+    if(!currentRideId) map.panTo(loc);
   },err=>{
     if(err.code===1)toast('❌ GPS permission denied');
-  },{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+  },{enableHighAccuracy:true, maximumAge:1000, timeout:15000});
 }
 
 function stopGPS(){
@@ -709,6 +866,59 @@ function stopGPS(){
 async function setOffline(){
   isOnline=false;stopGPS();
   if(currentDriver)await db.collection('drivers').doc(currentDriver.uid).update({isOnline:false}).catch(()=>{});
+}
+
+// Smooth marker interpolation
+function animateMarker(marker, newPos){
+  const startPos=marker.getPosition();
+  if(!startPos){marker.setPosition(newPos);return;}
+  const steps=10; let step=0;
+  const lat0=startPos.lat(), lng0=startPos.lng();
+  const dLat=newPos.lat-lat0, dLng=newPos.lng-lng0;
+  const t=setInterval(()=>{
+    step++;
+    const f=step/steps;
+    marker.setPosition({lat:lat0+dLat*f, lng:lng0+dLng*f});
+    if(step>=steps)clearInterval(t);
+  },50);
+}
+
+// Live fare during in-progress ride
+let _rideTraveledMeters = 0;
+let _lastDriverPos = null;
+let _liveFareDisplayInterval = null;
+
+function resetLiveRide(){
+  _rideTraveledMeters = 0;
+  _lastDriverPos = null;
+  clearInterval(_liveFareDisplayInterval);
+}
+
+function updateLiveRideFare(currentPos){
+  if(_lastDriverPos){
+    const delta = haversineMeters(_lastDriverPos, currentPos);
+    if(delta < 200) _rideTraveledMeters += delta; // ignore GPS jumps >200m
+  }
+  _lastDriverPos = {...currentPos};
+
+  const vType = driverProfile?.vehicleType || 'tuk';
+  const fare = calcFare(vType, _rideTraveledMeters);
+  const distStr = formatDist(_rideTraveledMeters);
+
+  // Update nav card
+  document.getElementById('navDist').textContent = distStr + ' traveled • Rs.'+fare.total;
+
+  // Write live fare to Firestore every 5s
+  if(currentRideId && _rideTraveledMeters > 0){
+    const now = Date.now();
+    if(!window._lastFarePush || now-window._lastFarePush > 5000){
+      window._lastFarePush = now;
+      db.collection('rides').doc(currentRideId).update({
+        liveFare: fare.total,
+        liveDistMeters: Math.round(_rideTraveledMeters)
+      }).catch(()=>{});
+    }
+  }
 }
 
 // ══ RIDE LISTENERS ══
@@ -742,14 +952,48 @@ function listenRides(){
 function showRequest(id,data){
   if(!isOnline||currentRideId)return;
   currentRideId=id;currentRideData=data;
+
+  // Recalculate fare using exact meters if available
+  const distMeters = data.estimatedDistMeters || 0;
+  const vType = data.vehicleType || 'tuk';
+  let fareDisplay = data.estimatedFare || '—';
+  let distDisplay = data.estimatedDist || '—';
+  if(distMeters > 0){
+    const fareObj = calcFare(vType, distMeters);
+    fareDisplay = 'Rs. '+fareObj.total;
+    distDisplay = formatDist(distMeters);
+  }
+
   document.getElementById('reqFrom').textContent=data.from?.address||'—';
   document.getElementById('reqTo').textContent=data.to?.address||'—';
-  document.getElementById('reqFare').textContent=data.estimatedFare||'—';
-  document.getElementById('reqDist').textContent=data.estimatedDist||'—';
+  document.getElementById('reqFare').textContent=fareDisplay;
+  document.getElementById('reqDist').textContent=distDisplay;
   document.getElementById('reqPay').textContent=(data.paymentMethod||'cash').toUpperCase();
   document.getElementById('reqVType').textContent=VTICONS[data.vehicleType]||'🛺';
+
+  // Sound + vibration alerts
+  const s=JSON.parse(localStorage.getItem('ridego_driver_settings')||'{}');
+  if(s.soundAlert!==false) playRequestSound();
+  if(s.vibration!==false && navigator.vibrate) navigator.vibrate([200,100,200,100,300]);
+
+  // Auto-accept?
+  if(s.autoAccept){ setTimeout(()=>{ if(currentRideId===id) acceptRide(); },800); return; }
+
   showPanel('request');startTimer(15);
   if(data.from?.lat){map.panTo({lat:data.from.lat,lng:data.from.lng});map.setZoom(14);}
+}
+
+function playRequestSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [880,1100,880].forEach((freq,i)=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;g.gain.setValueAtTime(0.3,ctx.currentTime+i*0.15);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.15+0.12);
+      o.start(ctx.currentTime+i*0.15);o.stop(ctx.currentTime+i*0.15+0.12);
+    });
+  }catch(e){}
 }
 
 function startTimer(s){
@@ -784,6 +1028,7 @@ async function acceptRide(){
       vehicleModel:driverProfile?.vehicleName||'Tuk-Tuk',
       eta:'3',acceptedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
+    resetLiveRide();
     showActive(currentRideData);
     listenCallReq();
     toast('✅ Ride accepted!');
@@ -800,6 +1045,29 @@ function showActive(data){
   document.getElementById('actRiderSub').textContent=(VTNAMES[data.vehicleType]||'Ride')+' • '+(data.paymentMethod||'Cash').toUpperCase();
   updatePhaseUI();showPanel('active');
   if(data.from?.lat)drawRoute({lat:data.from.lat,lng:data.from.lng});
+  // Track rider location on map
+  trackRiderOnMap(data.riderId);
+}
+
+let riderMarker=null, _riderLocRef=null, _riderLocCb=null;
+function trackRiderOnMap(riderId){
+  if(!riderId)return;
+  if(_riderLocRef&&_riderLocCb){_riderLocRef.off('value',_riderLocCb);_riderLocCb=null;}
+  _riderLocRef = rtdb.ref('riders/'+riderId+'/location');
+  _riderLocCb = _riderLocRef.on('value',snap=>{
+    const loc=snap.val();
+    if(!loc?.lat||!loc?.lng)return;
+    const pos={lat:parseFloat(loc.lat),lng:parseFloat(loc.lng)};
+    const svg='<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38"><circle cx="19" cy="19" r="17" fill="#3a7bd5" stroke="#fff" stroke-width="2.5"/><text x="19" y="25" text-anchor="middle" font-size="16">👤</text></svg>';
+    const icon={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(38,38),anchor:new google.maps.Point(19,19)};
+    if(riderMarker){ animateMarker(riderMarker,pos); }
+    else riderMarker=new google.maps.Marker({position:pos,map,icon,title:'Rider',zIndex:998});
+  });
+}
+
+function stopRiderTrack(){
+  if(_riderLocRef&&_riderLocCb){_riderLocRef.off('value',_riderLocCb);_riderLocCb=null;}
+  if(riderMarker){riderMarker.setMap(null);riderMarker=null;}
 }
 
 function updatePhaseUI(){
@@ -817,7 +1085,10 @@ function updatePhaseUI(){
 
 function handleMainAction(){
   if(ridePhase==='pickup'){
-    ridePhase='dest';updatePhaseUI();
+    ridePhase='dest';
+    resetLiveRide(); // start fresh distance counter when ride begins
+    _lastDriverPos = null;
+    updatePhaseUI();
     db.collection('rides').doc(currentRideId).update({status:'in_progress'});
     toast('🚀 Ride started!');
     if(currentRideData?.to?.lat)drawRoute({lat:currentRideData.to.lat,lng:currentRideData.to.lng});
@@ -826,15 +1097,38 @@ function handleMainAction(){
 
 async function completeRide(){
   if(!currentRideId)return;
-  const fareStr=currentRideData?.estimatedFare||'Rs.0';
-  const fare=parseInt((fareStr.match(/\d+/)||['0'])[0]);
+  const vType = driverProfile?.vehicleType || currentRideData?.vehicleType || 'tuk';
+
+  // Use live traveled distance if available, else fall back to estimated
+  let finalDistMeters = _rideTraveledMeters > 50 ? _rideTraveledMeters : (currentRideData?.estimatedDistMeters || 0);
+  if(finalDistMeters < 50){
+    // parse from string if no meters saved
+    const estStr = currentRideData?.estimatedDist || '1km';
+    const km = parseFloat(estStr) || 1;
+    finalDistMeters = km * 1000;
+  }
+  const fare = calcFare(vType, finalDistMeters);
+  const distStr = formatDist(finalDistMeters);
+
   try{
-    await db.collection('rides').doc(currentRideId).update({status:'completed',finalFare:fare,completedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    await db.collection('drivers').doc(currentDriver.uid).update({totalTrips:firebase.firestore.FieldValue.increment(1),totalEarnings:firebase.firestore.FieldValue.increment(fare)});
-    todayEarn+=fare;todayTrips++;updateStatsUI();
+    await db.collection('rides').doc(currentRideId).update({
+      status:'completed',
+      finalFare: fare.total,
+      finalDistMeters: Math.round(finalDistMeters),
+      finalDistStr: distStr,
+      completedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('drivers').doc(currentDriver.uid).update({
+      totalTrips:firebase.firestore.FieldValue.increment(1),
+      totalEarnings:firebase.firestore.FieldValue.increment(fare.total)
+    });
+    todayEarn+=fare.total;todayTrips++;updateStatsUI();
     if(routeRenderer){routeRenderer.setMap(null);routeRenderer=null;}
+    resetLiveRide();
+    stopRiderTrack();
     currentRideId=null;currentRideData=null;ridePhase='pickup';
-    showPanel('idle');toast('🎉 Complete! Rs.'+fare+' earned!');
+    showPanel('idle');
+    toast('🎉 Complete! Rs.'+fare.total+' ('+distStr+')');
   }catch(e){toast('Error: '+e.message);}
 }
 
@@ -1132,12 +1426,82 @@ function toggleMute(){
   toast(iapMuted?'🔇 Muted':'🎙️ Unmuted');
 }
 
-// ══ NAVIGATE ══
+// ══ NAVIGATE — FIXED ══
 function openNavigate(){
   if(!currentRideData){toast('Active ride නෑ');return;}
   const loc=ridePhase==='pickup'?currentRideData.from:currentRideData.to;
   if(!loc?.lat){toast('Location data නෑ');return;}
-  window.open('https://www.google.com/maps/dir/?api=1&destination='+loc.lat+','+loc.lng+'&travelmode=driving','_blank');
+  const settings=JSON.parse(localStorage.getItem('ridego_driver_settings')||'{}');
+  const destStr=loc.lat+','+loc.lng;
+  if(settings.navApp==='waze'){
+    window.open('https://waze.com/ul?ll='+destStr+'&navigate=yes','_blank');
+  } else {
+    window.open('https://www.google.com/maps/dir/?api=1&destination='+destStr+'&travelmode=driving','_blank');
+  }
+}
+
+// ══ VEHICLE INFO ══
+function openVehicleInfo(){
+  overlay('scVehicleInfo',true);
+  if(!driverProfile)return;
+  const icon=driverProfile.vehicleIcon||'🚗';
+  document.getElementById('vInfoIcon').textContent=icon;
+  document.getElementById('vInfoType').textContent=driverProfile.vehicleName||driverProfile.vehicleType||'—';
+  document.getElementById('vInfoPlate').textContent=driverProfile.vehiclePlate||'—';
+  document.getElementById('vInfoNIC').textContent=driverProfile.nic||'—';
+  document.getElementById('vInfoRating').textContent='⭐ '+(driverProfile.rating||5.0).toFixed(1);
+  document.getElementById('vInfoTrips').textContent=driverProfile.totalTrips||0;
+  const since=driverProfile.createdAt?.toDate?
+    driverProfile.createdAt.toDate().toLocaleDateString('en-GB',{month:'short',year:'numeric'}):'—';
+  document.getElementById('vInfoSince').textContent=since;
+}
+
+// ══ DRIVER SETTINGS ══
+function openDriverSettings(){
+  overlay('scDriverSettings',true);
+  const s=JSON.parse(localStorage.getItem('ridego_driver_settings')||'{}');
+  document.getElementById('dAutoAccept').checked=s.autoAccept||false;
+  document.getElementById('dSoundAlert').checked=s.soundAlert!==false;
+  document.getElementById('dVibration').checked=s.vibration!==false;
+  if(s.navApp) document.getElementById('dNavApp').value=s.navApp;
+}
+function dSaveSetting(key,val){
+  const s=JSON.parse(localStorage.getItem('ridego_driver_settings')||'{}');
+  s[key]=val;
+  localStorage.setItem('ridego_driver_settings',JSON.stringify(s));
+  toast('✅ Saved');
+}
+function dChangePassword(){
+  if(!currentDriver?.email){toast('Email login required');return;}
+  auth.sendPasswordResetEmail(currentDriver.email)
+    .then(()=>toast('📧 Password reset email sent!'))
+    .catch(e=>toast('Error: '+e.message));
+}
+
+// ══ DRIVER PROFILE ══
+async function openDriverProfile(){
+  overlay('scDriverProfile',true);
+  if(!currentDriver)return;
+  const icon=driverProfile?.vehicleIcon||'🚗';
+  document.getElementById('dprofAvi').textContent=icon;
+  document.getElementById('dprofNameDisp').textContent=driverProfile?.name||currentDriver.displayName||'—';
+  document.getElementById('dprofEmailDisp').textContent=currentDriver.email||'—';
+  document.getElementById('dprofNameInp').value=driverProfile?.name||currentDriver.displayName||'';
+  document.getElementById('dprofPhoneInp').value=driverProfile?.phone||'';
+}
+async function saveDriverProfile(){
+  if(!currentDriver)return;
+  const name=document.getElementById('dprofNameInp').value.trim();
+  const phone=document.getElementById('dprofPhoneInp').value.trim();
+  if(!name){toast('Name enter කරන්න');return;}
+  try{
+    await currentDriver.updateProfile({displayName:name});
+    await db.collection('drivers').doc(currentDriver.uid).update({name,phone});
+    driverProfile={...driverProfile,name,phone};
+    updateProfileUI();
+    overlay('scDriverProfile',false);
+    toast('✅ Profile saved!');
+  }catch(e){toast('Error: '+e.message);}
 }
 
 // ══ CHAT — ENHANCED ══
@@ -1242,35 +1606,24 @@ async function sendDriverMsg(){
 }
 function dqr(t){document.getElementById('chatInp').value=t;sendDriverMsg();}
 
-// ══ LISTEN FOR RIDER IN-APP CALL ══
-function listenInAppCallFromRider(){
-  if(!currentRideId)return;
-  db.collection('rides').doc(currentRideId).onSnapshot(snap=>{
-    const d=snap.data();
-    if(d?.inAppCallFromRider&&d?.inAppCallStatus==='calling'){
-      showIncomingCallFromRider(d);
-    }
-  });
-}
-
-// ══ CALL REQUEST LISTENER ══
+// ══ CALL REQUEST LISTENER (handles both phone req + in-app call) ══
 function listenCallReq(){
   if(!currentRideId)return;
   if(callReqListener){callReqListener();callReqListener=null;}
   callReqListener=db.collection('rides').doc(currentRideId).onSnapshot(snap=>{
     const d=snap.data();
+    if(!d)return;
     // Phone call request from rider
-    if(d?.riderCallRequest){
-      document.getElementById('callReqBadge').style.display='flex';
-      setTimeout(dismissCallReq,8000);
+    if(d.riderCallRequest){
+      const badge=document.getElementById('callReqBadge');
+      badge.innerHTML='📞 Rider wants a call!';
+      badge.onclick=()=>{dismissCallReq();openCallModal();};
+      badge.style.display='flex';
+      setTimeout(dismissCallReq,10000);
     }
     // In-app call from rider
-    if(d?.inAppCallFromRider&&d?.inAppCallStatus==='calling'){
-      showIncomingFromRider(d.riderName||'Rider');
-    }
-    // Unread messages
-    if(d?.lastMsgRole==='rider'&&!chatIsOpen){
-      chatUnreadCount++;updateUnreadBadge();
+    if(d.inAppCallFromRider&&d.inAppCallStatus==='calling'){
+      showIncomingFromRider(d.riderName||currentRideData?.riderName||'Rider');
     }
   });
 }

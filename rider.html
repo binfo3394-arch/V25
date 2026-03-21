@@ -415,6 +415,55 @@ body {
 .loading-bar { width:160px; height:3px; background:#222; border-radius:100px; overflow:hidden; }
 .loading-fill { height:100%; background:var(--accent); border-radius:100px; animation:loadFill 2s ease forwards; }
 @keyframes loadFill { from{width:0%} to{width:100%} }
+
+/* ─── LOCATION PERMISSION SCREEN ─── */
+#locPermScreen {
+  position:fixed; inset:0; z-index:500;
+  background:linear-gradient(135deg,#0e0e14,#1a1a2e);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.perm-box {
+  background:#16161f; border:1px solid #2a2a3a;
+  border-radius:24px; padding:36px 28px; max-width:360px;
+  width:100%; text-align:center;
+}
+.perm-icon { font-size:3.5rem; margin-bottom:16px; animation:bounce 1.5s infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.perm-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:#fff; margin-bottom:8px; }
+.perm-sub { color:#888; font-size:0.9rem; line-height:1.5; margin-bottom:28px; }
+.perm-btn {
+  width:100%; padding:16px;
+  background:var(--accent); color:#000;
+  font-family:'Syne',sans-serif; font-size:1rem; font-weight:800;
+  border:none; border-radius:14px; cursor:pointer; margin-bottom:10px;
+  transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.perm-btn:hover { background:#ffd84d; transform:translateY(-1px); }
+.perm-skip { color:#666; font-size:0.82rem; cursor:pointer; text-decoration:underline; }
+.perm-denied {
+  background:#2a1a1a; border:1px solid var(--red);
+  border-radius:12px; padding:14px; margin-bottom:16px;
+  color:var(--red); font-size:0.85rem; display:none;
+}
+.perm-accuracy {
+  display:flex; align-items:center; gap:8px;
+  background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.2);
+  border-radius:10px; padding:10px 14px; margin-bottom:20px; text-align:left;
+}
+.perm-acc-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:blink 1.5s infinite; flex-shrink:0; }
+.perm-acc-txt { font-size:0.8rem; color:#aaa; }
+/* Live location indicator */
+.live-loc-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(45,189,110,0.12); color:var(--green);
+  padding:4px 10px; border-radius:100px; font-size:0.72rem; font-weight:700;
+  position:absolute; top:70px; left:50%; transform:translateX(-50%);
+  z-index:10; white-space:nowrap; box-shadow:0 2px 12px rgba(0,0,0,0.2);
+  backdrop-filter:blur(8px);
+}
+.live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:blink 1.5s infinite; }
+
 </style>
 </head>
 <body>
@@ -424,6 +473,31 @@ body {
   <div class="loading-logo">Ride<span>Go</span></div>
   <div style="color:#666;font-size:0.85rem;">Rider App</div>
   <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+
+<!-- LOCATION PERMISSION SCREEN -->
+<div id="locPermScreen">
+  <div class="perm-box">
+    <div class="perm-icon">📍</div>
+    <div class="perm-title">Location Access ඕනේ!</div>
+    <div class="perm-sub">
+      Pickup location automatically detect කරන්නත්,<br>
+      Driver ඔබ ළඟට track කරන්නත් location access ඕනේ.
+    </div>
+    <div class="perm-accuracy">
+      <div class="perm-acc-dot"></div>
+      <div class="perm-acc-txt">GPS location use කරනවා — highly accurate, real-time tracking</div>
+    </div>
+    <div class="perm-denied" id="permDenied">
+      ⚠️ Location blocked! Browser settings ලෙ location enable කරන්න:<br>
+      <strong>🔒 Lock icon → Site settings → Location → Allow</strong>
+    </div>
+    <button class="perm-btn" onclick="requestLocation()">
+      📍 Location Allow කරන්න
+    </button>
+    <div class="perm-skip" onclick="skipLocation()">Location නැතිව continue කරන්න</div>
+  </div>
 </div>
 
 <!-- AUTH SCREEN -->
@@ -479,6 +553,13 @@ body {
 
 <!-- APP SCREEN -->
 <div id="appScreen">
+
+
+  <!-- Live Location Badge -->
+  <div class="live-loc-badge" id="liveBadge" style="display:none;">
+    <div class="live-dot"></div>
+    <span>Live Location</span>
+  </div>
 
   <!-- Map -->
   <div id="map"></div>
@@ -728,35 +809,101 @@ function initMap() {
   
   
 
-  // Get user's real location
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const userLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      fromLocation = userLoc;
-      map.setCenter(userLoc);
-      map.setZoom(15);
+  // Location handled by requestLocation() separately
+}
 
+// ══════════════════════════════════════════════
+// LOCATION PERMISSION & TRACKING
+// ══════════════════════════════════════════════
+let locationWatcher = null;
+
+function requestLocation() {
+  document.getElementById('permDenied').style.display = 'none';
+  if (!navigator.geolocation) {
+    document.getElementById('permDenied').style.display = 'block';
+    document.getElementById('permDenied').textContent = '⚠️ Browser ලෙ GPS support නෑ';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => { onLocationSuccess(pos); startLocationWatch(); },
+    err => {
+      if (err.code === err.PERMISSION_DENIED) {
+        document.getElementById('permDenied').style.display = 'block';
+      } else {
+        skipLocation();
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+function startLocationWatch() {
+  if (locationWatcher) return;
+  locationWatcher = navigator.geolocation.watchPosition(
+    pos => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      fromLocation = loc;
+      // Update marker
+      if (fromMarker) {
+        fromMarker.setPosition(loc);
+      } else if (map) {
+        fromMarker = new google.maps.Marker({
+          position: loc, map,
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale:11, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
+          title: 'You'
+        });
+      }
+      // Show live badge
+      document.getElementById('liveBadge').style.display = 'flex';
+      // Store in RTDB for driver to see rider location too
+      if (currentUser && activeRideId) {
+        rtdb.ref('riders/' + currentUser.uid + '/location').set({
+          lat: loc.lat, lng: loc.lng, ts: Date.now()
+        });
+      }
+    },
+    err => console.log('Watch error:', err.message),
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+  );
+}
+
+function onLocationSuccess(pos) {
+  const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  fromLocation = loc;
+
+  // Hide permission screen
+  document.getElementById('locPermScreen').style.display = 'none';
+
+  if (map) {
+    map.setCenter(loc);
+    map.setZoom(15);
+    if (!fromMarker) {
       fromMarker = new google.maps.Marker({
-        position: userLoc,
-        map,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
+        position: loc, map,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale:11, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
         title: 'You'
       });
-
-      // Reverse geocode for display
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: userLoc }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const addr = results[0].formatted_address;
-          document.getElementById('fromDisplay').textContent = addr.substring(0,40) + '...';
-          document.getElementById('fromDisplay').classList.remove('placeholder');
-          document.getElementById('topbarLocation').textContent = addr.substring(0,30) + '...';
-        }
-      });
-    }, err => {
-      showToast('📍 Location access නැහැ — manually enter කරන්න');
-    });
+    } else {
+      fromMarker.setPosition(loc);
+    }
   }
+
+  // Reverse geocode
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ location: loc }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      const addr = results[0].formatted_address;
+      const short = addr.split(',').slice(0,2).join(',').trim();
+      document.getElementById('fromDisplay').textContent = short;
+      document.getElementById('fromDisplay').classList.remove('placeholder');
+      document.getElementById('topbarLocation').textContent = short.substring(0,32);
+    }
+  });
+}
+
+function skipLocation() {
+  document.getElementById('locPermScreen').style.display = 'none';
+  showToast('📍 Location නැතිව continue — manually enter කරන්න');
 }
 
 // ══════════════════════════════════════════════
@@ -844,6 +991,13 @@ auth.onAuthStateChanged(async user => {
 
     // Request push notification permission
     requestPushPermission();
+
+    // Start location watch if permission already granted
+    if (navigator.permissions) {
+      navigator.permissions.query({ name:'geolocation' }).then(r => {
+        if (r.state === 'granted') startLocationWatch();
+      }).catch(()=>{});
+    }
 
   } else {
     currentUser = null;
@@ -1111,12 +1265,11 @@ function listenForActiveRide() {
   if (!currentUser) return;
   db.collection('rides')
     .where('riderId','==',currentUser.uid)
-    .orderBy('createdAt','desc')
-    .limit(5)
     .onSnapshot(snap => {
-      // filter active rides client-side to avoid composite index requirement
-      // filter client-side
-      const activeDocs = snap.docs.filter(d => ['searching','accepted','in_progress'].includes(d.data().status));
+      // sort + filter client-side — no index needed
+      const activeDocs = snap.docs
+        .filter(d => ['searching','accepted','in_progress'].includes(d.data().status))
+        .sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
       if (activeDocs.length > 0) {
         const doc = activeDocs[0];
         activeRideId = doc.id;
@@ -1131,29 +1284,71 @@ function listenForActiveRide() {
     });
 }
 
+const vtypeIcons = { tuk:'🛺', car:'🚗', bike:'🏍️', xl:'🚐' };
+
 function showDriverFound(data) {
+  const vIcon = vtypeIcons[data.vehicleType] || '🚗';
+  const vName = data.vehicleModel || data.vehicleType || 'Vehicle';
+
   document.getElementById('driverName').textContent = data.driverName || 'Driver';
-  document.getElementById('driverMeta').textContent = (data.vehicleType||'Tuk-Tuk') + ' • ' + (data.vehicleModel||'');
+  document.getElementById('driverMeta').textContent = vIcon + ' ' + vName + ' • ' + (data.vehiclePlate||'—');
   document.getElementById('driverPlate').textContent = data.vehiclePlate || '—';
   document.getElementById('driverRating').textContent = data.driverRating || '5.0';
   document.getElementById('driverETA').textContent = (data.eta || '~3') + ' min';
+  document.getElementById('tripDist').textContent = data.estimatedDist || '—';
+  document.getElementById('tripFare').textContent = data.estimatedFare || '—';
   showPanel('driver');
 
-  // Track driver GPS in real-time
+  // Track driver GPS in real-time from Firebase Realtime DB
   if (data.driverId) {
     if (driverTrackListener) driverTrackListener.off();
-    driverTrackListener = rtdb.ref(`drivers/${data.driverId}/location`);
-    driverTrackListener.on('value', snap => {
+    const driverLocRef = rtdb.ref('drivers/' + data.driverId + '/location');
+    driverTrackListener = driverLocRef;
+    driverLocRef.on('value', snap => {
       const loc = snap.val();
-      if (!loc) return;
-      const dLoc = { lat: loc.lat, lng: loc.lng };
+      if (!loc || !loc.lat || !loc.lng) return;
+      const dLoc = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) };
+
+      const svgIcon = encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+        '<circle cx="22" cy="22" r="20" fill="#f5c842" stroke="#000" stroke-width="2.5"/>' +
+        '<text x="22" y="30" text-anchor="middle" font-size="20">' + vIcon + '</text>' +
+        '</svg>'
+      );
+      const icon = {
+        url: 'data:image/svg+xml;charset=UTF-8,' + svgIcon,
+        scaledSize: new google.maps.Size(44,44),
+        anchor: new google.maps.Point(22,22)
+      };
+
       if (driverMarker) {
         driverMarker.setPosition(dLoc);
+        driverMarker.setIcon(icon);
       } else {
-        driverMarker = new google.maps.Marker({
-          position: dLoc, map,
-          icon: { url:'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="16" fill="#f5c842" stroke="white" stroke-width="3"/><text x="18" y="24" text-anchor="middle" font-size="16">🛺</text></svg>'), scaledSize: new google.maps.Size(36,36) }
-        });
+        driverMarker = new google.maps.Marker({ position:dLoc, map, icon, title:data.driverName||'Driver' });
+      }
+
+      // Pan map to show both rider and driver
+      if (fromLocation) {
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(fromLocation);
+        bounds.extend(dLoc);
+        map.fitBounds(bounds, { top:80, bottom:280, left:30, right:30 });
+      } else {
+        map.panTo(dLoc);
+      }
+
+      // Live ETA calc using straight-line distance
+      if (fromLocation) {
+        const R = 6371;
+        const dLat = (fromLocation.lat - dLoc.lat) * Math.PI/180;
+        const dLng = (fromLocation.lng - dLoc.lng) * Math.PI/180;
+        const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                  Math.cos(dLoc.lat*Math.PI/180)*Math.cos(fromLocation.lat*Math.PI/180)*
+                  Math.sin(dLng/2)*Math.sin(dLng/2);
+        const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const etaMins = Math.max(1, Math.round(distKm / 0.4)); // ~24km/h avg
+        document.getElementById('driverETA').textContent = etaMins + ' min';
       }
     });
   }
@@ -1238,8 +1433,20 @@ function showToast(msg) {
 
 function escHtml(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// Hide loading after 2s max
-setTimeout(() => { document.getElementById('loadingOverlay').style.display = 'none'; }, 2000);
+// Hide loading after 2s max, then show location permission
+setTimeout(() => {
+  document.getElementById('loadingOverlay').style.display = 'none';
+  // Check if already granted
+  if (navigator.permissions) {
+    navigator.permissions.query({ name:'geolocation' }).then(result => {
+      if (result.state === 'granted') {
+        document.getElementById('locPermScreen').style.display = 'none';
+        requestLocation();
+      }
+      // else permission screen shows
+    }).catch(() => {});
+  }
+}, 2000);
 </script>
 </body>
 </html>

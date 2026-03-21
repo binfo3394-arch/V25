@@ -978,7 +978,6 @@ input:checked+.ts-slider::before{transform:translateX(22px);}
 <!-- TOAST -->
 <div id="toast"></div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geocoding&callback=initMap" async defer></script>
 <script>
 // ══ FIREBASE ══
 const firebaseConfig = {
@@ -1005,9 +1004,7 @@ let _geoResults=null,_driverProfile=null;
 const VTICONS={tuk:'🛺',car:'🚗',bike:'🏍️',xl:'🚐'};
 
 // ══ LOADING ══
-setTimeout(()=>{
-  document.getElementById('ldProg').style.width='100%';
-},100);
+setTimeout(()=>{ document.getElementById('ldProg').style.width='100%'; },100);
 
 // ══ SCREEN MANAGER ══
 function show(id){
@@ -1020,10 +1017,10 @@ function overlay(id,open){
   else{el.classList.remove('active');el.style.display='none';}
 }
 
-// ══ MAP ══
-function initMap(){
+// ══ MAP — MUST be window.initMap BEFORE Maps API script loads ══
+window.initMap = function(){
   map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:7.8731,lng:80.7718},zoom:8, // Sri Lanka overview until GPS ready
+    center:{lat:7.8731,lng:80.7718},zoom:8,
     disableDefaultUI:true,gestureHandling:'greedy',
     styles:[
       {featureType:'all',elementType:'geometry',stylers:[{color:'#f5f0e8'}]},
@@ -1034,13 +1031,11 @@ function initMap(){
       {featureType:'transit',elementType:'geometry',stylers:[{color:'#f0f0f0'}]}
     ]
   });
-  // Map ready — apply location if already fetched, else try now
-  if(fromLoc){
-    centerMapOnLoc(fromLoc);
-  } else {
-    tryGetLocation();
-  }
-}
+  if(fromLoc){ centerMapOnLoc(fromLoc); } else { tryGetLocation(); }
+};
+</script>
+<script data-cfasync="false" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geocoding&callback=initMap" async defer></script>
+<script>
 
 // ══ LOCATION — ROBUST FIX ══
 let _locAttempted=false;

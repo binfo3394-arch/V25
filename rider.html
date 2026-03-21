@@ -404,9 +404,9 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
   <div class="app-topbar">
     <div class="topbar-inner">
       <button class="menu-btn" onclick="openSidebar()">☰</button>
-      <div class="topbar-loc" onclick="openLocPick('from')">
+      <div class="topbar-loc" onclick="fromLoc?openLocPick('from'):refreshLocation()">
         <div class="topbar-loc-dot"></div>
-        <span class="topbar-loc-txt" id="topLocTxt">ඔබ ඉන්නේ කොහේද?</span>
+        <span class="topbar-loc-txt" id="topLocTxt">📍 Location ගන්නවා...</span>
       </div>
       <button class="sos-btn" onclick="doSOS()">SOS</button>
     </div>
@@ -510,6 +510,9 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
     </div>
   </div>
 </div>
+
+<!-- Hidden remote audio for WebRTC call -->
+<audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
 
 <!-- INCOMING CALL BANNER -->
 <div id="incomingCallBanner">
@@ -700,7 +703,7 @@ function overlay(id,open){
 // ══ MAP ══
 function initMap(){
   map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:6.9271,lng:79.8612},zoom:13,
+    center:{lat:7.8731,lng:80.7718},zoom:8, // Sri Lanka overview until GPS ready
     disableDefaultUI:true,gestureHandling:'greedy',
     styles:[
       {featureType:'all',elementType:'geometry',stylers:[{color:'#f5f0e8'}]},
@@ -711,6 +714,123 @@ function initMap(){
       {featureType:'transit',elementType:'geometry',stylers:[{color:'#f0f0f0'}]}
     ]
   });
+  // Map ready — apply location if already fetched, else try now
+  if(fromLoc){
+    centerMapOnLoc(fromLoc);
+  } else {
+    tryGetLocation();
+  }
+}
+
+// ══ LOCATION — ROBUST FIX ══
+let _locAttempted=false;
+
+function tryGetLocation(){
+  if(!navigator.geolocation) return;
+  _locAttempted=true;
+  // Show "getting location" hint on topbar
+  document.getElementById('topLocTxt').textContent='📍 Location ගන්නවා...';
+
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      fromLoc=loc;
+      centerMapOnLoc(loc);
+      reverseGeocode(loc);
+      startLocWatch();
+      document.getElementById('liveBadge').style.display='flex';
+    },
+    err=>{
+      console.warn('GPS error:',err.code,err.message);
+      document.getElementById('topLocTxt').textContent='📍 Location detect කරන්න tap කරන්න';
+      // Fallback: try low-accuracy
+      if(err.code!==1){ // Not permission denied
+        navigator.geolocation.getCurrentPosition(
+          pos=>{
+            const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+            fromLoc=loc;
+            centerMapOnLoc(loc);
+            reverseGeocode(loc);
+            startLocWatch();
+          },
+          ()=>{},
+          {enableHighAccuracy:false,timeout:10000,maximumAge:60000}
+        );
+      }
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:5000}
+  );
+}
+
+function centerMapOnLoc(loc){
+  if(!map||!loc)return;
+  map.setCenter(loc);
+  map.setZoom(16);
+  if(!fromMarker){
+    fromMarker=new google.maps.Marker({
+      position:loc,map,
+      icon:{
+        path:google.maps.SymbolPath.CIRCLE,
+        scale:12,fillColor:'#f5c842',fillOpacity:1,
+        strokeColor:'#fff',strokeWeight:3
+      },
+      title:'ඔබ ඉන්නේ මෙතන',
+      zIndex:100
+    });
+  } else {
+    fromMarker.setPosition(loc);
+  }
+}
+
+function reverseGeocode(loc){
+  // Try Google Geocoder first (more accurate for Sri Lanka)
+  if(window.google&&google.maps&&google.maps.Geocoder){
+    const gc=new google.maps.Geocoder();
+    gc.geocode({location:loc,language:'en'},(res,st)=>{
+      if(st==='OK'&&res&&res[0]){
+        // Get the most useful address parts
+        const comps=res[0].address_components;
+        let area='',city='';
+        comps.forEach(c=>{
+          if(c.types.includes('sublocality')||c.types.includes('sublocality_level_1'))area=c.long_name;
+          if(c.types.includes('locality'))city=c.long_name;
+          if(c.types.includes('administrative_area_level_2')&&!city)city=c.long_name;
+        });
+        const addr=area?(area+(city?', '+city:'')):(city||res[0].formatted_address.split(',').slice(0,2).join(',').trim());
+        setFromAddress(addr);
+      } else {
+        // Fallback to Nominatim
+        reverseGeocodeNominatim(loc);
+      }
+    });
+  } else {
+    reverseGeocodeNominatim(loc);
+  }
+}
+
+function reverseGeocodeNominatim(loc){
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${loc.lat}&lon=${loc.lng}&format=json&addressdetails=1&accept-language=en`,{
+    headers:{'User-Agent':'RideGoApp/1.0'}
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d&&d.address){
+      const a=d.address;
+      const area=a.suburb||a.neighbourhood||a.road||a.village||a.town||'';
+      const city=a.city||a.town||a.county||'';
+      const addr=area?(area+(city&&city!==area?', '+city:'')):(city||d.display_name.split(',')[0]);
+      setFromAddress(addr);
+    }
+  })
+  .catch(()=>{
+    setFromAddress('Current Location ('+loc.lat.toFixed(4)+', '+loc.lng.toFixed(4)+')');
+  });
+}
+
+function setFromAddress(addr){
+  document.getElementById('fromTxt').textContent=addr;
+  document.getElementById('fromTxt').classList.add('set');
+  document.getElementById('topLocTxt').textContent=addr.substring(0,34);
 }
 
 // ══ AUTH ══
@@ -765,14 +885,26 @@ auth.onAuthStateChanged(async user=>{
         document.getElementById('sbName').textContent=n;
         document.getElementById('sbEmail').textContent=user.email||d.phone||'';
       }catch(e){}
-      // Check location
+      // Check location permission & go to app
       if(navigator.permissions){
         try{
           const r=await navigator.permissions.query({name:'geolocation'});
-          if(r.state==='granted'){show('scApp');reqLocation();}
-          else{show('scPerm');}
+          if(r.state==='granted'){
+            show('scApp');
+            // tryGetLocation called by initMap when map is ready,
+            // but if map is already ready, call it now
+            if(map) tryGetLocation();
+          } else if(r.state==='prompt'){
+            show('scPerm');
+          } else {
+            // denied
+            show('scApp');
+            document.getElementById('topLocTxt').textContent='📍 Location blocked';
+          }
         }catch(e){show('scPerm');}
-      }else{show('scPerm');}
+      }else{
+        show('scPerm');
+      }
       listenActiveRide();
     }else{
       currentUser=null;
@@ -781,61 +913,80 @@ auth.onAuthStateChanged(async user=>{
   },1800);
 });
 
-// ══ LOCATION ══
+// ══ LOCATION PERMISSION SCREEN ══
 function reqLocation(){
   document.getElementById('permDeny').style.display='none';
   navigator.geolocation.getCurrentPosition(
     pos=>{
-      onLocSuccess(pos);
-      startLocWatch();
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      fromLoc=loc;
       show('scApp');
+      // Map might not be ready yet — wait for it
+      const waitMap=setInterval(()=>{
+        if(map){
+          clearInterval(waitMap);
+          centerMapOnLoc(loc);
+          reverseGeocode(loc);
+          startLocWatch();
+          document.getElementById('liveBadge').style.display='flex';
+        }
+      },200);
     },
     err=>{
-      if(err.code===1)document.getElementById('permDeny').style.display='block';
-      else skipLoc();
+      if(err.code===1){
+        document.getElementById('permDeny').style.display='block';
+      } else {
+        skipLoc();
+      }
     },
-    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+    {enableHighAccuracy:true,timeout:12000,maximumAge:0}
   );
 }
 
 function startLocWatch(){
-  if(locWatcher)return;
+  if(locWatcher)navigator.geolocation.clearWatch(locWatcher);
   locWatcher=navigator.geolocation.watchPosition(pos=>{
     const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
     fromLoc=loc;
-    if(fromMarker)fromMarker.setPosition(loc);
+    if(map) centerMapOnLoc(loc);
     document.getElementById('liveBadge').style.display='flex';
+    // Update pickup text if not manually changed
+    const fromTxt=document.getElementById('fromTxt').textContent;
+    if(!fromTxt||fromTxt==='Current location...'||fromTxt==='📍 Location ගන්නවා...'){
+      reverseGeocode(loc);
+    }
     if(currentUser&&activeRideId){
-      rtdb.ref('riders/'+currentUser.uid+'/location').set({lat:loc.lat,lng:loc.lng,ts:Date.now()});
+      rtdb.ref('riders/'+currentUser.uid+'/location').set({lat:loc.lat,lng:loc.lng,ts:Date.now()}).catch(()=>{});
     }
-  },null,{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
+  },
+  err=>console.warn('Watch error:',err.message),
+  {enableHighAccuracy:true,maximumAge:3000,timeout:15000});
 }
 
-function onLocSuccess(pos){
-  const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
-  fromLoc=loc;
-  if(map){
-    map.setCenter(loc);map.setZoom(15);
-    if(!fromMarker){
-      fromMarker=new google.maps.Marker({position:loc,map,
-        icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:'#f5c842',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
-        title:'You'
-      });
-    }else fromMarker.setPosition(loc);
-  }
-  // Reverse geocode
-  const gc=new google.maps.Geocoder();
-  gc.geocode({location:loc},(res,st)=>{
-    if(st==='OK'&&res[0]){
-      const addr=res[0].formatted_address.split(',').slice(0,2).join(',').trim();
-      document.getElementById('fromTxt').textContent=addr;
-      document.getElementById('fromTxt').classList.add('set');
-      document.getElementById('topLocTxt').textContent=addr.substring(0,32);
-    }
-  });
+function skipLoc(){
+  show('scApp');
+  document.getElementById('topLocTxt').textContent='📍 Tap to set location';
 }
 
-function skipLoc(){show('scApp');}
+function refreshLocation(){
+  document.getElementById('topLocTxt').textContent='📍 GPS ගන්නවා...';
+  toast('📍 Location refresh කරනවා...');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      fromLoc=loc;
+      centerMapOnLoc(loc);
+      reverseGeocode(loc);
+      startLocWatch();
+      document.getElementById('liveBadge').style.display='flex';
+    },
+    err=>{
+      toast('📍 GPS error — manual ලෙ pick කරන්න');
+      openLocPick('from');
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+  );
+}
 
 // ══ LOCATION PICKER ══
 function openLocPick(forWhat){
@@ -884,12 +1035,31 @@ function pickLocResult(i){
 }
 
 function useCurrLoc(){
-  if(!fromLoc){toast('📍 Location not ready yet');return;}
-  if(pickFor==='from'){
+  if(fromLoc){
+    // Already have location
     const txt=document.getElementById('fromTxt').textContent;
-    setLocation(fromLoc,txt||'Current Location');
+    const hasAddr=txt&&txt!=='Current location...'&&txt!=='📍 Location ගන්නවා...'&&txt!=='📍 Location select කරන්න';
+    if(pickFor==='from'){
+      setLocation(fromLoc, hasAddr?txt:'Current Location');
+    } else {
+      setLocation(fromLoc, hasAddr?txt:'Current Location');
+    }
+    closeLocPick();
+  } else {
+    // No location yet — try to get it fresh
+    const container=document.getElementById('locSuggestions');
+    container.innerHTML='<div class="loc-searching">📍 GPS ගන්නවා...</div>';
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      fromLoc=loc;
+      centerMapOnLoc(loc);
+      reverseGeocode(loc);
+      setLocation(loc,'Current Location');
+      closeLocPick();
+    },
+    ()=>{toast('📍 GPS error — manual ලෙ select කරන්න');},
+    {enableHighAccuracy:true,timeout:10000,maximumAge:5000});
   }
-  closeLocPick();
 }
 
 function setLocation(loc,name){
@@ -1130,53 +1300,115 @@ function doPhoneCall(){
   }
 }
 
-// ══ IN-APP CALL ══
-let iapCallInterval=null,iapCallSecs=0,iapMuted=false,iapCallListener=null;
+// ══════════════════════════════════════════
+// IN-APP CALL — WebRTC Audio (Rider = Caller/Offer side)
+// ══════════════════════════════════════════
+let iapCallInterval=null, iapCallSecs=0, iapMuted=false, iapCallListener=null;
+let _pc=null, _localStream=null, _remoteStream=null;
+const _iceServers={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'}
+]};
 
-function startRiderInAppCall(){
+async function startRiderInAppCall(){
   overlay('scCallOpts',false);
   const driverName=_driverProfile?.name||'Driver';
   const driverIcon=_driverProfile?.vehicleIcon||'🚗';
-  document.getElementById('iapName').textContent=driverName;
-  document.getElementById('iapSub').textContent='In-App Call • App ඇතුළෙන් Free';
-  document.getElementById('iapStatus').textContent='Calling...';
-  document.getElementById('iapTimer').textContent='';
-  document.getElementById('iapAvi').innerHTML=driverIcon+'<div class="iap-ring"></div><div class="iap-ring2"></div>';
-  iapMuted=false;iapCallSecs=0;
-  document.getElementById('iapMuteBtn').textContent='🎙️';
-  document.getElementById('iapMuteLbl').textContent='Mute';
+  _setCallUI(driverName, driverIcon, 'Connecting mic...', 'In-App Call • Free');
   overlay('scInAppCall',true);
 
-  // Signal driver
-  if(activeRideId){
-    db.collection('rides').doc(activeRideId).update({
-      inAppCallFromRider:true,
-      inAppCallStatus:'calling',
+  // 1. Get microphone
+  try{
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:true, video:false});
+  }catch(e){
+    toast('🎙️ Mic access denied — Settings ලෙ allow කරන්න');
+    overlay('scInAppCall',false);
+    return;
+  }
+
+  // 2. Create PeerConnection
+  _pc=new RTCPeerConnection(_iceServers);
+  _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
+
+  // 3. Remote audio
+  _remoteStream=new MediaStream();
+  const remoteAudio=document.getElementById('remoteAudio');
+  remoteAudio.srcObject=_remoteStream;
+  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+
+  // 4. ICE candidates → RTDB
+  const rideId=activeRideId;
+  _pc.onicecandidate=e=>{
+    if(e.candidate&&rideId){
+      rtdb.ref('calls/'+rideId+'/callerCandidates').push(e.candidate.toJSON());
+    }
+  };
+
+  // 5. Connection state
+  _pc.onconnectionstatechange=()=>{
+    const s=_pc.connectionState;
+    if(s==='connected'){
+      document.getElementById('iapStatus').textContent='Connected 🟢';
+      startCallTimer();
+    } else if(s==='disconnected'||s==='failed'||s==='closed'){
+      endInAppCall();
+    }
+  };
+
+  // 6. Create offer
+  const offer=await _pc.createOffer();
+  await _pc.setLocalDescription(offer);
+
+  // 7. Write offer + signal to Firestore + RTDB
+  if(rideId){
+    await rtdb.ref('calls/'+rideId).set({
+      offer:{type:offer.type, sdp:offer.sdp},
+      status:'calling',
+      callerId:currentUser?.uid||'rider',
+      ts:Date.now()
+    });
+    db.collection('rides').doc(rideId).update({
+      inAppCallFromRider:true, inAppCallStatus:'calling',
       inAppCallAt:firebase.firestore.FieldValue.serverTimestamp()
     }).catch(()=>{});
   }
 
-  // Listen for driver answer
+  document.getElementById('iapStatus').textContent='Calling...';
+
+  // 8. Listen for answer from driver (RTDB)
+  if(rideId){
+    rtdb.ref('calls/'+rideId+'/answer').on('value', async snap=>{
+      const ans=snap.val();
+      if(ans&&_pc&&!_pc.currentRemoteDescription){
+        await _pc.setRemoteDescription(new RTCSessionDescription(ans));
+      }
+    });
+    // Listen for driver's ICE candidates
+    rtdb.ref('calls/'+rideId+'/calleeCandidates').on('child_added', snap=>{
+      const c=snap.val();
+      if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    });
+  }
+
+  // 9. Firestore status listener (declined / ended signal)
   if(iapCallListener){iapCallListener();iapCallListener=null;}
-  if(activeRideId){
-    iapCallListener=db.collection('rides').doc(activeRideId).onSnapshot(snap=>{
+  if(rideId){
+    iapCallListener=db.collection('rides').doc(rideId).onSnapshot(snap=>{
       const d=snap.data();
-      if(d?.inAppCallStatus==='answered'){
-        document.getElementById('iapStatus').textContent='Connected 🟢';
-        startCallTimer();
-        if(iapCallListener){iapCallListener();iapCallListener=null;}
-      } else if(d?.inAppCallStatus==='ended'||d?.inAppCallStatus==='declined'){
-        toast('📵 Call ended');
+      if(d?.inAppCallStatus==='declined'){
+        toast('📵 Driver declined the call');
+        endInAppCall();
+      } else if(d?.inAppCallStatus==='ended'&&d?.inAppCallFromDriver===false&&d?.inAppCallFromRider===false){
         endInAppCall();
       }
     });
-    // Auto-timeout after 30s
+    // 30s ring timeout
     setTimeout(()=>{
-      if(document.getElementById('scInAppCall').classList.contains('active')){
-        if(document.getElementById('iapStatus').textContent==='Calling...'){
-          toast('📵 No answer');
-          endInAppCall();
-        }
+      if(document.getElementById('scInAppCall').classList.contains('active')&&
+         document.getElementById('iapStatus').textContent==='Calling...'){
+        toast('📵 No answer');
+        endInAppCall();
       }
     },30000);
   }
@@ -1196,11 +1428,16 @@ function startCallTimer(){
 function endInAppCall(){
   clearInterval(iapCallInterval);
   if(iapCallListener){iapCallListener();iapCallListener=null;}
+  // Close WebRTC
+  if(_localStream){_localStream.getTracks().forEach(t=>t.stop());_localStream=null;}
+  if(_pc){_pc.close();_pc=null;}
+  const ra=document.getElementById('remoteAudio');
+  if(ra){ra.srcObject=null;}
+  // Cleanup RTDB
   if(activeRideId){
+    rtdb.ref('calls/'+activeRideId).remove().catch(()=>{});
     db.collection('rides').doc(activeRideId).update({
-      inAppCallFromRider:false,
-      inAppCallFromDriver:false,
-      inAppCallStatus:'ended'
+      inAppCallFromRider:false, inAppCallFromDriver:false, inAppCallStatus:'ended'
     }).catch(()=>{});
   }
   overlay('scInAppCall',false);
@@ -1208,12 +1445,24 @@ function endInAppCall(){
 
 function toggleMute(){
   iapMuted=!iapMuted;
+  if(_localStream) _localStream.getAudioTracks().forEach(t=>t.enabled=!iapMuted);
   document.getElementById('iapMuteBtn').textContent=iapMuted?'🔇':'🎙️';
   document.getElementById('iapMuteLbl').textContent=iapMuted?'Unmute':'Mute';
   toast(iapMuted?'🔇 Muted':'🎙️ Unmuted');
 }
 
-// ══ INCOMING CALL FROM DRIVER ══
+function _setCallUI(name, icon, status, sub){
+  document.getElementById('iapName').textContent=name;
+  document.getElementById('iapSub').textContent=sub;
+  document.getElementById('iapStatus').textContent=status;
+  document.getElementById('iapTimer').textContent='';
+  document.getElementById('iapAvi').innerHTML=icon+'<div class="iap-ring"></div><div class="iap-ring2"></div>';
+  iapMuted=false;
+  document.getElementById('iapMuteBtn').textContent='🎙️';
+  document.getElementById('iapMuteLbl').textContent='Mute';
+}
+
+// ══ INCOMING CALL FROM DRIVER (Answerer side) ══
 let incomingCallTimeout=null;
 function listenIncomingCall(){
   if(!activeRideId)return;
@@ -1233,27 +1482,60 @@ function showIncomingCallBanner(data){
   const banner=document.getElementById('incomingCallBanner');
   banner.style.display='block';
   clearTimeout(incomingCallTimeout);
-  incomingCallTimeout=setTimeout(()=>{
-    banner.style.display='none';
-  },25000);
+  incomingCallTimeout=setTimeout(()=>{ banner.style.display='none'; },25000);
 }
 
-function answerInAppCall(){
+async function answerInAppCall(){
   document.getElementById('incomingCallBanner').style.display='none';
-  if(activeRideId){
-    db.collection('rides').doc(activeRideId).update({inAppCallStatus:'answered'}).catch(()=>{});
-  }
   const driverName=_driverProfile?.name||'Driver';
   const driverIcon=_driverProfile?.vehicleIcon||'🚗';
-  document.getElementById('iapName').textContent=driverName;
-  document.getElementById('iapSub').textContent='In-App Call • Connected';
-  document.getElementById('iapStatus').textContent='Connected 🟢';
-  document.getElementById('iapTimer').textContent='';
-  document.getElementById('iapAvi').innerHTML=driverIcon+'<div class="iap-ring"></div><div class="iap-ring2"></div>';
-  iapMuted=false;
-  document.getElementById('iapMuteBtn').textContent='🎙️';
-  document.getElementById('iapMuteLbl').textContent='Mute';
+  _setCallUI(driverName, driverIcon, 'Connecting mic...', 'In-App Call • Connected');
   overlay('scInAppCall',true);
+
+  // Mic
+  try{
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }catch(e){
+    toast('🎙️ Mic access denied');
+    overlay('scInAppCall',false);
+    return;
+  }
+
+  _pc=new RTCPeerConnection(_iceServers);
+  _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
+  _remoteStream=new MediaStream();
+  const remoteAudio=document.getElementById('remoteAudio');
+  remoteAudio.srcObject=_remoteStream;
+  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+
+  const rideId=activeRideId;
+  _pc.onicecandidate=e=>{
+    if(e.candidate&&rideId)
+      rtdb.ref('calls/'+rideId+'/calleeCandidates').push(e.candidate.toJSON());
+  };
+  _pc.onconnectionstatechange=()=>{
+    const s=_pc.connectionState;
+    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
+    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  };
+
+  // Get offer from RTDB
+  const offerSnap=await rtdb.ref('calls/'+rideId+'/offer').get();
+  const offerData=offerSnap.val();
+  if(!offerData){ toast('Call data error'); overlay('scInAppCall',false); return; }
+  await _pc.setRemoteDescription(new RTCSessionDescription(offerData));
+  const answer=await _pc.createAnswer();
+  await _pc.setLocalDescription(answer);
+  await rtdb.ref('calls/'+rideId+'/answer').set({type:answer.type,sdp:answer.sdp});
+
+  // Caller's ICE candidates
+  rtdb.ref('calls/'+rideId+'/callerCandidates').on('child_added',snap=>{
+    const c=snap.val();
+    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+  });
+
+  db.collection('rides').doc(rideId).update({inAppCallStatus:'answered'}).catch(()=>{});
+  document.getElementById('iapStatus').textContent='Connected 🟢';
   startCallTimer();
 }
 
@@ -1261,6 +1543,7 @@ function declineInAppCall(){
   document.getElementById('incomingCallBanner').style.display='none';
   if(activeRideId){
     db.collection('rides').doc(activeRideId).update({inAppCallStatus:'declined'}).catch(()=>{});
+    rtdb.ref('calls/'+activeRideId).remove().catch(()=>{});
   }
 }
 

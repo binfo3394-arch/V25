@@ -1247,13 +1247,13 @@ function listenForRideUpdates(rideId) {
     const data = snap.data();
     if (!data) return;
 
-    if (data.status === 'accepted') {
+    if (data.status === 'accepted' || data.status === 'in_progress') {
       showDriverFound(data);
     } else if (data.status === 'completed') {
       showToast('✅ Ride completed! Rs. ' + data.finalFare);
       activeRideId = null;
       showPanel('booking');
-      if (driverTrackListener) driverTrackListener.off();
+      stopDriverTracking();
     } else if (data.status === 'cancelled_driver') {
       showToast('❌ Driver cancelled. Searching again...');
       showPanel('searching');
@@ -1299,59 +1299,88 @@ function showDriverFound(data) {
   document.getElementById('tripFare').textContent = data.estimatedFare || '—';
   showPanel('driver');
 
-  // Track driver GPS in real-time from Firebase Realtime DB
-  if (data.driverId) {
-    if (driverTrackListener) driverTrackListener.off();
-    const driverLocRef = rtdb.ref('drivers/' + data.driverId + '/location');
-    driverTrackListener = driverLocRef;
-    driverLocRef.on('value', snap => {
-      const loc = snap.val();
-      if (!loc || !loc.lat || !loc.lng) return;
-      const dLoc = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) };
+  // Track driver GPS — proper listener pattern
+  startDriverTracking(data);
+}
 
-      const svgIcon = encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
-        '<circle cx="22" cy="22" r="20" fill="#f5c842" stroke="#000" stroke-width="2.5"/>' +
-        '<text x="22" y="30" text-anchor="middle" font-size="20">' + vIcon + '</text>' +
-        '</svg>'
-      );
-      const icon = {
-        url: 'data:image/svg+xml;charset=UTF-8,' + svgIcon,
-        scaledSize: new google.maps.Size(44,44),
-        anchor: new google.maps.Point(22,22)
-      };
-
-      if (driverMarker) {
-        driverMarker.setPosition(dLoc);
-        driverMarker.setIcon(icon);
-      } else {
-        driverMarker = new google.maps.Marker({ position:dLoc, map, icon, title:data.driverName||'Driver' });
-      }
-
-      // Pan map to show both rider and driver
-      if (fromLocation) {
-        const bounds = new google.maps.LatLngBounds();
-        bounds.extend(fromLocation);
-        bounds.extend(dLoc);
-        map.fitBounds(bounds, { top:80, bottom:280, left:30, right:30 });
-      } else {
-        map.panTo(dLoc);
-      }
-
-      // Live ETA calc using straight-line distance
-      if (fromLocation) {
-        const R = 6371;
-        const dLat = (fromLocation.lat - dLoc.lat) * Math.PI/180;
-        const dLng = (fromLocation.lng - dLoc.lng) * Math.PI/180;
-        const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-                  Math.cos(dLoc.lat*Math.PI/180)*Math.cos(fromLocation.lat*Math.PI/180)*
-                  Math.sin(dLng/2)*Math.sin(dLng/2);
-        const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const etaMins = Math.max(1, Math.round(distKm / 0.4)); // ~24km/h avg
-        document.getElementById('driverETA').textContent = etaMins + ' min';
-      }
-    });
+function startDriverTracking(data) {
+  stopDriverTracking(); // clean up first
+  if (!data.driverId) {
+    showToast('⚠️ Driver ID නෑ — tracking නොකෙරේ');
+    return;
   }
+
+  const vIcon = vtypeIcons[data.vehicleType] || '🚗';
+  const refPath = 'drivers/' + data.driverId + '/location';
+  const locRef = rtdb.ref(refPath);
+
+  // Store both ref and callback for proper cleanup
+  window._driverLocRef = locRef;
+  window._driverLocCallback = locRef.on('value', snap => {
+    const loc = snap.val();
+    if (!loc) {
+      // Driver location not in RTDB yet — driver might not be online
+      console.log('No driver location in RTDB path:', refPath);
+      return;
+    }
+    const dLoc = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) };
+    if (isNaN(dLoc.lat) || isNaN(dLoc.lng)) return;
+
+    // Build driver marker icon
+    const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">' +
+      '<circle cx="24" cy="24" r="22" fill="#f5c842" stroke="#000" stroke-width="2.5"/>' +
+      '<text x="24" y="32" text-anchor="middle" font-size="22">' + vIcon + '</text></svg>';
+    const icon = {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgStr),
+      scaledSize: new google.maps.Size(48,48),
+      anchor: new google.maps.Point(24,24)
+    };
+
+    // Place/move driver marker on map
+    if (driverMarker) {
+      driverMarker.setPosition(dLoc);
+      driverMarker.setIcon(icon);
+    } else {
+      driverMarker = new google.maps.Marker({
+        position: dLoc, map, icon,
+        title: data.driverName || 'Driver',
+        zIndex: 999
+      });
+    }
+
+    // Fit bounds to show both rider + driver
+    try {
+      const bounds = new google.maps.LatLngBounds();
+      if (fromLocation) bounds.extend(new google.maps.LatLng(fromLocation.lat, fromLocation.lng));
+      bounds.extend(new google.maps.LatLng(dLoc.lat, dLoc.lng));
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { top:100, bottom:320, left:40, right:40 });
+      }
+    } catch(e) {}
+
+    // Live ETA (Haversine)
+    if (fromLocation) {
+      const R = 6371;
+      const φ1 = fromLocation.lat * Math.PI/180;
+      const φ2 = dLoc.lat * Math.PI/180;
+      const Δφ = (dLoc.lat - fromLocation.lat) * Math.PI/180;
+      const Δλ = (dLoc.lng - fromLocation.lng) * Math.PI/180;
+      const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2);
+      const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const etaMins = Math.max(1, Math.round(distKm / 0.35));
+      const el = document.getElementById('driverETA');
+      if (el) el.textContent = etaMins + ' min';
+    }
+  });
+}
+
+function stopDriverTracking() {
+  if (window._driverLocRef && window._driverLocCallback) {
+    window._driverLocRef.off('value', window._driverLocCallback);
+  }
+  window._driverLocRef = null;
+  window._driverLocCallback = null;
+  if (driverMarker) { driverMarker.setMap(null); driverMarker = null; }
 }
 
 async function cancelSearch() {
@@ -1369,8 +1398,7 @@ async function cancelRide() {
     await db.collection('rides').doc(activeRideId).update({ status: 'cancelled_rider' });
     activeRideId = null;
   }
-  if (driverTrackListener) { driverTrackListener.off(); driverTrackListener = null; }
-  if (driverMarker) { driverMarker.setMap(null); driverMarker = null; }
+  stopDriverTracking();
   showPanel('booking');
   showToast('Ride cancelled');
 }

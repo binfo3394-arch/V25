@@ -668,7 +668,7 @@ body {
 <div class="toast" id="toast"></div>
 
 <!-- Google Maps API — ඔයාගේ API key දාන්න -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=places&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=places,marker&v=beta&callback=initMap" async defer></script>
 
 <script>
 // ══════════════════════════════════════════════
@@ -702,7 +702,7 @@ let rideListener = null;
 let driverTrackListener = null;
 let pickingFor = 'from';
 let paymentMethod = 'cash';
-let placesService = null, autocompleteService = null;
+// Places API v2025
 
 // ══════════════════════════════════════════════
 // MAP INIT
@@ -725,8 +725,8 @@ function initMap() {
     ]
   });
 
-  placesService = new google.maps.places.PlacesService(map);
-  autocompleteService = new google.maps.places.AutocompleteService();
+  
+  
 
   // Get user's real location
   if (navigator.geolocation) {
@@ -881,36 +881,47 @@ function closeLocationPicker() {
   document.getElementById('locationModal').classList.remove('show');
 }
 
-function searchPlaces(query) {
-  if (!query || query.length < 2) { document.getElementById('placesSuggestions').innerHTML = ''; return; }
-  autocompleteService.getPlacePredictions({
-    input: query,
-    componentRestrictions: { country: 'lk' },
-    location: fromLocation ? new google.maps.LatLng(fromLocation.lat, fromLocation.lng) : null,
-    radius: 50000
-  }, (predictions, status) => {
-    const container = document.getElementById('placesSuggestions');
-    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+async function searchPlaces(query) {
+  const container = document.getElementById('placesSuggestions');
+  if (!query || query.length < 2) { container.innerHTML = ''; return; }
+  try {
+    const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      input: query,
+      includedRegionCodes: ['lk'],
+      locationBias: fromLocation
+        ? { center: new google.maps.LatLng(fromLocation.lat, fromLocation.lng), radius: 50000 }
+        : undefined
+    });
+    if (!suggestions || suggestions.length === 0) {
       container.innerHTML = '<div style="padding:16px;color:#888;font-size:0.88rem;text-align:center;">No results found</div>';
       return;
     }
-    container.innerHTML = predictions.map(p => `
-      <div class="suggestion-item" onclick="selectPlace('${p.place_id}','${escHtml(p.description)}')">
+    container.innerHTML = suggestions.map((s, i) => {
+      const pred = s.placePrediction;
+      const main = pred.mainText?.text || pred.text?.text || '';
+      const sec = pred.secondaryText?.text || '';
+      return `<div class="suggestion-item" onclick="selectPlace(${i})">
         <span class="sugg-icon">📍</span>
         <div>
-          <div class="sugg-main">${escHtml(p.structured_formatting.main_text)}</div>
-          <div class="sugg-sub">${escHtml(p.structured_formatting.secondary_text || '')}</div>
+          <div class="sugg-main">${escHtml(main)}</div>
+          <div class="sugg-sub">${escHtml(sec)}</div>
         </div>
-      </div>
-    `).join('');
-  });
+      </div>`;
+    }).join('');
+    window._suggestions = suggestions;
+  } catch(e) {
+    console.error('Places search error:', e);
+    container.innerHTML = '<div style="padding:16px;color:#888;font-size:0.88rem;text-align:center;">Search error — retry කරන්න</div>';
+  }
 }
 
-function selectPlace(placeId, description) {
-  placesService.getDetails({ placeId, fields:['geometry','name','formatted_address'] }, (place, status) => {
-    if (status !== google.maps.places.PlacesServiceStatus.OK) return;
-    const loc = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
-    const name = place.name || description;
+async function selectPlace(idx) {
+  try {
+    const suggestion = window._suggestions[idx];
+    const place = suggestion.placePrediction.toPlace();
+    await place.fetchFields({ fields: ['location', 'displayName', 'formattedAddress'] });
+    const loc = { lat: place.location.lat(), lng: place.location.lng() };
+    const name = place.displayName || place.formattedAddress || 'Selected Location';
 
     if (pickingFor === 'from') {
       fromLocation = loc;
@@ -928,7 +939,9 @@ function selectPlace(placeId, description) {
     if (fromLocation && toLocation) drawRoute();
     updateBookBtn();
     closeLocationPicker();
-  });
+  } catch(e) {
+    console.error('Place select error:', e);
+  }
 }
 
 function useCurrentLocation() {

@@ -950,25 +950,36 @@ function updateLiveRideFare(currentPos){
 // ══ RIDE LISTENERS ══
 function listenRides(){
   if(!currentDriver)return;
-  let init=true;
-  // My accepted rides
+
+  // ── My accepted/in-progress rides (resume after app restart) ──
+  let myRideInit=true;
   db.collection('rides').where('driverId','==',currentDriver.uid).onSnapshot(snap=>{
     snap.docChanges().forEach(ch=>{
       const d=ch.doc.data();
-      if(['accepted','in_progress'].includes(d.status)&&!currentRideId){
-        currentRideId=ch.doc.id;currentRideData=d;showActive(d);
+      if(myRideInit && ['accepted','in_progress'].includes(d.status) && !currentRideId){
+        // Resume existing ride on load
+        currentRideId=ch.doc.id; currentRideData=d;
+        showActive(d); listenCallReq();
+      } else if(!myRideInit && ch.type==='modified'){
+        // Live update to current ride status
+        if(ch.doc.id===currentRideId){
+          currentRideData=d;
+        }
       }
     });
+    myRideInit=false;
   });
-  // New requests
+
+  // ── New ride requests ──
+  let reqInit=true;
   db.collection('rides').where('status','==','searching').onSnapshot(snap=>{
-    if(init){init=false;return;}
+    if(reqInit){ reqInit=false; return; } // skip initial load
     if(!isOnline||currentRideId)return;
     snap.docChanges().forEach(ch=>{
       if(ch.type==='added'){
         const d=ch.doc.data();
         const myType=driverProfile?.vehicleType||'tuk';
-        if(!d.vehicleType||d.vehicleType===myType)showRequest(ch.doc.id,d);
+        if(!d.vehicleType||d.vehicleType===myType) showRequest(ch.doc.id,d);
       }
     });
   });
@@ -1054,6 +1065,9 @@ async function acceptRide(){
       vehicleModel:driverProfile?.vehicleName||'Tuk-Tuk',
       eta:'3',acceptedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
+    // Fetch fresh data — don't use stale currentRideData
+    const freshDoc=await db.collection('rides').doc(currentRideId).get();
+    if(freshDoc.exists) currentRideData=freshDoc.data();
     resetLiveRide();
     showActive(currentRideData);
     listenCallReq();
@@ -1441,12 +1455,14 @@ function endInAppCall(){
   clearInterval(iapCallInterval);
   if(iapCallListener){iapCallListener();iapCallListener=null;}
   if(_localStream){_localStream.getTracks().forEach(t=>t.stop());_localStream=null;}
-  if(_pc){_pc.close();_pc=null;}
+  if(_pc){try{_pc.close();}catch(e){} _pc=null;}
   const ra=document.getElementById('remoteAudio');
   if(ra) ra.srcObject=null;
-  if(currentRideId){
-    rtdb.ref('calls/'+currentRideId).remove().catch(()=>{});
-    db.collection('rides').doc(currentRideId).update({
+  // Capture rideId NOW before it may become null
+  const rideId=currentRideId;
+  if(rideId){
+    rtdb.ref('calls/'+rideId).remove().catch(()=>{});
+    db.collection('rides').doc(rideId).update({
       inAppCallFromDriver:false, inAppCallFromRider:false, inAppCallStatus:'ended'
     }).catch(()=>{});
   }
@@ -1571,22 +1587,18 @@ function loadDriverChat(){
   if(chatListener){chatListener();chatListener=null;}
   chatListener=db.collection('rides').doc(currentRideId).collection('messages')
     .orderBy('ts').onSnapshot(snap=>{
-      const noMsg=document.getElementById('chatNoMsg');
-      noMsg.style.display=snap.empty?'block':'none';
-      const typing=document.getElementById('typingBubble');
+      const wasEmpty=snap.empty;
+      const typingVisible=document.getElementById('typingBubble')?.style.display||'none';
       const html=snap.docs.map(d=>{
         const m=d.data();const me=m.senderRole==='driver';
         const t=m.ts?.toDate?m.ts.toDate().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
         const readTick=me?(m.read?'<span class="cmsg-read">✓✓</span>':'<span style="opacity:0.4">✓</span>'):'';
-        // Count unread from rider
         if(!me&&!m.read&&!chatIsOpen){chatUnreadCount++;updateUnreadBadge();}
         return`<div class="cmsg ${me?'me':'them'}"><div class="cmsg-b">${esc(m.text||'')}</div><div class="cmsg-t">${me?'You':'Rider'} • ${t} ${readTick}</div></div>`;
       }).join('');
-      // Rebuild keeping typing bubble
-      c.innerHTML='';
-      c.appendChild(noMsg);
-      c.insertAdjacentHTML('beforeend',html);
-      c.appendChild(typing);
+      c.innerHTML=(wasEmpty?'<div class="chat-no-msg" id="chatNoMsg" style="display:block">Rider ලෙ message wait කරමින්...</div>':'<div class="chat-no-msg" id="chatNoMsg" style="display:none">Rider ලෙ message wait කරමින්...</div>')
+        +html
+        +'<div class="typing-bubble" id="typingBubble" style="display:'+typingVisible+'"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
       c.scrollTop=c.scrollHeight;
     },e=>console.log('chat:',e.message));
 }
@@ -1620,9 +1632,8 @@ function listenTyping(){
   db.collection('rides').doc(currentRideId).onSnapshot(snap=>{
     const isTyping=snap.data()?.riderTyping||false;
     const tb=document.getElementById('typingBubble');
-    const c=document.getElementById('chatMsgs');
-    tb.style.display=isTyping?'block':'none';
-    if(isTyping)c.scrollTop=c.scrollHeight;
+    if(tb){ tb.style.display=isTyping?'block':'none'; }
+    if(isTyping){ const c=document.getElementById('chatMsgs'); if(c)c.scrollTop=c.scrollHeight; }
   });
 }
 

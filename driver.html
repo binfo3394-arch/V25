@@ -448,7 +448,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text)
 <div class="toast" id="toast"></div>
 
 <!-- Google Maps -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geocoding&callback=initMap" async defer></script>
 
 <script>
 // ══════════════════════════════════════════════
@@ -518,7 +518,7 @@ function placeDriverMarker(loc) {
     scaledSize: new google.maps.Size(40,40), anchor: new google.maps.Point(20,20)
   };
   if (driverMarker) driverMarker.setPosition(loc);
-  else driverMarker = new google.maps.Marker({ position:loc, map, icon, title:'You' });
+  else driverMarker = new google.maps.Marker({ position:loc, map, icon, title:'You', optimized:false });
 }
 
 // ══════════════════════════════════════════════
@@ -643,21 +643,25 @@ async function setDriverOffline() {
 // ══════════════════════════════════════════════
 function listenForRideRequests() {
   if (!currentDriver) return;
-  // Listen for rides assigned to this driver OR open rides
+
+  // Listen for rides assigned to this driver — single where, no index needed
   db.collection('rides')
     .where('driverId','==',currentDriver.uid)
-    .where('status','==','accepted')
     .onSnapshot(snap => {
       snap.docChanges().forEach(change => {
         if (change.type === 'added' || change.type === 'modified') {
-          currentRideId = change.doc.id;
-          currentRideData = change.doc.data();
-          showActiveRide(currentRideData);
+          const data = change.doc.data();
+          // client-side filter for active statuses
+          if (['accepted','in_progress'].includes(data.status)) {
+            currentRideId = change.doc.id;
+            currentRideData = data;
+            showActiveRide(data);
+          }
         }
       });
     });
 
-  // Listen for new unassigned ride requests matching driver's vehicle type
+  // Listen for new unassigned ride requests
   db.collection('rides')
     .where('status','==','searching')
     .onSnapshot(snap => {
@@ -756,14 +760,18 @@ function drawRideRoute(data) {
 
   navigator.geolocation.getCurrentPosition(pos => {
     const origin = { lat:pos.coords.latitude, lng:pos.coords.longitude };
-    const waypoint = ridePhase === 'to_pickup'
+    const destination = ridePhase === 'to_pickup'
       ? { lat:data.from.lat, lng:data.from.lng }
       : { lat:data.to.lat, lng:data.to.lng };
 
-    ds.route({ origin, destination:waypoint, travelMode:'DRIVING' }, (result, status) => {
+    ds.route({
+      origin,
+      destination,
+      travelMode: google.maps.TravelMode.DRIVING
+    }, (result, status) => {
       if (status === 'OK') routeRenderer.setDirections(result);
     });
-  });
+  }, () => {});
 }
 
 function updateRidePhaseUI() {
@@ -829,19 +837,31 @@ function navigateToLocation() {
 // ══════════════════════════════════════════════
 async function loadTodayStats() {
   if (!currentDriver) return;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const snap = await db.collection('rides')
-    .where('driverId','==',currentDriver.uid)
-    .where('status','==','completed')
-    .where('completedAt','>=',firebase.firestore.Timestamp.fromDate(today))
-    .get();
+  try {
+    const today = new Date(); today.setHours(0,0,0,0);
+    // single where — no composite index needed, filter client-side
+    const snap = await db.collection('rides')
+      .where('driverId','==',currentDriver.uid)
+      .get();
 
-  let earnings = 0;
-  snap.forEach(d => { earnings += (d.data().finalFare || 0); });
-  todayTrips = snap.size;
-  todayEarnings = earnings;
-  document.getElementById('todayTrips').textContent = todayTrips;
-  document.getElementById('todayEarnings').textContent = 'Rs. ' + earnings;
+    let earnings = 0, trips = 0;
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.status === 'completed' && data.completedAt) {
+        const completedDate = data.completedAt.toDate ? data.completedAt.toDate() : new Date(data.completedAt);
+        if (completedDate >= today) {
+          earnings += (data.finalFare || 0);
+          trips++;
+        }
+      }
+    });
+    todayTrips = trips;
+    todayEarnings = earnings;
+    document.getElementById('todayTrips').textContent = trips;
+    document.getElementById('todayEarnings').textContent = 'Rs. ' + earnings;
+  } catch(e) {
+    console.log('Stats load skipped:', e.message);
+  }
 }
 
 // ══════════════════════════════════════════════

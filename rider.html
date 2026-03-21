@@ -668,7 +668,7 @@ body {
 <div class="toast" id="toast"></div>
 
 <!-- Google Maps API — ඔයාගේ API key දාන්න -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=places,marker&v=beta&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=places,geocoding&callback=initMap" async defer></script>
 
 <script>
 // ══════════════════════════════════════════════
@@ -881,67 +881,65 @@ function closeLocationPicker() {
   document.getElementById('locationModal').classList.remove('show');
 }
 
-async function searchPlaces(query) {
+let searchTimeout = null;
+function searchPlaces(query) {
   const container = document.getElementById('placesSuggestions');
   if (!query || query.length < 2) { container.innerHTML = ''; return; }
-  try {
-    const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-      input: query,
-      includedRegionCodes: ['lk'],
-      locationBias: fromLocation
-        ? { center: new google.maps.LatLng(fromLocation.lat, fromLocation.lng), radius: 50000 }
-        : undefined
+  clearTimeout(searchTimeout);
+  container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">Searching...</div>';
+  searchTimeout = setTimeout(() => {
+    const geocoder = new google.maps.Geocoder();
+    const bias = fromLocation
+      ? { location: new google.maps.LatLng(fromLocation.lat, fromLocation.lng), radius: 50000 }
+      : { componentRestrictions: { country: 'lk' } };
+    geocoder.geocode({
+      address: query + ', Sri Lanka',
+      ...bias
+    }, (results, status) => {
+      if (status !== 'OK' || !results || results.length === 0) {
+        container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">No results — වෙනත් නමක් try කරන්න</div>';
+        return;
+      }
+      window._geoResults = results.slice(0, 6);
+      container.innerHTML = results.slice(0, 6).map((r, i) => {
+        const parts = r.formatted_address.split(',');
+        const main = parts[0].trim();
+        const sub = parts.slice(1, 3).join(',').trim();
+        return `<div class="suggestion-item" onclick="selectPlace(${i})">
+          <span class="sugg-icon">📍</span>
+          <div>
+            <div class="sugg-main">${escHtml(main)}</div>
+            <div class="sugg-sub">${escHtml(sub)}</div>
+          </div>
+        </div>`;
+      }).join('');
     });
-    if (!suggestions || suggestions.length === 0) {
-      container.innerHTML = '<div style="padding:16px;color:#888;font-size:0.88rem;text-align:center;">No results found</div>';
-      return;
-    }
-    container.innerHTML = suggestions.map((s, i) => {
-      const pred = s.placePrediction;
-      const main = pred.mainText?.text || pred.text?.text || '';
-      const sec = pred.secondaryText?.text || '';
-      return `<div class="suggestion-item" onclick="selectPlace(${i})">
-        <span class="sugg-icon">📍</span>
-        <div>
-          <div class="sugg-main">${escHtml(main)}</div>
-          <div class="sugg-sub">${escHtml(sec)}</div>
-        </div>
-      </div>`;
-    }).join('');
-    window._suggestions = suggestions;
-  } catch(e) {
-    console.error('Places search error:', e);
-    container.innerHTML = '<div style="padding:16px;color:#888;font-size:0.88rem;text-align:center;">Search error — retry කරන්න</div>';
-  }
+  }, 400);
 }
 
-async function selectPlace(idx) {
-  try {
-    const suggestion = window._suggestions[idx];
-    const place = suggestion.placePrediction.toPlace();
-    await place.fetchFields({ fields: ['location', 'displayName', 'formattedAddress'] });
-    const loc = { lat: place.location.lat(), lng: place.location.lng() };
-    const name = place.displayName || place.formattedAddress || 'Selected Location';
+function selectPlace(idx) {
+  const result = window._geoResults[idx];
+  if (!result) return;
+  const loc = { lat: result.geometry.location.lat(), lng: result.geometry.location.lng() };
+  const parts = result.formatted_address.split(',');
+  const name = parts.slice(0, 2).join(',').trim();
 
-    if (pickingFor === 'from') {
-      fromLocation = loc;
-      document.getElementById('fromDisplay').textContent = name;
-      document.getElementById('fromDisplay').classList.remove('placeholder');
-      document.getElementById('topbarLocation').textContent = name.substring(0,30);
-      updateFromMarker(loc);
-    } else {
-      toLocation = loc;
-      document.getElementById('toDisplay').textContent = name;
-      document.getElementById('toDisplay').classList.remove('placeholder');
-      updateToMarker(loc);
-    }
-
-    if (fromLocation && toLocation) drawRoute();
-    updateBookBtn();
-    closeLocationPicker();
-  } catch(e) {
-    console.error('Place select error:', e);
+  if (pickingFor === 'from') {
+    fromLocation = loc;
+    document.getElementById('fromDisplay').textContent = name;
+    document.getElementById('fromDisplay').classList.remove('placeholder');
+    document.getElementById('topbarLocation').textContent = name.substring(0,30);
+    updateFromMarker(loc);
+  } else {
+    toLocation = loc;
+    document.getElementById('toDisplay').textContent = name;
+    document.getElementById('toDisplay').classList.remove('placeholder');
+    updateToMarker(loc);
   }
+
+  if (fromLocation && toLocation) drawRoute();
+  updateBookBtn();
+  closeLocationPicker();
 }
 
 function useCurrentLocation() {

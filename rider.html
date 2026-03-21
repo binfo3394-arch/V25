@@ -218,6 +218,116 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
 .loc-sugg-sub{font-size:0.75rem;color:var(--muted);margin-top:1px;}
 .loc-searching{padding:16px;color:var(--muted);font-size:0.85rem;text-align:center;}
 
+/* ─── MAP PICKER ─── */
+#scMapPick{z-index:72;background:var(--bg);flex-direction:column;}
+#mapPickMap{flex:1;position:relative;}
+#mapPickInner{position:absolute;inset:0;}
+
+/* Center crosshair pin */
+.map-pin-wrap{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-100%);
+  z-index:10;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;
+}
+.map-pin-ic{
+  font-size:2.4rem;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.35));
+  transition:transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+.map-pin-wrap.dragging .map-pin-ic{
+  transform:translateY(-10px) scale(1.15);
+}
+.map-pin-shadow{
+  width:14px;height:6px;
+  background:rgba(0,0,0,0.25);
+  border-radius:50%;
+  margin-top:2px;
+  transition:all 0.15s;
+}
+.map-pin-wrap.dragging .map-pin-shadow{
+  width:10px;opacity:0.4;
+}
+
+/* Top bar in map picker */
+.mapp-topbar{
+  position:absolute;top:0;left:0;right:0;z-index:20;
+  padding:calc(var(--sat)+10px) 14px 10px;
+  pointer-events:none;
+}
+.mapp-topbar-inner{
+  display:flex;align-items:center;gap:10px;
+  pointer-events:all;
+}
+.mapp-back{
+  width:44px;height:44px;border-radius:13px;
+  background:var(--white);box-shadow:var(--shadow);
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.mapp-back:active{transform:scale(0.92);}
+.mapp-label{
+  flex:1;background:var(--white);box-shadow:var(--shadow);
+  border-radius:13px;padding:11px 16px;
+  font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;
+  color:var(--muted);
+}
+
+/* Address preview card at bottom */
+.mapp-bottom{
+  position:absolute;bottom:0;left:0;right:0;z-index:20;
+  padding:0 14px calc(var(--sab)+14px);
+}
+.mapp-addr-card{
+  background:var(--white);border-radius:20px;
+  box-shadow:0 -2px 24px rgba(0,0,0,0.12);
+  padding:16px 18px;
+}
+.mapp-addr-lbl{
+  font-size:0.68rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:0.08em;
+  font-weight:700;margin-bottom:6px;
+}
+.mapp-addr-val{
+  font-size:0.95rem;font-weight:600;
+  line-height:1.4;margin-bottom:14px;
+  min-height:44px;
+  display:flex;align-items:center;gap:8px;
+}
+.mapp-addr-spinner{
+  width:16px;height:16px;border-radius:50%;
+  border:2px solid var(--border);
+  border-top-color:var(--accent);
+  animation:spin 0.7s linear infinite;
+  flex-shrink:0;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mapp-confirm{
+  width:100%;padding:16px;
+  background:var(--dark);color:#fff;
+  font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;
+  border:none;border-radius:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  -webkit-tap-highlight-color:transparent;
+  transition:background 0.15s;
+}
+.mapp-confirm:active{background:#333;}
+.mapp-confirm:disabled{background:#ccc;cursor:not-allowed;}
+
+/* My location FAB */
+.mapp-my-loc{
+  position:absolute;right:14px;bottom:calc(var(--sab)+160px);z-index:21;
+  width:48px;height:48px;border-radius:50%;
+  background:var(--white);box-shadow:var(--shadow2);
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;
+  -webkit-tap-highlight-color:transparent;
+}
+.mapp-my-loc:active{transform:scale(0.92);}
+
 /* ─── SIDEBAR ─── */
 #scSidebar{z-index:75;display:none;}
 #scSidebar.open{display:block;}
@@ -553,6 +663,46 @@ input:checked+.ts-slider::before{transform:translateX(22px);}
   </div>
 </div>
 
+
+<!-- MAP PICKER SCREEN -->
+<div class="screen" id="scMapPick">
+  <!-- Map -->
+  <div id="mapPickMap">
+    <div id="mapPickInner"></div>
+
+    <!-- Center pin -->
+    <div class="map-pin-wrap" id="mapPin">
+      <div class="map-pin-ic" id="mapPinIc">📍</div>
+      <div class="map-pin-shadow"></div>
+    </div>
+
+    <!-- Top bar -->
+    <div class="mapp-topbar">
+      <div class="mapp-topbar-inner">
+        <button class="mapp-back" onclick="closeMapPick()">←</button>
+        <div class="mapp-label" id="mappLabel">📍 Pickup select කරන්න</div>
+      </div>
+    </div>
+
+    <!-- My location FAB -->
+    <button class="mapp-my-loc" onclick="mapPickGoToMyLoc()" title="My Location">📍</button>
+
+    <!-- Bottom address + confirm -->
+    <div class="mapp-bottom">
+      <div class="mapp-addr-card">
+        <div class="mapp-addr-lbl" id="mappAddrLbl">SELECTED LOCATION</div>
+        <div class="mapp-addr-val" id="mappAddrVal">
+          <div class="mapp-addr-spinner" id="mappSpinner"></div>
+          <span id="mappAddrText">Map drag කරන්න...</span>
+        </div>
+        <button class="mapp-confirm" id="mappConfirmBtn" onclick="confirmMapPick()">
+          ✅ &nbsp;Location Confirm කරන්න
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden remote audio for WebRTC call -->
 <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
 
@@ -741,6 +891,10 @@ input:checked+.ts-slider::before{transform:translateX(22px);}
       <input class="locpick-input" id="locInput" placeholder="ස්ථානය search කරන්න..." oninput="searchLoc(this.value)" autocomplete="off">
     </div>
     <div class="locpick-list" id="locList">
+      <!-- Pick on map button -->
+      <div class="loc-cur-btn" style="color:var(--green);border-bottom:1px solid var(--border);padding-bottom:13px;margin-bottom:4px;" onclick="openMapPick()">
+        🗺️ &nbsp;Map ලෙ pin select කරන්න
+      </div>
       <div class="loc-cur-btn" onclick="useCurrLoc()">📍 &nbsp;Current Location use කරන්න</div>
       <div id="locSuggestions"></div>
     </div>
@@ -1175,6 +1329,177 @@ function openLocPick(forWhat){
 }
 
 function closeLocPick(){overlay('scLocPick',false);}
+
+// ══════════════════════════════════════════
+// MAP PICKER — Full screen drag-to-select
+// ══════════════════════════════════════════
+let mapPick=null, mapPickMarker=null, _mapPickFor='from';
+let _mapPickGeocodeTimer=null, _mapPickSelectedLoc=null, _mapPickSelectedAddr='';
+
+function openMapPick(){
+  _mapPickFor = pickFor;
+  closeLocPick();
+
+  // Label
+  const isFrom = _mapPickFor==='from';
+  document.getElementById('mappLabel').textContent = isFrom ? '📍 Pickup select කරන්න' : '🎯 Destination select කරන්න';
+  document.getElementById('mappAddrLbl').textContent = isFrom ? 'PICKUP LOCATION' : 'DESTINATION';
+  document.getElementById('mappAddrText').textContent = 'Map drag කරන්න...';
+  document.getElementById('mappConfirmBtn').disabled = true;
+  document.getElementById('mapPinIc').textContent = isFrom ? '📍' : '🎯';
+  _mapPickSelectedLoc = null;
+  _mapPickSelectedAddr = '';
+
+  overlay('scMapPick', true);
+
+  // Initialize or reuse map
+  if(!mapPick){
+    const startLoc = fromLoc || {lat:7.8731, lng:80.7718};
+    mapPick = new google.maps.Map(document.getElementById('mapPickInner'), {
+      center: startLoc,
+      zoom: fromLoc ? 16 : 12,
+      disableDefaultUI: true,
+      gestureHandling: 'greedy',
+      styles:[
+        {featureType:'all',elementType:'geometry',stylers:[{color:'#f5f0e8'}]},
+        {featureType:'road',elementType:'geometry',stylers:[{color:'#fff'}]},
+        {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#e8e0d0'}]},
+        {featureType:'water',elementType:'geometry',stylers:[{color:'#cce5f5'}]},
+        {featureType:'poi',elementType:'geometry',stylers:[{color:'#dff0d8'}]},
+      ]
+    });
+
+    // Listen for map idle (drag stopped)
+    mapPick.addListener('dragstart', ()=>{
+      document.getElementById('mapPin').classList.add('dragging');
+      document.getElementById('mappAddrText').textContent = 'Moving...';
+      document.getElementById('mappConfirmBtn').disabled = true;
+      clearTimeout(_mapPickGeocodeTimer);
+    });
+
+    mapPick.addListener('idle', ()=>{
+      document.getElementById('mapPin').classList.remove('dragging');
+      const center = mapPick.getCenter();
+      const loc = {lat: center.lat(), lng: center.lng()};
+      _mapPickSelectedLoc = loc;
+      onMapPickIdle(loc);
+    });
+
+    mapPick.addListener('center_changed', ()=>{
+      clearTimeout(_mapPickGeocodeTimer);
+    });
+
+  } else {
+    // Re-center on current location
+    const startLoc = (isFrom ? fromLoc : toLoc) || fromLoc || {lat:7.8731,lng:80.7718};
+    mapPick.setCenter(startLoc);
+    mapPick.setZoom(16);
+    // Trigger initial geocode
+    const center = mapPick.getCenter();
+    _mapPickSelectedLoc = {lat:center.lat(), lng:center.lng()};
+    onMapPickIdle(_mapPickSelectedLoc);
+  }
+
+  // Center on relevant existing location
+  const existLoc = isFrom ? fromLoc : (toLoc || fromLoc);
+  if(existLoc && mapPick){
+    mapPick.setCenter(existLoc);
+    mapPick.setZoom(16);
+    _mapPickSelectedLoc = {...existLoc};
+    onMapPickIdle(existLoc);
+  }
+}
+
+function onMapPickIdle(loc){
+  // Show spinner
+  const spinner = document.getElementById('mappSpinner');
+  spinner.style.display = 'block';
+  document.getElementById('mappAddrText').textContent = 'Address ගන්නවා...';
+  document.getElementById('mappConfirmBtn').disabled = true;
+
+  clearTimeout(_mapPickGeocodeTimer);
+  _mapPickGeocodeTimer = setTimeout(()=>{
+    geocodeMapPickLoc(loc);
+  }, 400); // debounce 400ms after drag stops
+}
+
+function geocodeMapPickLoc(loc){
+  const spinner = document.getElementById('mappSpinner');
+
+  // Try Google Geocoder
+  if(window.google && google.maps && google.maps.Geocoder){
+    const gc = new google.maps.Geocoder();
+    gc.geocode({location:loc, language:'en'}, (res,st)=>{
+      if(st==='OK' && res && res[0]){
+        const comps = res[0].address_components;
+        let area='', city='';
+        comps.forEach(c=>{
+          if(c.types.includes('sublocality')||c.types.includes('sublocality_level_1')) area=c.long_name;
+          if(c.types.includes('locality')) city=c.long_name;
+          if(c.types.includes('administrative_area_level_2')&&!city) city=c.long_name;
+        });
+        const addr = area ? (area+(city&&city!==area?', '+city:'')) : (city||res[0].formatted_address.split(',').slice(0,2).join(', ').trim());
+        setMapPickAddr(addr, loc);
+      } else {
+        setMapPickAddr(loc.lat.toFixed(5)+', '+loc.lng.toFixed(5), loc);
+      }
+    });
+  } else {
+    // Nominatim fallback
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${loc.lat}&lon=${loc.lng}&format=json&addressdetails=1&accept-language=en`,{
+      headers:{'User-Agent':'RideGoApp/1.0'}
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      if(d&&d.address){
+        const a=d.address;
+        const area=a.suburb||a.neighbourhood||a.road||a.village||a.town||'';
+        const city=a.city||a.town||a.county||'';
+        const addr=area?(area+(city&&city!==area?', '+city:'')):(city||d.display_name.split(',')[0]);
+        setMapPickAddr(addr, loc);
+      } else {
+        setMapPickAddr(loc.lat.toFixed(5)+', '+loc.lng.toFixed(5), loc);
+      }
+    })
+    .catch(()=>{
+      setMapPickAddr(loc.lat.toFixed(5)+', '+loc.lng.toFixed(5), loc);
+    });
+  }
+}
+
+function setMapPickAddr(addr, loc){
+  _mapPickSelectedAddr = addr;
+  _mapPickSelectedLoc = loc;
+  document.getElementById('mappSpinner').style.display = 'none';
+  document.getElementById('mappAddrText').textContent = addr;
+  document.getElementById('mappConfirmBtn').disabled = false;
+}
+
+function confirmMapPick(){
+  if(!_mapPickSelectedLoc || !_mapPickSelectedAddr) return;
+  const loc = _mapPickSelectedLoc;
+  const addr = _mapPickSelectedAddr;
+  closeMapPick();
+  // Use the selected location
+  pickFor = _mapPickFor;
+  setLocation(loc, addr);
+}
+
+function closeMapPick(){
+  overlay('scMapPick', false);
+}
+
+function mapPickGoToMyLoc(){
+  if(!navigator.geolocation) return;
+  document.getElementById('mappAddrText').textContent = '📍 Location ගන්නවා...';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const loc={lat:pos.coords.latitude, lng:pos.coords.longitude};
+    if(mapPick){
+      mapPick.setCenter(loc);
+      mapPick.setZoom(17);
+    }
+  },()=>{ toast('GPS error'); },{enableHighAccuracy:true,timeout:8000,maximumAge:5000});
+}
 
 function searchLoc(q){
   clearTimeout(searchTimer);

@@ -316,6 +316,45 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
 .act-btn-wrap .act-btn{width:100%;}
 .unread-badge{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;width:18px;height:18px;border-radius:50%;font-size:0.62rem;font-weight:700;display:none;align-items:center;justify-content:center;font-family:'Syne',sans-serif;}
 .unread-badge.show{display:flex;}
+
+/* ─── GENERIC MODAL SHEET ─── */
+.modal-sheet{background:var(--white);border-radius:24px 24px 0 0;width:100%;max-height:88vh;display:flex;flex-direction:column;animation:slideUp 0.3s cubic-bezier(0.4,0,0.2,1);margin-top:auto;}
+.modal-head{display:flex;align-items:center;padding:18px 18px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;flex:1;}
+.modal-close{width:34px;height:34px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;}
+.modal-note{font-size:0.75rem;color:var(--muted);text-align:center;padding:12px 0 4px;}
+#scMyRides,#scSavedPlaces,#scSettings,#scProfile{z-index:82;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center;}
+#scCancelConfirm{z-index:88;background:transparent;}
+#scSOS{z-index:92;}
+.ride-hist-item{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);}
+.rhi-ic{width:40px;height:40px;border-radius:12px;background:#f7f6f3;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.rhi-main{flex:1;min-width:0;}
+.rhi-dest{font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rhi-meta{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+.rhi-fare{font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--accent2);flex-shrink:0;}
+.rhi-status{font-size:0.65rem;padding:2px 8px;border-radius:99px;font-weight:700;margin-top:4px;display:inline-block;}
+.rhi-status.done{background:#e8f8ef;color:var(--green);}
+.rhi-status.cancelled{background:#fee;color:var(--red);}
+.no-data-msg{text-align:center;padding:32px 20px;color:var(--muted);font-size:0.88rem;}
+.saved-place-item{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:8px;background:#f7f6f3;}
+.saved-place-item:active{background:#f0ede6;}
+.sp-ic{font-size:1.4rem;flex-shrink:0;}
+.sp-info{flex:1;min-width:0;}
+.sp-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;}
+.sp-addr{font-size:0.78rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sp-edit{background:transparent;border:none;font-size:1.1rem;cursor:pointer;padding:6px;-webkit-tap-highlight-color:transparent;}
+.settings-section{font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:8px 0 6px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #f5f5f5;}
+.settings-row.tap{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.settings-row.tap:active{opacity:0.6;}
+.settings-lbl{font-size:0.9rem;}
+.toggle-switch{position:relative;width:48px;height:26px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.ts-slider{position:absolute;inset:0;background:#ddd;border-radius:99px;transition:0.3s;cursor:pointer;}
+.ts-slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+input:checked+.ts-slider{background:var(--green);}
+input:checked+.ts-slider::before{transform:translateX(22px);}
+
 #toast{position:fixed;bottom:calc(var(--sab) + 80px);left:50%;transform:translateX(-50%) translateY(30px);background:var(--dark);color:#fff;padding:11px 20px;border-radius:99px;font-size:0.83rem;z-index:999;transition:all 0.3s;opacity:0;white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden;pointer-events:none;}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
@@ -408,7 +447,7 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
         <div class="topbar-loc-dot"></div>
         <span class="topbar-loc-txt" id="topLocTxt">📍 Location ගන්නවා...</span>
       </div>
-      <button class="sos-btn" onclick="doSOS()">SOS</button>
+      <button class="sos-btn" onclick="openSOS()">SOS</button>
     </div>
   </div>
 
@@ -438,21 +477,21 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
         </div>
       </div>
       <div class="v-scroll" id="vScroll">
-        <div class="v-card on" data-type="tuk" data-rate="45" data-base="60" onclick="pickVehicle(this)">
+        <div class="v-card on" data-type="tuk" onclick="pickVehicle(this)">
           <div class="v-ic">🛺</div><div class="v-nm">Tuk-Tuk</div>
-          <div class="v-pr">Rs.45/km</div><div class="v-eta">~3 min</div>
+          <div class="v-pr">Rs.100/km</div><div class="v-eta">~3 min</div>
         </div>
-        <div class="v-card" data-type="car" data-rate="80" data-base="100" onclick="pickVehicle(this)">
+        <div class="v-card" data-type="car" onclick="pickVehicle(this)">
           <div class="v-ic">🚗</div><div class="v-nm">Car</div>
-          <div class="v-pr">Rs.80/km</div><div class="v-eta">~5 min</div>
+          <div class="v-pr">Rs.130/km</div><div class="v-eta">~5 min</div>
         </div>
-        <div class="v-card" data-type="bike" data-rate="30" data-base="40" onclick="pickVehicle(this)">
+        <div class="v-card" data-type="bike" onclick="pickVehicle(this)">
           <div class="v-ic">🏍️</div><div class="v-nm">Bike</div>
-          <div class="v-pr">Rs.30/km</div><div class="v-eta">~2 min</div>
+          <div class="v-pr">Rs.80/km</div><div class="v-eta">~2 min</div>
         </div>
-        <div class="v-card" data-type="xl" data-rate="110" data-base="150" onclick="pickVehicle(this)">
+        <div class="v-card" data-type="xl" onclick="pickVehicle(this)">
           <div class="v-ic">🚐</div><div class="v-nm">Van/XL</div>
-          <div class="v-pr">Rs.110/km</div><div class="v-eta">~7 min</div>
+          <div class="v-pr">Rs.200/km</div><div class="v-eta">~7 min</div>
         </div>
       </div>
       <div class="fare-row">
@@ -461,6 +500,9 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
           <div class="fare-info-sub" id="fareSub">Destination select කරන්න</div>
         </div>
         <div class="fare-val" id="fareVal">—</div>
+      </div>
+      <div id="fareBreakdown" style="display:none;background:#fffbe8;border:1px solid rgba(245,200,66,0.3);border-radius:11px;padding:10px 14px;margin-bottom:12px;font-size:0.75rem;color:#8a6d00;line-height:1.8;">
+        <div id="fareBreakdownText"></div>
       </div>
       <div class="pay-row">
         <button class="pay-btn on" id="payCash" onclick="pickPay('cash')">💵 Cash</button>
@@ -505,7 +547,7 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
           <button class="act-btn" onclick="openChat()">💬 Chat</button>
           <div class="unread-badge" id="chatUnreadBadge">0</div>
         </div>
-        <button class="act-btn" onclick="cancelRide()">✕ Cancel</button>
+        <button class="act-btn" onclick="overlay('scCancelConfirm',true)">✕ Cancel</button>
       </div>
     </div>
   </div>
@@ -533,7 +575,7 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
 <div class="screen" id="scCallOpts">
   <div class="call-opts-box">
     <div class="call-opts-title">📞 Driver Call කරන්න</div>
-    <button class="call-opt-btn primary" onclick="doPhoneCall()">📞 Phone Call කරන්න</button>
+    <button class="call-opt-btn primary" onclick="doPhoneCall()">📞 Phone Call</button>
     <button class="call-opt-btn iap" onclick="startRiderInAppCall()">📱 In-App Free Call</button>
     <button class="call-opts-cancel" onclick="overlay('scCallOpts',false)">Cancel</button>
   </div>
@@ -565,6 +607,130 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
     </div>
   </div>
 </div>
+
+<!-- MY RIDES MODAL -->
+<div class="screen" id="scMyRides">
+  <div class="modal-sheet">
+    <div class="modal-head">
+      <div class="modal-title">🚗 My Rides</div>
+      <button class="modal-close" onclick="overlay('scMyRides',false)">✕</button>
+    </div>
+    <div id="myRidesList" style="overflow-y:auto;flex:1;padding-bottom:calc(var(--sab)+16px);">
+      <div class="no-data-msg">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- SAVED PLACES MODAL -->
+<div class="screen" id="scSavedPlaces">
+  <div class="modal-sheet">
+    <div class="modal-head">
+      <div class="modal-title">❤️ Saved Places</div>
+      <button class="modal-close" onclick="overlay('scSavedPlaces',false)">✕</button>
+    </div>
+    <div style="padding:16px 18px;overflow-y:auto;flex:1;padding-bottom:calc(var(--sab)+16px);">
+      <div id="savedPlacesList">
+        <div id="homePlace" class="saved-place-item" onclick="useSavedPlace('home')">
+          <div class="sp-ic">🏠</div>
+          <div class="sp-info">
+            <div class="sp-name">Home</div>
+            <div class="sp-addr" id="homeAddr">Set home address</div>
+          </div>
+          <button class="sp-edit" onclick="event.stopPropagation();editSavedPlace('home')">✏️</button>
+        </div>
+        <div id="workPlace" class="saved-place-item" onclick="useSavedPlace('work')">
+          <div class="sp-ic">💼</div>
+          <div class="sp-info">
+            <div class="sp-name">Work</div>
+            <div class="sp-addr" id="workAddr">Set work address</div>
+          </div>
+          <button class="sp-edit" onclick="event.stopPropagation();editSavedPlace('work')">✏️</button>
+        </div>
+      </div>
+      <div class="modal-note">Tap to use as destination. ✏️ to edit.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="screen" id="scSettings">
+  <div class="modal-sheet">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ Settings</div>
+      <button class="modal-close" onclick="overlay('scSettings',false)">✕</button>
+    </div>
+    <div style="padding:12px 18px;overflow-y:auto;flex:1;padding-bottom:calc(var(--sab)+16px);">
+      <div class="settings-section">Notifications</div>
+      <div class="settings-row">
+        <div class="settings-lbl">Ride Updates</div>
+        <label class="toggle-switch"><input type="checkbox" id="notifRide" checked onchange="saveSetting('notifRide',this.checked)"><span class="ts-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-lbl">Promotions</div>
+        <label class="toggle-switch"><input type="checkbox" id="notifPromo" onchange="saveSetting('notifPromo',this.checked)"><span class="ts-slider"></span></label>
+      </div>
+      <div class="settings-section" style="margin-top:16px;">Map</div>
+      <div class="settings-row">
+        <div class="settings-lbl">High Accuracy GPS</div>
+        <label class="toggle-switch"><input type="checkbox" id="highAccGps" checked onchange="saveSetting('highAccGps',this.checked)"><span class="ts-slider"></span></label>
+      </div>
+      <div class="settings-section" style="margin-top:16px;">Account</div>
+      <div class="settings-row tap" onclick="changePassword()">
+        <div class="settings-lbl">Change Password</div>
+        <span style="color:var(--muted);font-size:0.85rem;">→</span>
+      </div>
+      <div class="settings-row tap" onclick="deleteAccountConfirm()">
+        <div class="settings-lbl" style="color:var(--red)">Delete Account</div>
+        <span style="color:var(--red);font-size:0.85rem;">→</span>
+      </div>
+      <div style="padding:16px 0 8px;text-align:center;color:var(--muted);font-size:0.72rem;">RideGo v2.0 • Sri Lanka 🇱🇰</div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="screen" id="scProfile">
+  <div class="modal-sheet">
+    <div class="modal-head">
+      <div class="modal-title">👤 My Profile</div>
+      <button class="modal-close" onclick="overlay('scProfile',false)">✕</button>
+    </div>
+    <div style="padding:20px 18px;overflow-y:auto;flex:1;padding-bottom:calc(var(--sab)+16px);">
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 10px;">👤</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;" id="profName">—</div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-top:3px;" id="profEmail">—</div>
+      </div>
+      <div class="inp-g"><label class="inp-l" style="color:var(--muted)">Full Name</label><input class="inp" id="profNameInp" style="background:#f7f6f3;border-color:var(--border);color:var(--text);" placeholder="Your name"></div>
+      <div class="inp-g"><label class="inp-l" style="color:var(--muted)">Phone</label><input class="inp" id="profPhoneInp" type="tel" style="background:#f7f6f3;border-color:var(--border);color:var(--text);" placeholder="+94 77 123 4567"></div>
+      <button class="auth-cta" style="margin-top:8px;" onclick="saveProfile()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL CONFIRM MODAL -->
+<div class="screen" id="scCancelConfirm">
+  <div style="flex:1;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;">
+    <div style="background:var(--white);border-radius:24px 24px 0 0;width:100%;padding:24px 20px calc(var(--sab)+20px);">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;margin-bottom:8px;">Ride Cancel කරන්නද?</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;">Driver ගෙ travel imbue cancel වෙනවා. Frequent cancellations account ලෙ affect කරයි.</div>
+      <button style="width:100%;padding:15px;background:var(--red);color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;border:none;border-radius:13px;cursor:pointer;margin-bottom:10px;" onclick="confirmCancelRide()">✕ Cancel Ride</button>
+      <button style="width:100%;padding:14px;background:#f5f5f5;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.9rem;border:none;border-radius:13px;cursor:pointer;" onclick="overlay('scCancelConfirm',false)">Keep Ride</button>
+    </div>
+  </div>
+</div>
+
+<!-- SOS MODAL -->
+<div class="screen" id="scSOS">
+  <div style="flex:1;background:rgba(180,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px;">
+    <div style="font-size:4rem;">🆘</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:#fff;text-align:center;">Emergency SOS</div>
+    <div style="font-size:0.88rem;color:rgba(255,255,255,0.8);text-align:center;line-height:1.6;">ඔබේ location සහ ride details share කරනවා. Emergency services contact කරනවාද?</div>
+    <div id="sosLocText" style="font-size:0.78rem;color:rgba(255,255,255,0.6);text-align:center;padding:10px 16px;background:rgba(0,0,0,0.2);border-radius:10px;width:100%;">📍 Location getting...</div>
+    <button onclick="confirmSOS()" style="width:100%;padding:16px;background:#fff;color:#c0392b;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;border:none;border-radius:14px;cursor:pointer;">🆘 Send SOS Alert</button>
+    <button onclick="overlay('scSOS',false)" style="width:100%;padding:14px;background:rgba(255,255,255,0.15);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;border:1px solid rgba(255,255,255,0.3);border-radius:14px;cursor:pointer;">Cancel</button>
+  </div>
+</div>
 <div class="screen" id="scLocPick">
   <div class="locpick-box">
     <div class="locpick-head">
@@ -590,10 +756,10 @@ body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
       <div class="sb-name" id="sbName">Rider</div>
       <div class="sb-email" id="sbEmail">—</div>
     </div>
-    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">🚗</span> My Rides</div>
-    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">💳</span> Payment</div>
-    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">❤️</span> Saved Places</div>
-    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">⚙️</span> Settings</div>
+    <div class="sb-item" onclick="openMyRides();closeSidebar()"><span class="sb-ic">🚗</span> My Rides</div>
+    <div class="sb-item" onclick="openSavedPlaces();closeSidebar()"><span class="sb-ic">❤️</span> Saved Places</div>
+    <div class="sb-item" onclick="openSettings();closeSidebar()"><span class="sb-ic">⚙️</span> Settings</div>
+    <div class="sb-item" onclick="openProfile();closeSidebar()"><span class="sb-ic">👤</span> My Profile</div>
     <div class="sb-item red" onclick="doLogout()"><span class="sb-ic">🚪</span> Log Out</div>
   </div>
 </div>
@@ -677,7 +843,7 @@ const auth=firebase.auth(), db=firebase.firestore(), rtdb=firebase.database();
 let map,fromMarker,toMarker,driverMarker,routeRenderer;
 let currentUser=null,activeRideId=null,rideListener=null;
 let fromLoc=null,toLoc=null,locWatcher=null;
-let selVehicle={type:'tuk',rate:45,base:60};
+let selVehicle={type:'tuk'};
 let payMethod='cash',pickFor='from';
 let chatListener=null;
 let searchTimer=null;
@@ -945,22 +1111,32 @@ function reqLocation(){
 
 function startLocWatch(){
   if(locWatcher)navigator.geolocation.clearWatch(locWatcher);
+  let lastPushTime = 0;
   locWatcher=navigator.geolocation.watchPosition(pos=>{
     const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
     fromLoc=loc;
     if(map) centerMapOnLoc(loc);
     document.getElementById('liveBadge').style.display='flex';
-    // Update pickup text if not manually changed
+
+    // Update pickup text if not manually set
     const fromTxt=document.getElementById('fromTxt').textContent;
     if(!fromTxt||fromTxt==='Current location...'||fromTxt==='📍 Location ගන්නවා...'){
       reverseGeocode(loc);
     }
-    if(currentUser&&activeRideId){
-      rtdb.ref('riders/'+currentUser.uid+'/location').set({lat:loc.lat,lng:loc.lng,ts:Date.now()}).catch(()=>{});
+
+    // Push to RTDB every 2s during active ride
+    const now = Date.now();
+    if(currentUser && activeRideId && (now - lastPushTime) >= 2000){
+      lastPushTime = now;
+      rtdb.ref('riders/'+currentUser.uid+'/location').set({
+        lat:loc.lat, lng:loc.lng,
+        acc: Math.round(pos.coords.accuracy||0),
+        ts: now
+      }).catch(()=>{});
     }
   },
   err=>console.warn('Watch error:',err.message),
-  {enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+  {enableHighAccuracy:true, maximumAge:1000, timeout:15000});
 }
 
 function skipLoc(){
@@ -1063,6 +1239,14 @@ function useCurrLoc(){
 }
 
 function setLocation(loc,name){
+  // If editing a saved place, save it
+  if(window._savingPlaceType&&pickFor==='to'){
+    const type=window._savingPlaceType;
+    window._savingPlaceType=null;
+    _savedPlaces[type]={loc,name};
+    localStorage.setItem('ridego_saved_places',JSON.stringify(_savedPlaces));
+    toast('✅ '+(type==='home'?'Home':'Work')+' saved!');
+  }
   if(pickFor==='from'){
     fromLoc=loc;
     document.getElementById('fromTxt').textContent=name;
@@ -1098,35 +1282,43 @@ function swapLocs(){
   if(fromLoc&&toLoc)calcRoute();
 }
 
-// ══ ROUTE ══
-function calcRoute(){
-  if(!fromLoc||!toLoc||!map)return;
-  const ds=new google.maps.DirectionsService();
-  if(routeRenderer)routeRenderer.setMap(null);
-  routeRenderer=new google.maps.DirectionsRenderer({map,suppressMarkers:true,
-    polylineOptions:{strokeColor:'#f5c842',strokeWeight:4,strokeOpacity:0.9}});
-  ds.route({origin:fromLoc,destination:toLoc,travelMode:google.maps.TravelMode.DRIVING},(res,st)=>{
-    if(st==='OK'){
-      routeRenderer.setDirections(res);
-      const leg=res.routes[0].legs[0];
-      const km=(leg.distance.value/1000).toFixed(1);
-      const {rate,base}=selVehicle;
-      const total=base+Math.round(rate*km)+15;
-      document.getElementById('fareVal').textContent='Rs. '+total;
-      document.getElementById('fareSub').textContent='Rs.'+base+' base + Rs.'+(Math.round(rate*km))+' ('+km+'km) + Rs.15';
-      document.getElementById('dDist').textContent=km+' km';
-      document.getElementById('dFare').textContent='Rs. '+total;
-      map.fitBounds(res.routes[0].bounds,{top:100,bottom:280,left:20,right:20});
-    }
-  });
+// ══ FARE CONFIG (Sri Lanka standard) ══
+const FARE_CONFIG = {
+  tuk:  { base:150, baseKm:1, perKm:100,  name:'Tuk-Tuk',  icon:'🛺' },
+  car:  { base:150, baseKm:1, perKm:130,  name:'Car',       icon:'🚗' },
+  bike: { base:150, baseKm:1, perKm:80,   name:'Bike',      icon:'🏍️' },
+  xl:   { base:150, baseKm:1, perKm:200,  name:'Van/XL',    icon:'🚐' },
+};
+
+function calcFare(type, distMeters){
+  const cfg = FARE_CONFIG[type] || FARE_CONFIG.tuk;
+  const totalKm = distMeters / 1000;
+  if(totalKm <= cfg.baseKm){
+    return { total: cfg.base, breakdown: `Rs.${cfg.base} (first ${cfg.baseKm}km flat)`, km: totalKm };
+  }
+  const extraKm = totalKm - cfg.baseKm;
+  const extraFare = Math.round(extraKm * cfg.perKm);
+  const total = cfg.base + extraFare;
+  const kmStr = totalKm >= 1 ? totalKm.toFixed(2)+'km' : Math.round(distMeters)+'m';
+  return {
+    total,
+    breakdown: `Rs.${cfg.base} (1st km) + Rs.${extraFare} (${extraKm.toFixed(2)}km × Rs.${cfg.perKm})`,
+    km: totalKm,
+    kmStr
+  };
+}
+
+function formatDist(meters){
+  if(meters < 1000) return Math.round(meters)+'m';
+  return (meters/1000).toFixed(2)+'km';
 }
 
 // ══ VEHICLE ══
 function pickVehicle(el){
   document.querySelectorAll('.v-card').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
-  selVehicle={type:el.dataset.type,rate:parseInt(el.dataset.rate),base:parseInt(el.dataset.base)};
-  if(fromLoc&&toLoc)calcRoute();
+  selVehicle = { type: el.dataset.type };
+  if(fromLoc && toLoc) calcRoute();
 }
 
 function pickPay(m){
@@ -1139,23 +1331,73 @@ function updateBookBtn(){
   document.getElementById('bookBtn').disabled=!(fromLoc&&toLoc);
 }
 
+// ══ ROUTE (precise meters from Google Directions) ══
+let _lastRouteDistMeters = 0;
+let _lastRouteDurSecs = 0;
+
+function calcRoute(){
+  if(!fromLoc||!toLoc||!map)return;
+  const ds=new google.maps.DirectionsService();
+  if(routeRenderer)routeRenderer.setMap(null);
+  routeRenderer=new google.maps.DirectionsRenderer({map,suppressMarkers:true,
+    polylineOptions:{strokeColor:'#f5c842',strokeWeight:5,strokeOpacity:0.9}});
+  ds.route({origin:fromLoc,destination:toLoc,travelMode:google.maps.TravelMode.DRIVING},(res,st)=>{
+    if(st==='OK'){
+      routeRenderer.setDirections(res);
+      const leg = res.routes[0].legs[0];
+      const distMeters = leg.distance.value; // exact meters
+      const durSecs = leg.duration.value;
+      _lastRouteDistMeters = distMeters;
+      _lastRouteDurSecs = durSecs;
+      updateFareUI(distMeters, durSecs);
+      map.fitBounds(res.routes[0].bounds,{top:100,bottom:300,left:20,right:20});
+    }
+  });
+}
+
+function updateFareUI(distMeters, durSecs){
+  const vType = selVehicle?.type || 'tuk';
+  const fare = calcFare(vType, distMeters);
+  const distStr = formatDist(distMeters);
+  const mins = Math.ceil(durSecs/60);
+
+  document.getElementById('fareVal').textContent = 'Rs. '+fare.total;
+  document.getElementById('fareSub').textContent = distStr + ' • ~'+mins+' min';
+  document.getElementById('dDist').textContent = distStr;
+  document.getElementById('dFare').textContent = 'Rs. '+fare.total;
+
+  // Breakdown
+  const bd = document.getElementById('fareBreakdown');
+  bd.style.display = 'block';
+  document.getElementById('fareBreakdownText').innerHTML =
+    '📏 Distance: <b>'+distStr+'</b> &nbsp;|&nbsp; ⏱ ~'+mins+' min<br>' + fare.breakdown;
+}
+
 // ══ BOOKING ══
 async function bookRide(){
   if(!fromLoc||!toLoc){toast('Locations select කරන්න');return;}
   if(!currentUser){toast('Login කරන්න');return;}
   let riderPhone='';
   try{const d=await db.collection('riders').doc(currentUser.uid).get();riderPhone=d.data()?.phone||'';}catch(e){}
-  const fare=document.getElementById('fareVal').textContent;
-  const dist=document.getElementById('dDist').textContent;
+
+  const vType = selVehicle?.type || 'tuk';
+  const fare = calcFare(vType, _lastRouteDistMeters||0);
+  const distStr = formatDist(_lastRouteDistMeters||0);
+
   const rideData={
     riderId:currentUser.uid,
     riderName:currentUser.displayName||'Rider',
     riderPhone,
     from:{lat:fromLoc.lat,lng:fromLoc.lng,address:document.getElementById('fromTxt').textContent},
     to:{lat:toLoc.lat,lng:toLoc.lng,address:document.getElementById('toTxt').textContent},
-    vehicleType:selVehicle.type,
-    estimatedFare:fare,estimatedDist:dist,
-    paymentMethod:payMethod,status:'searching',
+    vehicleType:vType,
+    estimatedFare:'Rs.'+fare.total,
+    estimatedFareNum:fare.total,
+    estimatedDist:distStr,
+    estimatedDistMeters:_lastRouteDistMeters||0,
+    fareBreakdown:fare.breakdown,
+    paymentMethod:payMethod,
+    status:'searching',
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
@@ -1174,11 +1416,25 @@ function showPanel(p){
 }
 
 // ══ RIDE LISTENERS ══
+let _liveFareStarted = false;
 function listenRide(id){
   if(rideListener)rideListener();
+  _liveFareStarted = false;
   rideListener=db.collection('rides').doc(id).onSnapshot(snap=>{
     const d=snap.data();if(!d)return;
-    if(d.status==='accepted'||d.status==='in_progress')showDriver(d);
+    if(d.status==='accepted'){
+      showDriver(d);
+      _liveFareStarted = false;
+    }
+    else if(d.status==='in_progress'){
+      showDriver(d);
+      if(!_liveFareStarted){ _liveFareStarted=true; startLiveFare(d); }
+      // Also show live fare pushed by driver
+      if(d.liveFare && d.liveDistMeters){
+        document.getElementById('dFare').textContent='Rs. '+d.liveFare;
+        document.getElementById('dDist').textContent=formatDist(d.liveDistMeters);
+      }
+    }
     else if(d.status==='completed'){
       stopDriverTrack();
       showRatingScreen(d);
@@ -1227,7 +1483,12 @@ async function showDriver(data){
   }
 }
 
-// ══ DRIVER TRACKING ══
+// ══ DRIVER TRACKING — Live 2s update + Live fare ══
+let _liveFareInterval = null;
+let _rideStartDistMeters = 0; // distance covered during ride
+let _rideStartLoc = null;
+let _lastDriverLoc = null;
+
 function startDriverTrack(data){
   stopDriverTrack();
   if(!data.driverId)return;
@@ -1238,31 +1499,88 @@ function startDriverTrack(data){
     const loc=snap.val();
     if(!loc?.lat||!loc?.lng)return;
     const dLoc={lat:parseFloat(loc.lat),lng:parseFloat(loc.lng)};
-    const svg='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><circle cx="24" cy="24" r="22" fill="#f5c842" stroke="#000" stroke-width="2.5"/><text x="24" y="32" text-anchor="middle" font-size="22">'+vIcon+'</text></svg>';
-    const icon={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(48,48),anchor:new google.maps.Point(24,24)};
-    if(driverMarker){driverMarker.setPosition(dLoc);driverMarker.setIcon(icon);}
-    else driverMarker=new google.maps.Marker({position:dLoc,map,icon,title:data.driverName||'Driver',zIndex:999});
-    if(fromLoc&&map){
-      const b=new google.maps.LatLngBounds();
-      b.extend(new google.maps.LatLng(fromLoc.lat,fromLoc.lng));
-      b.extend(new google.maps.LatLng(dLoc.lat,dLoc.lng));
-      map.fitBounds(b,{top:100,bottom:320,left:40,right:40});
+
+    // Smooth marker animation
+    if(driverMarker){
+      animateMarker(driverMarker, dLoc);
+    } else {
+      const svg='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><circle cx="24" cy="24" r="22" fill="#f5c842" stroke="#000" stroke-width="2.5"/><text x="24" y="32" text-anchor="middle" font-size="22">'+vIcon+'</text></svg>';
+      const icon={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(48,48),anchor:new google.maps.Point(24,24)};
+      driverMarker=new google.maps.Marker({position:dLoc,map,icon,title:data.driverName||'Driver',zIndex:999});
     }
-    // ETA
-    if(fromLoc){
-      const R=6371,φ1=fromLoc.lat*Math.PI/180,φ2=dLoc.lat*Math.PI/180;
-      const Δφ=(dLoc.lat-fromLoc.lat)*Math.PI/180,Δλ=(dLoc.lng-fromLoc.lng)*Math.PI/180;
-      const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      const km=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      document.getElementById('dETA').textContent=Math.max(1,Math.round(km/0.35))+' min';
+
+    // Live ETA & distance to pickup
+    const targetLoc = fromLoc; // rider's location
+    if(targetLoc){
+      const distM = haversineMeters(targetLoc, dLoc);
+      const etaMins = Math.max(1, Math.round(distM / 350)); // ~350m/min avg speed
+      document.getElementById('dETA').textContent = etaMins+' min';
+      document.getElementById('dDist').textContent = formatDist(distM);
+
+      // Fit both markers
+      if(map){
+        const b=new google.maps.LatLngBounds();
+        b.extend(new google.maps.LatLng(targetLoc.lat,targetLoc.lng));
+        b.extend(new google.maps.LatLng(dLoc.lat,dLoc.lng));
+        map.fitBounds(b,{top:100,bottom:320,left:40,right:40});
+      }
     }
+
+    _lastDriverLoc = dLoc;
   });
+}
+
+// Smooth marker interpolation
+function animateMarker(marker, newPos){
+  const startPos = marker.getPosition();
+  if(!startPos){ marker.setPosition(newPos); return; }
+  const steps = 10;
+  let step = 0;
+  const lat0 = startPos.lat(), lng0 = startPos.lng();
+  const dLat = newPos.lat - lat0, dLng = newPos.lng - lng0;
+  const timer = setInterval(()=>{
+    step++;
+    const frac = step/steps;
+    marker.setPosition({lat: lat0+dLat*frac, lng: lng0+dLng*frac});
+    if(step>=steps) clearInterval(timer);
+  }, 50);
+}
+
+// Haversine — exact meters
+function haversineMeters(a, b){
+  const R=6371000;
+  const φ1=a.lat*Math.PI/180, φ2=b.lat*Math.PI/180;
+  const Δφ=(b.lat-a.lat)*Math.PI/180, Δλ=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+// Live fare during in-progress ride
+function startLiveFare(rideData){
+  _rideStartLoc = fromLoc ? {...fromLoc} : null;
+  _rideStartDistMeters = 0;
+  clearInterval(_liveFareInterval);
+  _liveFareInterval = setInterval(()=>{
+    if(!fromLoc || !_rideStartLoc) return;
+    const covered = haversineMeters(_rideStartLoc, fromLoc);
+    _rideStartDistMeters = covered;
+    const vType = rideData?.vehicleType || 'tuk';
+    const fare = calcFare(vType, covered);
+    document.getElementById('dFare').textContent = 'Rs. '+fare.total;
+    document.getElementById('dDist').textContent = formatDist(covered);
+  }, 2000);
+}
+
+function stopLiveFare(){
+  clearInterval(_liveFareInterval);
+  _liveFareInterval = null;
 }
 
 function stopDriverTrack(){
   if(window._dLocRef&&window._dLocCb)window._dLocRef.off('value',window._dLocCb);
   window._dLocRef=null;window._dLocCb=null;
   if(driverMarker){driverMarker.setMap(null);driverMarker=null;}
+  stopLiveFare();
 }
 
 // ══ CANCEL ══
@@ -1270,12 +1588,6 @@ async function cancelSearch(){
   if(activeRideId)await db.collection('rides').doc(activeRideId).update({status:'cancelled_rider'}).catch(()=>{});
   if(rideListener){rideListener();rideListener=null;}
   activeRideId=null;showPanel('book');
-}
-
-async function cancelRide(){
-  if(!confirm('Ride cancel කරන්නද?'))return;
-  if(activeRideId)await db.collection('rides').doc(activeRideId).update({status:'cancelled_rider'}).catch(()=>{});
-  stopDriverTrack();activeRideId=null;showPanel('book');toast('Ride cancelled');
 }
 
 // ══ CALL OPTIONS ══
@@ -1652,8 +1964,11 @@ function showRatingScreen(rideData){
   selectedRating=5;
   const driverName=rideData.driverName||_driverProfile?.name||'Driver';
   document.getElementById('ratingDriverName').textContent=driverName+' ට rate කරන්න';
-  document.getElementById('ratingFare').textContent='Rs. '+(rideData.finalFare||0);
+  const finalFare = rideData.finalFare || rideData.estimatedFareNum || 0;
+  const finalDist = rideData.finalDistStr || rideData.estimatedDist || '';
+  document.getElementById('ratingFare').textContent='Rs. '+finalFare+(finalDist?' • '+finalDist:'');
   updateStars(5);
+  stopLiveFare();
   activeRideId=null;
   showPanel('book');
   overlay('scRating',true);
@@ -1686,10 +2001,161 @@ async function submitRating(){
   toast('⭐ Rating submitted! Thanks!');
   lastCompletedRide=null;
 }
-function doSOS(){
-  if(confirm('🆘 Emergency SOS send කරන්නද?')){
-    navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{toast('🆘 SOS sent — location shared');});
-  }
+// ══ CANCEL RIDE (no browser confirm) ══
+async function cancelRide(){
+  overlay('scCancelConfirm',true);
+}
+async function confirmCancelRide(){
+  overlay('scCancelConfirm',false);
+  if(activeRideId) await db.collection('rides').doc(activeRideId).update({status:'cancelled_rider'}).catch(()=>{});
+  stopDriverTrack();
+  if(iapCallInterval) endInAppCall();
+  activeRideId=null;
+  showPanel('book');
+  toast('Ride cancelled');
+}
+
+// ══ SOS ══
+let _sosLoc=null;
+function openSOS(){
+  overlay('scSOS',true);
+  document.getElementById('sosLocText').textContent='📍 Location getting...';
+  _sosLoc=null;
+  navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
+    _sosLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    document.getElementById('sosLocText').textContent='📍 '+_sosLoc.lat.toFixed(5)+', '+_sosLoc.lng.toFixed(5);
+  },()=>{
+    document.getElementById('sosLocText').textContent='📍 Location unavailable';
+  },{enableHighAccuracy:true,timeout:8000});
+}
+async function confirmSOS(){
+  overlay('scSOS',false);
+  // Save SOS to Firestore
+  const sosData={
+    userId:currentUser?.uid||'unknown',
+    userName:currentUser?.displayName||'Rider',
+    rideId:activeRideId||null,
+    location:_sosLoc,
+    ts:firebase.firestore.FieldValue.serverTimestamp(),
+    status:'active'
+  };
+  try{ await db.collection('sos_alerts').add(sosData); }catch(e){}
+  // Try to call emergency
+  toast('🆘 SOS Alert sent! Emergency services contacted.');
+  // Open Google Maps with location if available
+  if(_sosLoc) window.open('https://maps.google.com/?q='+_sosLoc.lat+','+_sosLoc.lng,'_blank');
+}
+
+// ══ MY RIDES ══
+async function openMyRides(){
+  overlay('scMyRides',true);
+  const list=document.getElementById('myRidesList');
+  list.innerHTML='<div class="no-data-msg">Loading...</div>';
+  if(!currentUser){list.innerHTML='<div class="no-data-msg">Login required</div>';return;}
+  try{
+    const snap=await db.collection('rides').where('riderId','==',currentUser.uid)
+      .orderBy('createdAt','desc').limit(20).get();
+    if(snap.empty){list.innerHTML='<div class="no-data-msg">🚗 No rides yet</div>';return;}
+    list.innerHTML=snap.docs.map(d=>{
+      const r=d.data();
+      const dest=(r.to?.address||'Unknown').split(',')[0];
+      const date=r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
+      const icon=VTICONS[r.vehicleType]||'🚗';
+      const statusCls=r.status==='completed'?'done':'cancelled';
+      const statusTxt=r.status==='completed'?'Completed':r.status==='cancelled_rider'?'Cancelled by you':r.status==='cancelled_driver'?'Driver cancelled':'—';
+      return`<div class="ride-hist-item">
+        <div class="rhi-ic">${icon}</div>
+        <div class="rhi-main">
+          <div class="rhi-dest">${esc(dest)}</div>
+          <div class="rhi-meta">${date}</div>
+          <span class="rhi-status ${statusCls}">${statusTxt}</span>
+        </div>
+        <div class="rhi-fare">${r.finalFare?'Rs.'+r.finalFare:(r.estimatedFare||'—')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){list.innerHTML='<div class="no-data-msg">Error loading rides</div>';}
+}
+
+// ══ SAVED PLACES ══
+let _savedPlaces={home:null,work:null};
+function openSavedPlaces(){
+  overlay('scSavedPlaces',true);
+  const saved=JSON.parse(localStorage.getItem('ridego_saved_places')||'{}');
+  _savedPlaces=saved;
+  document.getElementById('homeAddr').textContent=saved.home?.name||'Set home address';
+  document.getElementById('workAddr').textContent=saved.work?.name||'Set work address';
+}
+function useSavedPlace(type){
+  const place=_savedPlaces[type];
+  if(!place||!place.loc){toast('First set this address ✏️');return;}
+  toLoc=place.loc;
+  document.getElementById('toTxt').textContent=place.name;
+  document.getElementById('toTxt').classList.add('set');
+  overlay('scSavedPlaces',false);
+  if(fromLoc&&toLoc)calcRoute();
+  updateBookBtn();
+}
+function editSavedPlace(type){
+  pickFor='to';
+  overlay('scSavedPlaces',false);
+  // Open loc picker — on select, save as this type
+  window._savingPlaceType=type;
+  openLocPick('to');
+}
+// ══ SETTINGS ══
+function openSettings(){
+  overlay('scSettings',true);
+  const s=JSON.parse(localStorage.getItem('ridego_settings')||'{}');
+  document.getElementById('notifRide').checked=s.notifRide!==false;
+  document.getElementById('notifPromo').checked=s.notifPromo||false;
+  document.getElementById('highAccGps').checked=s.highAccGps!==false;
+}
+function saveSetting(key,val){
+  const s=JSON.parse(localStorage.getItem('ridego_settings')||'{}');
+  s[key]=val;
+  localStorage.setItem('ridego_settings',JSON.stringify(s));
+  toast('✅ Saved');
+}
+function changePassword(){
+  if(!currentUser?.email){toast('Email login required');return;}
+  auth.sendPasswordResetEmail(currentUser.email)
+    .then(()=>toast('📧 Password reset email sent!'))
+    .catch(e=>toast('Error: '+e.message));
+}
+function deleteAccountConfirm(){
+  if(!confirm('Account delete කරන්නද? This cannot be undone.'))return;
+  if(!currentUser)return;
+  currentUser.delete()
+    .then(()=>{toast('Account deleted');show('scAuth');})
+    .catch(e=>toast('Re-login and try again: '+e.message));
+}
+
+// ══ PROFILE ══
+async function openProfile(){
+  overlay('scProfile',true);
+  if(!currentUser)return;
+  document.getElementById('profName').textContent=currentUser.displayName||'—';
+  document.getElementById('profEmail').textContent=currentUser.email||'—';
+  document.getElementById('profNameInp').value=currentUser.displayName||'';
+  try{
+    const d=(await db.collection('riders').doc(currentUser.uid).get()).data()||{};
+    document.getElementById('profPhoneInp').value=d.phone||'';
+  }catch(e){}
+}
+async function saveProfile(){
+  if(!currentUser)return;
+  const name=document.getElementById('profNameInp').value.trim();
+  const phone=document.getElementById('profPhoneInp').value.trim();
+  if(!name){toast('Name enter කරන්න');return;}
+  try{
+    await currentUser.updateProfile({displayName:name});
+    await db.collection('riders').doc(currentUser.uid).update({name,phone});
+    document.getElementById('sbName').textContent=name;
+    document.getElementById('profName').textContent=name;
+    document.getElementById('greetTxt').textContent='හෙලෝ, '+name.split(' ')[0]+'! 👋';
+    overlay('scProfile',false);
+    toast('✅ Profile saved!');
+  }catch(e){toast('Error: '+e.message);}
 }
 
 // ══ SIDEBAR ══

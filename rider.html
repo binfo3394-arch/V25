@@ -882,27 +882,25 @@ function closeLocationPicker() {
 }
 
 let searchTimeout = null;
+
 function searchPlaces(query) {
   const container = document.getElementById('placesSuggestions');
   if (!query || query.length < 2) { container.innerHTML = ''; return; }
   clearTimeout(searchTimeout);
-  container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">Searching...</div>';
-  searchTimeout = setTimeout(() => {
-    const geocoder = new google.maps.Geocoder();
-    const bias = fromLocation
-      ? { location: new google.maps.LatLng(fromLocation.lat, fromLocation.lng), radius: 50000 }
-      : { componentRestrictions: { country: 'lk' } };
-    geocoder.geocode({
-      address: query + ', Sri Lanka',
-      ...bias
-    }, (results, status) => {
-      if (status !== 'OK' || !results || results.length === 0) {
+  container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">🔍 Searching...</div>';
+  searchTimeout = setTimeout(async () => {
+    try {
+      const q = encodeURIComponent(query);
+      const url = `https://nominatim.openstreetmap.org/search?q=${q}&countrycodes=lk&format=json&limit=6&addressdetails=1`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'RideGoApp/1.0' } });
+      const data = await res.json();
+      if (!data || data.length === 0) {
         container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">No results — වෙනත් නමක් try කරන්න</div>';
         return;
       }
-      window._geoResults = results.slice(0, 6);
-      container.innerHTML = results.slice(0, 6).map((r, i) => {
-        const parts = r.formatted_address.split(',');
+      window._geoResults = data;
+      container.innerHTML = data.map((r, i) => {
+        const parts = r.display_name.split(',');
         const main = parts[0].trim();
         const sub = parts.slice(1, 3).join(',').trim();
         return `<div class="suggestion-item" onclick="selectPlace(${i})">
@@ -913,15 +911,18 @@ function searchPlaces(query) {
           </div>
         </div>`;
       }).join('');
-    });
-  }, 400);
+    } catch(e) {
+      container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">Error — internet check කරන්න</div>';
+      console.error('Search error:', e);
+    }
+  }, 500);
 }
 
 function selectPlace(idx) {
   const result = window._geoResults[idx];
   if (!result) return;
-  const loc = { lat: result.geometry.location.lat(), lng: result.geometry.location.lng() };
-  const parts = result.formatted_address.split(',');
+  const loc = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) };
+  const parts = result.display_name.split(',');
   const name = parts.slice(0, 2).join(',').trim();
 
   if (pickingFor === 'from') {
@@ -1110,12 +1111,14 @@ function listenForActiveRide() {
   if (!currentUser) return;
   db.collection('rides')
     .where('riderId','==',currentUser.uid)
-    .where('status','in',['searching','accepted','in_progress'])
     .orderBy('createdAt','desc')
-    .limit(1)
+    .limit(5)
     .onSnapshot(snap => {
-      if (!snap.empty) {
-        const doc = snap.docs[0];
+      // filter active rides client-side to avoid composite index requirement
+      // filter client-side
+      const activeDocs = snap.docs.filter(d => ['searching','accepted','in_progress'].includes(d.data().status));
+      if (activeDocs.length > 0) {
+        const doc = activeDocs[0];
         activeRideId = doc.id;
         const data = doc.data();
         if (data.status === 'accepted' || data.status === 'in_progress') {

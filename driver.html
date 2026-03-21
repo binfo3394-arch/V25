@@ -74,8 +74,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .profile-btn{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:1rem;border:none;cursor:pointer;flex-shrink:0;}
 
 /* MAP AREA */
-#mapWrap{flex:1;position:relative;min-height:0;}
-#map{width:100%;height:100%;}
+#mapWrap{flex:1;position:relative;min-height:0;overflow:hidden;}
+#map{width:100%;height:100%;min-height:300px;}
 
 /* ONLINE TOGGLE */
 .online-float{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:10;}
@@ -450,8 +450,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
       <div class="sb-vtype" id="sbVType">🛺 Tuk-Tuk</div>
     </div>
     <div class="sb-items">
-      <div class="sb-item" onclick="openEarningsModal();toggleSidebar()"><span class="sb-ic">💰</span> Earnings & Stats</div>
-      <div class="sb-item" onclick="showTripHistory();toggleSidebar()"><span class="sb-ic">📋</span> Trip History</div>
+      <div class="sb-item" onclick="openEarningsModal();document.getElementById('sidebar').classList.remove('open')"><span class="sb-ic">💰</span> Earnings & Stats</div>
+      <div class="sb-item" onclick="showTripHistory();document.getElementById('sidebar').classList.remove('open')"><span class="sb-ic">📋</span> Trip History</div>
       <div class="sb-item" onclick="showVehicleInfo()"><span class="sb-ic">🚗</span> Vehicle Info</div>
       <div class="sb-item" onclick="showSettings()"><span class="sb-ic">⚙️</span> Settings</div>
       <div class="sb-div"></div>
@@ -708,6 +708,11 @@ function updateProfileUI() {
 // ONLINE / OFFLINE
 // ══════════════════════════════════════════════
 async function toggleOnline() {
+  // Request GPS permission first time
+  if (!isOnline && !navigator.geolocation) {
+    showToast('❌ GPS support නෑ මේ device ලෙ');
+    return;
+  }
   isOnline = !isOnline;
   const sw = document.getElementById('toggleSw');
   const dot = document.getElementById('statusDot');
@@ -726,6 +731,7 @@ async function toggleOnline() {
     isOnline ? startGPS() : stopGPS();
   }
   document.getElementById('gpsStatus').style.display = isOnline ? 'block' : 'none';
+  document.getElementById('connStatus').style.display = isOnline ? 'flex' : 'none';
   showToast(isOnline ? '✅ ONLINE — GPS tracking started' : '⏸ OFFLINE');
 }
 
@@ -794,21 +800,34 @@ function listenForRideRequests() {
     .onSnapshot(snap => {
       snap.docChanges().forEach(change => {
         const data = change.doc.data();
-        if (['accepted','in_progress'].includes(data.status) && !currentRideId) {
+        if (['accepted','in_progress'].includes(data.status)) {
           currentRideId = change.doc.id;
           currentRideData = data;
           showActiveRide(data);
+        } else if (data.status === 'cancelled_rider') {
+          currentRideId = null;
+          currentRideData = null;
+          ridePhase = 'to_pickup';
+          showState('idle');
+          showToast('❌ Rider cancelled the ride');
+          if (routeRenderer) { routeRenderer.setMap(null); routeRenderer = null; }
+        } else if (data.status === 'completed') {
+          // Already handled in completeRide()
         }
       });
     });
 
-  // New open requests
+  // New open requests — only show type:'added' after initial load
+  let initialLoad = true;
   db.collection('rides').where('status','==','searching')
     .onSnapshot(snap => {
+      if (initialLoad) { initialLoad = false; return; } // skip existing docs on first load
       if (!isOnline || currentRideId) return;
       snap.docChanges().forEach(change => {
         if (change.type === 'added') {
-          showRideRequest(change.doc.id, change.doc.data());
+          const data = change.doc.data();
+          // Show ALL ride requests to driver (they can accept or decline)
+          showRideRequest(change.doc.id, data);
         }
       });
     });
@@ -855,10 +874,12 @@ function startTimer(secs) {
 
 function declineRide() {
   clearInterval(requestTimerInterval);
+  // Don't update Firestore — let another driver accept it
+  // Just clear local state
   currentRideId = null;
   currentRideData = null;
   showState('idle');
-  showToast('Ride declined');
+  showToast('Ride declined — waiting for next request');
 }
 
 async function acceptRide() {
@@ -879,7 +900,17 @@ async function acceptRide() {
     });
     showActiveRide(currentRideData);
     showToast('✅ Ride accepted!');
-  } catch(e) { showToast('Error: ' + e.message); }
+  } catch(e) {
+    console.error('AcceptRide error:', e);
+    if (e.message.includes('permission') || e.message.includes('PERMISSION')) {
+      showToast('❌ Firestore Rules fix ඕනේ! Console check කරන්න');
+      console.error('FIX: Firebase Console → Firestore → Rules → update rides allow write');
+    } else {
+      showToast('Error: ' + e.message);
+    }
+    currentRideId = null; currentRideData = null;
+    showState('idle');
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -926,7 +957,9 @@ function handleMainAction() {
     db.collection('rides').doc(currentRideId).update({ status: 'in_progress' });
     showToast('🚀 Ride started!');
     if (currentRideData?.to?.lat) {
-      drawRouteToPoint({ lat: currentRideData.to.lat, lng: currentRideData.to.lng });
+      if (currentRideData?.to?.lat) {
+        drawRouteToPoint({ lat: currentRideData.to.lat, lng: currentRideData.to.lng });
+      }
     }
   } else {
     completeRide();
@@ -956,7 +989,17 @@ async function completeRide() {
     currentRideId = null; currentRideData = null; ridePhase = 'to_pickup';
     showState('idle');
     showToast('🎉 Complete! Rs.' + fareNum + ' earned!');
-  } catch(e) { showToast('Error: ' + e.message); }
+  } catch(e) {
+    console.error('AcceptRide error:', e);
+    if (e.message.includes('permission') || e.message.includes('PERMISSION')) {
+      showToast('❌ Firestore Rules fix ඕනේ! Console check කරන්න');
+      console.error('FIX: Firebase Console → Firestore → Rules → update rides allow write');
+    } else {
+      showToast('Error: ' + e.message);
+    }
+    currentRideId = null; currentRideData = null;
+    showState('idle');
+  }
 }
 
 function drawRouteToPoint(destination) {
@@ -1062,12 +1105,14 @@ function closeEarningsModal() {
 // CALL MODAL
 // ══════════════════════════════════════════════
 async function openCallModal() {
-  if (!currentRideId) return;
+  if (!currentRideId || !currentRideData) return;
   const name = currentRideData?.riderName || 'Rider';
-  let phone = '—';
+  let phone = currentRideData?.riderPhone || '—';
   try {
-    const doc = await db.collection('riders').doc(currentRideData.riderId).get();
-    phone = doc.data()?.phone || '—';
+    if (currentRideData?.riderId) {
+      const doc = await db.collection('riders').doc(currentRideData.riderId).get();
+      phone = doc.data()?.phone || phone;
+    }
   } catch(e) {}
   document.getElementById('callName').textContent = name;
   document.getElementById('callNum').textContent = phone;
@@ -1089,9 +1134,9 @@ function doCall() {
 // NAVIGATE
 // ══════════════════════════════════════════════
 function openNavigate() {
-  if (!currentRideData) return;
+  if (!currentRideData) { showToast('Active ride නෑ'); return; }
   const loc = ridePhase === 'to_pickup' ? currentRideData.from : currentRideData.to;
-  if (!loc?.lat) { showToast('Location data නෑ'); return; }
+  if (!loc?.lat || !loc?.lng) { showToast('Location data නෑ'); return; }
   window.open(`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}&travelmode=driving`, '_blank');
 }
 
@@ -1119,6 +1164,22 @@ function showState(state) {
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
+}
+
+async function testFirestoreConnection() {
+  try {
+    // Test read
+    await db.collection('drivers').doc(currentDriver.uid).get();
+    console.log('✅ Firestore read: OK');
+    // Test RTDB
+    await rtdb.ref('test').set({ ts: Date.now() });
+    await rtdb.ref('test').remove();
+    console.log('✅ Realtime DB write: OK');
+    document.getElementById('connStatus').style.display = isOnline ? 'flex' : 'none';
+  } catch(e) {
+    console.error('❌ Connection test failed:', e.message);
+    showToast('⚠️ Firebase connection issue');
+  }
 }
 
 function getErrMsg(code) {

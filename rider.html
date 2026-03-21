@@ -2,1522 +2,1029 @@
 <html lang="si">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RideGo — Rider</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-
-<!-- Firebase v9 CDN -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f5c842">
+<title>RideGo</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
-
 <style>
-:root {
-  --bg: #f7f5f0;
-  --surface: #ffffff;
-  --dark: #0e0e14;
-  --card: #ffffff;
-  --border: #e8e4dc;
-  --accent: #f5c842;
-  --accent-dark: #c9a020;
-  --orange: #ff6b35;
-  --green: #2dbd6e;
-  --red: #e84545;
-  --text: #0e0e14;
-  --muted: #888;
-  --radius: 18px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.08);
-  --shadow-lg: 0 12px 48px rgba(0,0,0,0.14);
+/* ─── RESET & BASE ─── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#f5f5f5;}
+body{font-family:'DM Sans',sans-serif;color:#111;position:fixed;inset:0;}
+
+:root{
+  --accent:#f5c842;--accent2:#e8b820;--dark:#0e0e14;
+  --green:#27ae60;--red:#e74c3c;--orange:#ff6b35;
+  --bg:#f7f6f3;--white:#ffffff;--border:#e8e4dc;
+  --muted:#9a9a9a;--card:#ffffff;--text:#111111;
+  --shadow:0 2px 16px rgba(0,0,0,0.10);
+  --shadow2:0 8px 32px rgba(0,0,0,0.14);
+  --r:16px;
+  /* Safe areas */
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px);
+  --sar:env(safe-area-inset-right,0px);
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* ─── AUTH SCREEN ─── */
-#authScreen {
-  position: fixed; inset: 0; z-index: 300;
-  background: var(--dark);
-  display: flex; align-items: center; justify-content: center;
-}
-.auth-box {
-  background: #16161f;
-  border: 1px solid #2a2a38;
-  border-radius: 28px;
-  padding: 40px 36px;
-  width: 100%; max-width: 400px;
-  margin: 20px;
-}
-.auth-logo { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#fff; margin-bottom:4px; }
-.auth-logo span { color: var(--accent); }
-.auth-tag { color:#888; font-size:0.9rem; margin-bottom:32px; }
-.auth-tabs { display:flex; background:#0e0e14; border-radius:12px; padding:4px; margin-bottom:24px; }
-.auth-tab {
-  flex:1; padding:10px; border:none; background:transparent;
-  color:#888; border-radius:9px; cursor:pointer; font-family:'DM Sans',sans-serif;
-  font-size:0.9rem; font-weight:500; transition:all 0.2s;
-}
-.auth-tab.active { background:#1e1e2c; color:#fff; }
-.input-group { margin-bottom:16px; }
-.input-label { font-size:0.78rem; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; display:block; }
-.auth-input {
-  width:100%; padding:14px 16px;
-  background:#0e0e14; border:1px solid #2a2a38;
-  border-radius:12px; color:#fff; font-family:'DM Sans',sans-serif;
-  font-size:0.95rem; outline:none; transition:border-color 0.2s;
-}
-.auth-input:focus { border-color: var(--accent); }
-.auth-btn {
-  width:100%; padding:16px;
-  background: var(--accent); color:#000;
-  font-family:'Syne',sans-serif; font-size:1rem; font-weight:700;
-  border:none; border-radius:14px; cursor:pointer;
-  transition:all 0.2s; margin-top:8px;
-}
-.auth-btn:hover { background:#ffd84d; transform:translateY(-1px); }
-.auth-error { color:var(--red); font-size:0.82rem; margin-top:10px; text-align:center; min-height:20px; }
-.auth-divider { text-align:center; color:#444; font-size:0.8rem; margin:16px 0; }
-.google-btn {
-  width:100%; padding:14px;
-  background:#1e1e2c; color:#fff;
-  border:1px solid #2a2a38;
-  border-radius:14px; cursor:pointer; font-family:'DM Sans',sans-serif;
-  font-size:0.9rem; font-weight:500; display:flex; align-items:center;
-  justify-content:center; gap:10px; transition:all 0.2s;
-}
-.google-btn:hover { border-color:#555; }
-
-/* ─── APP CONTAINER ─── */
-#appScreen { display:none; height:100vh; position:relative; }
-
-/* ─── MAP ─── */
-#map { width:100%; height:100%; }
-
-/* ─── TOP BAR ─── */
-.topbar {
-  position:absolute; top:0; left:0; right:0;
-  padding:16px 16px 0;
-  pointer-events:none;
-  z-index:10;
-}
-.topbar-inner {
-  display:flex; align-items:center; gap:12px;
-  pointer-events:all;
-}
-.menu-btn {
-  width:46px; height:46px; border-radius:14px;
-  background:var(--surface); border:none; cursor:pointer;
-  box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center;
-  font-size:1.2rem; flex-shrink:0; transition:all 0.2s;
-}
-.menu-btn:hover { transform:scale(1.05); }
-.topbar-search {
-  flex:1; display:flex; align-items:center; gap:10px;
-  background:var(--surface); border-radius:14px;
-  padding:12px 16px; box-shadow:var(--shadow);
-  cursor:pointer; transition:all 0.2s;
-}
-.topbar-search:hover { box-shadow:var(--shadow-lg); }
-.topbar-search-text { font-size:0.92rem; color:var(--muted); }
-.sos-btn {
-  width:46px; height:46px; border-radius:14px;
-  background:#e84545; border:none; cursor:pointer;
-  box-shadow:0 4px 16px rgba(232,69,69,0.4);
-  display:flex; align-items:center; justify-content:center;
-  font-size:1rem; color:#fff; font-weight:700;
-  font-family:'Syne',sans-serif; flex-shrink:0;
-}
-
-/* ─── BOTTOM SHEET ─── */
-.sheet {
-  position:absolute; bottom:0; left:0; right:0;
-  background:var(--surface);
-  border-radius:28px 28px 0 0;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
-  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-  z-index:20;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-.sheet-handle {
-  width:40px; height:4px; background:#ddd;
-  border-radius:100px; margin:12px auto 0;
-}
-
-/* ─── BOOKING PANEL ─── */
-#bookingPanel { padding:20px 20px 24px; }
-.panel-greeting { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; margin-bottom:4px; }
-.panel-sub { color:var(--muted); font-size:0.88rem; margin-bottom:20px; }
-
-.loc-box {
-  background:#f7f5f0; border-radius:16px;
-  overflow:hidden; margin-bottom:16px;
-}
-.loc-row {
-  display:flex; align-items:center; gap:12px;
-  padding:14px 16px; cursor:pointer; transition:background 0.15s;
-}
-.loc-row:hover { background:#f0ede5; }
-.loc-row + .loc-row { border-top:1px solid var(--border); }
-.loc-indicator { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
-.loc-dot { width:10px; height:10px; border-radius:50%; }
-.loc-line { width:2px; height:16px; background:#ddd; }
-.dot-from { background:var(--accent); }
-.dot-to { background:var(--orange); }
-.loc-text { flex:1; }
-.loc-label { font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; }
-.loc-value { font-size:0.92rem; font-weight:500; margin-top:1px; }
-.loc-value.placeholder { color:var(--muted); font-weight:400; }
-.swap-fab {
-  width:32px; height:32px; border-radius:50%; background:var(--surface);
-  border:1px solid var(--border); cursor:pointer; display:flex;
-  align-items:center; justify-content:center; font-size:1rem;
-  flex-shrink:0; transition:all 0.2s;
-}
-.swap-fab:hover { background:var(--accent); border-color:var(--accent); }
-
-.vehicle-scroll {
-  display:flex; gap:10px; overflow-x:auto; padding-bottom:4px;
-  scrollbar-width:none; margin-bottom:16px;
-}
-.vehicle-scroll::-webkit-scrollbar { display:none; }
-.v-card {
-  flex-shrink:0; width:110px;
-  background:#f7f5f0; border:2px solid transparent;
-  border-radius:16px; padding:14px 10px; text-align:center;
-  cursor:pointer; transition:all 0.2s;
-}
-.v-card:hover { border-color:var(--accent); }
-.v-card.active { border-color:var(--accent); background:#fffbe8; }
-.v-icon { font-size:2rem; margin-bottom:6px; }
-.v-name { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; }
-.v-price { font-size:0.75rem; color:var(--accent-dark); font-weight:600; margin-top:2px; }
-.v-eta { font-size:0.7rem; color:var(--muted); }
-
-.fare-summary {
-  display:flex; justify-content:space-between; align-items:center;
-  background:#f7f5f0; border-radius:14px; padding:14px 16px;
-  margin-bottom:16px;
-}
-.fare-total-lbl { font-size:0.85rem; color:var(--muted); }
-.fare-total-val { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; color:var(--accent-dark); }
-.fare-breakdown { font-size:0.75rem; color:var(--muted); }
-
-.payment-row {
-  display:flex; gap:8px; margin-bottom:20px;
-}
-.pay-opt {
-  flex:1; padding:10px; border-radius:12px;
-  border:2px solid var(--border); background:transparent;
-  cursor:pointer; display:flex; align-items:center; justify-content:center;
-  gap:6px; font-family:'DM Sans',sans-serif; font-size:0.85rem;
-  font-weight:500; transition:all 0.2s; color:var(--text);
-}
-.pay-opt.active { border-color:var(--accent); background:#fffbe8; color:var(--accent-dark); }
-
-.book-btn {
-  width:100%; padding:18px;
-  background:var(--dark); color:#fff;
-  font-family:'Syne',sans-serif; font-size:1rem; font-weight:700;
-  border:none; border-radius:16px; cursor:pointer; transition:all 0.2s;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-}
-.book-btn:hover { background:#222; transform:translateY(-1px); }
-.book-btn:disabled { background:#ccc; color:#fff; cursor:not-allowed; transform:none; }
-
-/* ─── SEARCHING PANEL ─── */
-#searchingPanel { padding:28px 20px 32px; display:none; text-align:center; }
-.searching-anim {
-  width:80px; height:80px; border-radius:50%;
-  background:var(--accent); margin:0 auto 20px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:2rem; animation:searchPulse 1.5s ease-in-out infinite;
-  position:relative;
-}
-.searching-anim::before, .searching-anim::after {
-  content:''; position:absolute; border-radius:50%;
-  border:2px solid var(--accent); animation:ripple 1.5s ease-out infinite;
-}
-.searching-anim::before { inset:-10px; animation-delay:0s; }
-.searching-anim::after { inset:-20px; animation-delay:0.5s; }
-@keyframes searchPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
-@keyframes ripple { 0%{opacity:0.6;transform:scale(0.8)} 100%{opacity:0;transform:scale(1.2)} }
-.searching-title { font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; margin-bottom:8px; }
-.searching-sub { color:var(--muted); font-size:0.9rem; margin-bottom:24px; }
-.cancel-search-btn {
-  padding:14px 32px; border-radius:14px;
-  border:2px solid var(--border); background:transparent;
-  font-family:'DM Sans',sans-serif; cursor:pointer; font-size:0.9rem;
-  transition:all 0.2s;
-}
-.cancel-search-btn:hover { border-color:var(--red); color:var(--red); }
-
-/* ─── DRIVER FOUND PANEL ─── */
-#driverPanel { padding:20px 20px 28px; display:none; }
-.driver-found-tag {
-  display:inline-flex; align-items:center; gap:6px;
-  background:#e8f8ef; color:var(--green); font-size:0.8rem; font-weight:700;
-  padding:5px 12px; border-radius:100px; margin-bottom:16px;
-  font-family:'Syne',sans-serif;
-}
-.driver-card-inner {
-  display:flex; align-items:center; gap:14px;
-  background:#f7f5f0; border-radius:16px; padding:16px;
-  margin-bottom:14px;
-}
-.driver-avatar {
-  width:52px; height:52px; border-radius:50%;
-  background:linear-gradient(135deg,var(--accent),var(--orange));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.6rem; flex-shrink:0;
-}
-.driver-info { flex:1; }
-.driver-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
-.driver-meta { font-size:0.8rem; color:var(--muted); margin-top:2px; }
-.driver-rating { display:flex; align-items:center; gap:4px; margin-top:4px; }
-.stars { color:var(--accent); font-size:0.85rem; }
-.driver-plate {
-  background:var(--dark); color:#fff;
-  padding:8px 14px; border-radius:10px;
-  font-family:'Syne',sans-serif; font-size:0.88rem; font-weight:700;
-  letter-spacing:0.05em; flex-shrink:0;
-}
-.eta-strip {
-  display:flex; gap:8px; margin-bottom:14px;
-}
-.eta-chip {
-  flex:1; background:#f7f5f0; border-radius:12px;
-  padding:12px; text-align:center;
-}
-.eta-chip-val { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; }
-.eta-chip-lbl { font-size:0.72rem; color:var(--muted); margin-top:2px; }
-
-.action-row { display:flex; gap:8px; }
-.action-btn {
-  flex:1; padding:14px; border-radius:14px;
-  border:2px solid var(--border); background:transparent;
-  cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.88rem;
-  font-weight:500; display:flex; align-items:center; justify-content:center;
-  gap:6px; transition:all 0.2s; color:var(--text);
-}
-.action-btn:hover { border-color:var(--accent); background:#fffbe8; }
-.action-btn.primary { background:var(--dark); color:#fff; border-color:var(--dark); }
-.action-btn.primary:hover { background:#333; }
-
-/* ─── LOCATION PICKER MODAL ─── */
-.modal {
-  position:fixed; inset:0; z-index:200;
-  background:rgba(0,0,0,0.4); backdrop-filter:blur(6px);
-  display:none; align-items:flex-end; justify-content:center;
-}
-.modal.show { display:flex; }
-.modal-box {
-  background:var(--surface); border-radius:28px 28px 0 0;
-  width:100%; max-height:85vh; overflow:hidden;
-  display:flex; flex-direction:column;
-  animation:slideUp 0.3s ease;
-}
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.modal-header {
-  display:flex; align-items:center; gap:12px;
-  padding:20px 20px 16px;
-  border-bottom:1px solid var(--border);
-}
-.modal-title-text { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; flex:1; }
-.modal-close {
-  width:36px; height:36px; border-radius:50%; background:#f7f5f0;
-  border:none; cursor:pointer; font-size:1.1rem; display:flex;
-  align-items:center; justify-content:center;
-}
-.search-input-wrap { padding:16px 20px; }
-.loc-search-input {
-  width:100%; padding:14px 16px;
-  background:#f7f5f0; border:none; border-radius:14px;
-  font-family:'DM Sans',sans-serif; font-size:0.95rem; outline:none;
-}
-.suggestions-list { overflow-y:auto; flex:1; padding:0 20px 20px; }
-.suggestion-item {
-  display:flex; align-items:center; gap:12px;
-  padding:14px 12px; border-radius:12px; cursor:pointer; transition:background 0.15s;
-}
-.suggestion-item:hover { background:#f7f5f0; }
-.sugg-icon { font-size:1.1rem; flex-shrink:0; }
-.sugg-main { font-size:0.9rem; font-weight:500; }
-.sugg-sub { font-size:0.78rem; color:var(--muted); margin-top:2px; }
-.use-current-btn {
-  display:flex; align-items:center; gap:10px;
-  padding:14px 12px; border-radius:12px; cursor:pointer;
-  transition:background 0.15s; color:var(--accent-dark);
-  font-weight:600; font-size:0.9rem;
-}
-.use-current-btn:hover { background:#fffbe8; }
-
-/* ─── SIDEBAR MENU ─── */
-.sidebar {
-  position:fixed; inset:0; z-index:150;
-  display:none;
-}
-.sidebar.show { display:block; }
-.sidebar-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.4); }
-.sidebar-box {
-  position:absolute; top:0; left:0; bottom:0; width:300px;
-  background:var(--surface); padding:0;
-  animation:slideRight 0.3s ease;
-  overflow-y:auto;
-}
-@keyframes slideRight { from{transform:translateX(-100%)} to{transform:translateX(0)} }
-.sidebar-header {
-  background:var(--dark); padding:48px 24px 24px;
-}
-.sidebar-avatar {
-  width:60px; height:60px; border-radius:50%;
-  background:linear-gradient(135deg,var(--accent),var(--orange));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.8rem; margin-bottom:12px;
-}
-.sidebar-name { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; color:#fff; }
-.sidebar-email { font-size:0.82rem; color:#888; margin-top:2px; }
-.sidebar-menu { padding:12px 0; }
-.sidebar-item {
-  display:flex; align-items:center; gap:14px;
-  padding:14px 24px; cursor:pointer; transition:background 0.15s;
-  font-size:0.92rem; font-weight:500;
-}
-.sidebar-item:hover { background:#f7f5f0; }
-.sidebar-item-icon { font-size:1.2rem; width:28px; text-align:center; }
-.sidebar-divider { height:1px; background:var(--border); margin:8px 0; }
-.sidebar-item.danger { color:var(--red); }
-
-/* ─── TOAST ─── */
-.toast {
-  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px);
-  background:var(--dark); color:#fff; padding:12px 20px; border-radius:100px;
-  font-size:0.88rem; font-weight:500; z-index:500; transition:transform 0.3s;
-  white-space:nowrap; display:flex; align-items:center; gap:8px;
-}
-.toast.show { transform:translateX(-50%) translateY(0); }
+/* ─── SCREENS ─── */
+.screen{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;background:var(--bg);}
+.screen.active{display:flex;}
 
 /* ─── LOADING ─── */
-.loading-overlay {
-  position:fixed; inset:0; background:var(--dark); z-index:400;
-  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;
-}
-.loading-logo { font-family:'Syne',sans-serif; font-size:2.4rem; font-weight:800; color:#fff; }
-.loading-logo span { color:var(--accent); }
-.loading-bar { width:160px; height:3px; background:#222; border-radius:100px; overflow:hidden; }
-.loading-fill { height:100%; background:var(--accent); border-radius:100px; animation:loadFill 2s ease forwards; }
-@keyframes loadFill { from{width:0%} to{width:100%} }
+#scLoad{z-index:100;background:var(--dark);align-items:center;justify-content:center;gap:16px;}
+.ld-logo{font-family:'Syne',sans-serif;font-size:2.6rem;font-weight:800;color:#fff;letter-spacing:-1px;}
+.ld-logo b{color:var(--accent);}
+.ld-tagline{color:#555;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;}
+.ld-bar{width:120px;height:3px;background:#222;border-radius:99px;overflow:hidden;}
+.ld-prog{height:100%;background:var(--accent);border-radius:99px;width:0;transition:width 2s ease;}
 
-/* ─── LOCATION PERMISSION SCREEN ─── */
-#locPermScreen {
-  position:fixed; inset:0; z-index:500;
-  background:linear-gradient(135deg,#0e0e14,#1a1a2e);
-  display:flex; align-items:center; justify-content:center;
-  padding:24px;
-}
-.perm-box {
-  background:#16161f; border:1px solid #2a2a3a;
-  border-radius:24px; padding:36px 28px; max-width:360px;
-  width:100%; text-align:center;
-}
-.perm-icon { font-size:3.5rem; margin-bottom:16px; animation:bounce 1.5s infinite; }
-@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-.perm-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:#fff; margin-bottom:8px; }
-.perm-sub { color:#888; font-size:0.9rem; line-height:1.5; margin-bottom:28px; }
-.perm-btn {
-  width:100%; padding:16px;
-  background:var(--accent); color:#000;
-  font-family:'Syne',sans-serif; font-size:1rem; font-weight:800;
-  border:none; border-radius:14px; cursor:pointer; margin-bottom:10px;
-  transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;
-}
-.perm-btn:hover { background:#ffd84d; transform:translateY(-1px); }
-.perm-skip { color:#666; font-size:0.82rem; cursor:pointer; text-decoration:underline; }
-.perm-denied {
-  background:#2a1a1a; border:1px solid var(--red);
-  border-radius:12px; padding:14px; margin-bottom:16px;
-  color:var(--red); font-size:0.85rem; display:none;
-}
-.perm-accuracy {
-  display:flex; align-items:center; gap:8px;
-  background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.2);
-  border-radius:10px; padding:10px 14px; margin-bottom:20px; text-align:left;
-}
-.perm-acc-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:blink 1.5s infinite; flex-shrink:0; }
-.perm-acc-txt { font-size:0.8rem; color:#aaa; }
-/* Live location indicator */
-.live-loc-badge {
-  display:inline-flex; align-items:center; gap:5px;
-  background:rgba(45,189,110,0.12); color:var(--green);
-  padding:4px 10px; border-radius:100px; font-size:0.72rem; font-weight:700;
-  position:absolute; top:70px; left:50%; transform:translateX(-50%);
-  z-index:10; white-space:nowrap; box-shadow:0 2px 12px rgba(0,0,0,0.2);
-  backdrop-filter:blur(8px);
-}
-.live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:blink 1.5s infinite; }
+/* ─── AUTH ─── */
+#scAuth{z-index:90;background:var(--dark);overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.auth-scroll{min-height:100%;display:flex;align-items:center;justify-content:center;padding:calc(var(--sat) + 24px) 20px calc(var(--sab) + 24px);}
+.auth-card{width:100%;max-width:400px;background:#16161f;border:1px solid #2a2a38;border-radius:24px;padding:32px 24px;}
+.auth-logo{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin-bottom:4px;}
+.auth-logo b{color:var(--accent);}
+.auth-sub{color:#666;font-size:0.85rem;margin-bottom:28px;}
+.tab-row{display:flex;background:#111;border-radius:12px;padding:3px;margin-bottom:20px;}
+.tab-btn{flex:1;padding:10px;border:none;background:transparent;color:#666;border-radius:10px;cursor:pointer;font-size:0.88rem;font-weight:500;font-family:'DM Sans',sans-serif;transition:all 0.2s;-webkit-tap-highlight-color:transparent;}
+.tab-btn.on{background:#1e1e2c;color:#fff;font-weight:600;}
+.inp-g{margin-bottom:14px;}
+.inp-l{font-size:0.72rem;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;display:block;}
+.inp{width:100%;padding:14px 15px;background:#0e0e14;border:1.5px solid #2a2a38;border-radius:12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
+.inp:focus{border-color:var(--accent);}
+.inp option{background:#1a1a26;}
+.auth-cta{width:100%;padding:15px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;border:none;border-radius:13px;cursor:pointer;margin-top:6px;transition:background 0.2s;-webkit-tap-highlight-color:transparent;}
+.auth-cta:active{background:var(--accent2);}
+.auth-err{color:#e74c3c;font-size:0.8rem;margin-top:10px;min-height:16px;text-align:center;}
 
+/* ─── PERMISSION SCREEN ─── */
+#scPerm{z-index:80;background:linear-gradient(160deg,#0e0e14 0%,#1a1a2e 100%);align-items:center;justify-content:center;padding:24px;}
+.perm-card{background:#16161f;border:1px solid #2a2a38;border-radius:24px;padding:36px 24px;max-width:340px;width:100%;text-align:center;}
+.perm-ic{font-size:3.5rem;margin-bottom:16px;animation:float 2s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.perm-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;margin-bottom:8px;}
+.perm-desc{color:#666;font-size:0.88rem;line-height:1.6;margin-bottom:20px;}
+.perm-badge{display:flex;align-items:center;gap:8px;background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.2);border-radius:10px;padding:10px 14px;margin-bottom:20px;text-align:left;}
+.perm-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.perm-badge-txt{font-size:0.78rem;color:#aaa;}
+.perm-deny{background:#2a1a1a;border:1px solid #e74c3c;border-radius:10px;padding:12px;margin-bottom:16px;color:#e74c3c;font-size:0.82rem;display:none;line-height:1.5;}
+.perm-btn{width:100%;padding:15px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;border:none;border-radius:13px;cursor:pointer;margin-bottom:10px;-webkit-tap-highlight-color:transparent;}
+.perm-btn:active{background:var(--accent2);}
+.perm-skip{color:#555;font-size:0.82rem;cursor:pointer;text-decoration:underline;}
+
+/* ─── MAIN APP ─── */
+#scApp{z-index:20;}
+#map{position:absolute;inset:0;z-index:1;}
+
+/* ─── TOP BAR ─── */
+.app-topbar{
+  position:absolute;top:0;left:0;right:0;
+  padding:calc(var(--sat) + 12px) 14px 12px;
+  display:flex;align-items:center;gap:10px;
+  z-index:50;pointer-events:none;
+}
+.topbar-inner{display:flex;align-items:center;gap:10px;width:100%;pointer-events:all;}
+.menu-btn{width:46px;height:46px;border-radius:14px;background:var(--white);box-shadow:var(--shadow);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.menu-btn:active{transform:scale(0.94);}
+.topbar-loc{flex:1;background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;-webkit-tap-highlight-color:transparent;}
+.topbar-loc:active{background:#f5f5f5;}
+.topbar-loc-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.topbar-loc-txt{font-size:0.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sos-btn{width:46px;height:46px;border-radius:14px;background:#e74c3c;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:800;flex-shrink:0;box-shadow:0 4px 14px rgba(231,76,60,0.4);-webkit-tap-highlight-color:transparent;}
+.sos-btn:active{transform:scale(0.94);}
+.live-chip{display:none;align-items:center;gap:4px;position:absolute;top:calc(var(--sat) + 64px);left:50%;transform:translateX(-50%);background:rgba(39,174,96,0.92);color:#fff;padding:4px 12px;border-radius:99px;font-size:0.7rem;font-weight:700;z-index:51;white-space:nowrap;}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#fff;animation:blink 1.5s infinite;}
+
+/* ─── BOTTOM SHEET ─── */
+.bsheet{
+  position:absolute;bottom:0;left:0;right:0;z-index:40;
+  background:var(--white);
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -4px 32px rgba(0,0,0,0.12);
+  padding-bottom:calc(var(--sab) + 8px);
+  transform:translateY(0);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  max-height:82vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.sheet-handle{width:36px;height:4px;background:#e0e0e0;border-radius:99px;margin:10px auto 0;}
+
+/* ─── BOOKING PANEL ─── */
+#pBook{padding:16px 18px calc(8px);}
+.greet{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:2px;}
+.greet-sub{color:var(--muted);font-size:0.85rem;margin-bottom:16px;}
+
+.loc-card{background:#f7f6f3;border-radius:14px;overflow:hidden;margin-bottom:14px;}
+.loc-row{display:flex;align-items:center;gap:12px;padding:13px 15px;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:52px;}
+.loc-row:active{background:#f0ede6;}
+.loc-row+.loc-row{border-top:1px solid var(--border);}
+.loc-row-left{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;width:16px;}
+.ldot{width:10px;height:10px;border-radius:50%;}
+.ldot-from{background:var(--accent);}
+.ldot-to{background:var(--orange);}
+.lline{width:2px;height:14px;background:#ddd;}
+.loc-row-txt{flex:1;min-width:0;}
+.loc-lbl{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:1px;}
+.loc-val{font-size:0.9rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);}
+.loc-val.set{color:var(--text);}
+.swap-btn{width:34px;height:34px;border-radius:50%;background:var(--white);border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.swap-btn:active{background:var(--accent);border-color:var(--accent);}
+
+/* Vehicle scroll */
+.v-scroll{display:flex;gap:10px;overflow-x:auto;padding:0 0 4px;margin-bottom:14px;scrollbar-width:none;-ms-overflow-style:none;}
+.v-scroll::-webkit-scrollbar{display:none;}
+.v-card{flex-shrink:0;width:100px;background:#f7f6f3;border:2px solid transparent;border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.15s,background 0.15s;-webkit-tap-highlight-color:transparent;}
+.v-card:active{transform:scale(0.96);}
+.v-card.on{border-color:var(--accent);background:#fffbe8;}
+.v-ic{font-size:1.9rem;margin-bottom:5px;}
+.v-nm{font-family:'Syne',sans-serif;font-size:0.75rem;font-weight:700;}
+.v-pr{font-size:0.7rem;color:var(--accent2);font-weight:600;margin-top:1px;}
+.v-eta{font-size:0.65rem;color:var(--muted);}
+
+/* Fare row */
+.fare-row{display:flex;justify-content:space-between;align-items:center;background:#f7f6f3;border-radius:12px;padding:12px 15px;margin-bottom:12px;}
+.fare-info-lbl{font-size:0.82rem;color:var(--muted);}
+.fare-info-sub{font-size:0.72rem;color:var(--muted);margin-top:1px;}
+.fare-val{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--accent2);}
+
+/* Payment */
+.pay-row{display:flex;gap:8px;margin-bottom:14px;}
+.pay-btn{flex:1;padding:11px;border-radius:11px;border:2px solid var(--border);background:transparent;font-size:0.85rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.15s;color:var(--text);font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;min-height:44px;}
+.pay-btn.on{border-color:var(--accent);background:#fffbe8;color:#8a6d00;}
+.pay-btn:active{transform:scale(0.97);}
+
+/* Book CTA */
+.book-cta{width:100%;padding:17px;background:var(--dark);color:#fff;font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;-webkit-tap-highlight-color:transparent;min-height:54px;}
+.book-cta:active{background:#333;}
+.book-cta:disabled{background:#ccc;color:#fff;cursor:not-allowed;}
+
+/* ─── SEARCHING PANEL ─── */
+#pSearch{display:none;padding:28px 20px 24px;text-align:center;}
+.search-anim-wrap{position:relative;width:80px;height:80px;margin:0 auto 20px;}
+.search-ring{position:absolute;border-radius:50%;border:2px solid var(--accent);animation:ping 1.5s ease-out infinite;}
+.search-ring:nth-child(1){inset:0;animation-delay:0s;}
+.search-ring:nth-child(2){inset:-10px;animation-delay:0.4s;opacity:0.6;}
+.search-ring:nth-child(3){inset:-20px;animation-delay:0.8s;opacity:0.3;}
+@keyframes ping{0%{transform:scale(0.8);opacity:0.8}100%{transform:scale(1.2);opacity:0}}
+.search-ic{position:absolute;inset:0;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;z-index:2;}
+.search-title{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;margin-bottom:6px;}
+.search-sub{color:var(--muted);font-size:0.88rem;margin-bottom:22px;}
+.cancel-btn{padding:13px 28px;border-radius:12px;border:2px solid var(--border);background:transparent;font-size:0.9rem;font-weight:500;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;min-height:44px;}
+.cancel-btn:active{border-color:#e74c3c;color:#e74c3c;}
+
+/* ─── DRIVER PANEL ─── */
+#pDriver{display:none;padding:16px 18px 20px;}
+.driver-found-badge{display:inline-flex;align-items:center;gap:6px;background:#e8f8ef;color:var(--green);font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:99px;margin-bottom:14px;font-family:'Syne',sans-serif;}
+.driver-info-card{display:flex;align-items:center;gap:13px;background:#f7f6f3;border-radius:14px;padding:14px;margin-bottom:12px;}
+.driver-avi{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;}
+.driver-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;}
+.driver-meta{font-size:0.78rem;color:var(--muted);margin-top:2px;}
+.driver-stars{color:var(--accent);font-size:0.82rem;margin-top:3px;}
+.driver-plate{background:var(--dark);color:#fff;padding:7px 13px;border-radius:9px;font-family:'Syne',sans-serif;font-size:0.82rem;font-weight:700;letter-spacing:0.05em;flex-shrink:0;margin-left:auto;}
+.eta-chips{display:flex;gap:8px;margin-bottom:12px;}
+.eta-chip{flex:1;background:#f7f6f3;border-radius:11px;padding:11px 8px;text-align:center;}
+.eta-v{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;}
+.eta-l{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.action-row{display:flex;gap:7px;}
+.act-btn{flex:1;padding:12px 8px;border-radius:12px;border:1.5px solid var(--border);background:var(--white);font-size:0.82rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;color:var(--text);font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;min-height:44px;}
+.act-btn:active{background:#f5f5f5;}
+
+/* ─── LOCATION PICKER ─── */
+#scLocPick{z-index:70;background:rgba(0,0,0,0.4);align-items:flex-end;justify-content:center;}
+.locpick-box{background:var(--white);border-radius:24px 24px 0 0;width:100%;max-height:88vh;display:flex;flex-direction:column;padding-bottom:calc(var(--sab) + 8px);animation:slideUp 0.3s cubic-bezier(0.4,0,0.2,1);}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.locpick-head{display:flex;align-items:center;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--border);}
+.locpick-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;flex:1;}
+.locpick-close{width:36px;height:36px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;}
+.locpick-search{padding:12px 18px;}
+.locpick-input{width:100%;padding:13px 16px;background:#f7f6f3;border:none;border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif;outline:none;color:var(--text);}
+.locpick-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding:0 18px 16px;}
+.loc-cur-btn{display:flex;align-items:center;gap:10px;padding:13px 12px;border-radius:12px;cursor:pointer;color:var(--accent2);font-weight:600;font-size:0.9rem;-webkit-tap-highlight-color:transparent;min-height:48px;}
+.loc-cur-btn:active{background:#fffbe8;}
+.loc-sugg-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:52px;}
+.loc-sugg-item:active{background:#f5f5f5;}
+.loc-sugg-ic{font-size:1rem;flex-shrink:0;width:24px;text-align:center;}
+.loc-sugg-main{font-size:0.88rem;font-weight:500;}
+.loc-sugg-sub{font-size:0.75rem;color:var(--muted);margin-top:1px;}
+.loc-searching{padding:16px;color:var(--muted);font-size:0.85rem;text-align:center;}
+
+/* ─── SIDEBAR ─── */
+#scSidebar{z-index:75;display:none;}
+#scSidebar.open{display:block;}
+.sb-bg{position:absolute;inset:0;background:rgba(0,0,0,0.5);}
+.sb-panel{position:absolute;top:0;left:0;bottom:0;width:min(300px,80vw);background:var(--white);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideRight 0.3s cubic-bezier(0.4,0,0.2,1);}
+@keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.sb-head{background:var(--dark);padding:calc(var(--sat) + 48px) 20px 22px;}
+.sb-avi{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin-bottom:10px;}
+.sb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;}
+.sb-email{font-size:0.8rem;color:#666;margin-top:2px;}
+.sb-item{display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer;font-size:0.9rem;border-bottom:1px solid #f5f5f5;min-height:52px;-webkit-tap-highlight-color:transparent;}
+.sb-item:active{background:#f5f5f5;}
+.sb-item.red{color:#e74c3c;}
+.sb-ic{font-size:1.15rem;width:26px;text-align:center;}
+
+/* ─── CHAT MODAL ─── */
+#scChat{z-index:80;flex-direction:column;background:rgba(0,0,0,0.5);}
+.chat-wrap{flex:1;display:flex;flex-direction:column;background:var(--bg);margin-top:52px;border-radius:24px 24px 0 0;overflow:hidden;padding-bottom:var(--sab);}
+.chat-head{background:var(--white);padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);}
+.chat-head-avi{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--orange));display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.chat-head-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.92rem;}
+.chat-head-status{font-size:0.72rem;color:var(--green);margin-top:1px;}
+.chat-head-close{margin-left:auto;width:34px;height:34px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;-webkit-tap-highlight-color:transparent;}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;}
+.chat-no-msg{text-align:center;color:var(--muted);font-size:0.85rem;padding:24px;}
+.cmsg{max-width:76%;display:flex;flex-direction:column;gap:2px;}
+.cmsg.me{align-self:flex-end;align-items:flex-end;}
+.cmsg.them{align-self:flex-start;align-items:flex-start;}
+.cmsg-b{padding:10px 14px;border-radius:18px;font-size:0.88rem;line-height:1.4;word-break:break-word;}
+.cmsg.me .cmsg-b{background:var(--dark);color:#fff;border-bottom-right-radius:3px;}
+.cmsg.them .cmsg-b{background:var(--white);color:var(--text);border-bottom-left-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,0.07);}
+.cmsg-t{font-size:0.65rem;color:var(--muted);}
+.chat-quick{display:flex;gap:6px;padding:8px 14px;overflow-x:auto;scrollbar-width:none;background:var(--white);border-top:1px solid var(--border);}
+.chat-quick::-webkit-scrollbar{display:none;}
+.cqr{flex-shrink:0;padding:7px 13px;border-radius:99px;border:1.5px solid var(--border);background:transparent;font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;min-height:36px;white-space:nowrap;}
+.cqr:active{background:var(--accent);border-color:var(--accent);}
+.chat-inp-row{display:flex;gap:8px;padding:10px 14px;background:var(--white);border-top:1px solid var(--border);}
+.chat-inp{flex:1;padding:12px 15px;border-radius:99px;border:1.5px solid var(--border);background:#f7f6f3;font-size:16px;font-family:'DM Sans',sans-serif;outline:none;color:var(--text);}
+.chat-inp:focus{border-color:var(--accent);}
+.chat-send{width:44px;height:44px;border-radius:50%;background:var(--dark);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.chat-send:active{background:#333;}
+
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:calc(var(--sab) + 80px);left:50%;transform:translateX(-50%) translateY(30px);background:var(--dark);color:#fff;padding:11px 20px;border-radius:99px;font-size:0.83rem;z-index:999;transition:all 0.3s;opacity:0;white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 </style>
 </head>
 <body>
 
-<!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-logo">Ride<span>Go</span></div>
-  <div style="color:#666;font-size:0.85rem;">Rider App</div>
-  <div class="loading-bar"><div class="loading-fill"></div></div>
+<!-- LOADING -->
+<div class="screen active" id="scLoad">
+  <div class="ld-logo">Ride<b>Go</b></div>
+  <div class="ld-tagline">Rider App</div>
+  <div class="ld-bar"><div class="ld-prog" id="ldProg"></div></div>
 </div>
 
-
-<!-- LOCATION PERMISSION SCREEN -->
-<div id="locPermScreen" style="display:none;">
-  <div class="perm-box">
-    <div class="perm-icon">📍</div>
-    <div class="perm-title">Location Access ඕනේ!</div>
-    <div class="perm-sub">
-      Pickup location automatically detect කරන්නත්,<br>
-      Driver ඔබ ළඟට track කරන්නත් location access ඕනේ.
+<!-- AUTH -->
+<div class="screen" id="scAuth">
+  <div class="auth-scroll">
+    <div class="auth-card">
+      <div class="auth-logo">Ride<b>Go</b></div>
+      <div class="auth-sub">🛺 Sri Lanka's Ride Platform</div>
+      <div class="tab-row">
+        <button class="tab-btn on" id="tabL" onclick="authTab('login')">Login</button>
+        <button class="tab-btn" id="tabS" onclick="authTab('signup')">Sign Up</button>
+      </div>
+      <div id="fLogin">
+        <div class="inp-g"><label class="inp-l">Email</label><input class="inp" id="lEmail" type="email" inputmode="email" placeholder="you@email.com"></div>
+        <div class="inp-g"><label class="inp-l">Password</label><input class="inp" id="lPass" type="password" placeholder="••••••••"></div>
+        <button class="auth-cta" onclick="doLogin()">Login කරන්න →</button>
+      </div>
+      <div id="fSignup" style="display:none">
+        <div class="inp-g"><label class="inp-l">Full Name</label><input class="inp" id="sName" type="text" autocomplete="name" placeholder="Kamal Perera"></div>
+        <div class="inp-g"><label class="inp-l">Phone</label><input class="inp" id="sPhone" type="tel" inputmode="tel" placeholder="+94 77 123 4567"></div>
+        <div class="inp-g"><label class="inp-l">Email</label><input class="inp" id="sEmail" type="email" inputmode="email" placeholder="you@email.com"></div>
+        <div class="inp-g"><label class="inp-l">Password</label><input class="inp" id="sPass" type="password" placeholder="Min 6 characters"></div>
+        <button class="auth-cta" onclick="doSignup()">Account හදන්න →</button>
+      </div>
+      <div class="auth-err" id="authErr"></div>
     </div>
-    <div class="perm-accuracy">
-      <div class="perm-acc-dot"></div>
-      <div class="perm-acc-txt">GPS location use කරනවා — highly accurate, real-time tracking</div>
-    </div>
-    <div class="perm-denied" id="permDenied">
-      ⚠️ Location blocked! Browser settings ලෙ location enable කරන්න:<br>
-      <strong>🔒 Lock icon → Site settings → Location → Allow</strong>
-    </div>
-    <button class="perm-btn" onclick="requestLocation()">
-      📍 Location Allow කරන්න
-    </button>
-    <div class="perm-skip" onclick="skipLocation()">Location නැතිව continue කරන්න</div>
   </div>
 </div>
 
-<!-- AUTH SCREEN -->
-<div id="authScreen">
-  <div class="auth-box">
-    <div class="auth-logo">Ride<span>Go</span></div>
-    <div class="auth-tag">🛺 Sri Lanka's Ride Platform</div>
-
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
-      <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+<!-- LOCATION PERMISSION -->
+<div class="screen" id="scPerm">
+  <div class="perm-card">
+    <div class="perm-ic">📍</div>
+    <div class="perm-title">Location Allow කරන්න</div>
+    <div class="perm-desc">Pickup auto-detect කරන්නත්, driver track කරන්නත් location ඕනේ.</div>
+    <div class="perm-badge">
+      <div class="perm-dot"></div>
+      <div class="perm-badge-txt">Real-time GPS — highly accurate</div>
     </div>
-
-    <div id="loginForm">
-      <div class="input-group">
-        <label class="input-label">Phone / Email</label>
-        <input class="auth-input" id="loginEmail" type="email" placeholder="you@email.com" />
-      </div>
-      <div class="input-group">
-        <label class="input-label">Password</label>
-        <input class="auth-input" id="loginPass" type="password" placeholder="••••••••" />
-      </div>
-      <button class="auth-btn" onclick="loginUser()">Login කරන්න →</button>
-      <div class="auth-divider">or</div>
-      <button class="google-btn" onclick="googleLogin()">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
-        Google Login
-      </button>
+    <div class="perm-deny" id="permDeny">
+      ⚠️ Location blocked!<br>
+      <strong>Browser → 🔒 → Site Settings → Location → Allow</strong>
     </div>
-
-    <div id="signupForm" style="display:none">
-      <div class="input-group">
-        <label class="input-label">Full Name</label>
-        <input class="auth-input" id="signupName" type="text" placeholder="Kamal Perera" />
-      </div>
-      <div class="input-group">
-        <label class="input-label">Phone</label>
-        <input class="auth-input" id="signupPhone" type="tel" placeholder="+94 77 123 4567" />
-      </div>
-      <div class="input-group">
-        <label class="input-label">Email</label>
-        <input class="auth-input" id="signupEmail" type="email" placeholder="you@email.com" />
-      </div>
-      <div class="input-group">
-        <label class="input-label">Password</label>
-        <input class="auth-input" id="signupPass" type="password" placeholder="Min 6 characters" />
-      </div>
-      <button class="auth-btn" onclick="signupUser()">Account හදන්න →</button>
-    </div>
-    <div class="auth-error" id="authError"></div>
+    <button class="perm-btn" onclick="reqLocation()">📍 Allow Location</button>
+    <div class="perm-skip" onclick="skipLoc()">Location නැතිව continue</div>
   </div>
 </div>
 
-<!-- APP SCREEN -->
-<div id="appScreen">
-
-
-  <!-- Live Location Badge -->
-  <div class="live-loc-badge" id="liveBadge" style="display:none;">
-    <div class="live-dot"></div>
-    <span>Live Location</span>
-  </div>
-
-  <!-- Map -->
+<!-- MAIN APP -->
+<div class="screen" id="scApp">
   <div id="map"></div>
 
+  <!-- Live badge -->
+  <div class="live-chip" id="liveBadge">
+    <div class="live-dot"></div>Live Location
+  </div>
+
   <!-- Top Bar -->
-  <div class="topbar">
+  <div class="app-topbar">
     <div class="topbar-inner">
-      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-      <div class="topbar-search" onclick="openLocationPicker('from')">
-        <span>📍</span>
-        <span class="topbar-search-text" id="topbarLocation">ඔබ ඉන්නේ කොහේද?</span>
+      <button class="menu-btn" onclick="openSidebar()">☰</button>
+      <div class="topbar-loc" onclick="openLocPick('from')">
+        <div class="topbar-loc-dot"></div>
+        <span class="topbar-loc-txt" id="topLocTxt">ඔබ ඉන්නේ කොහේද?</span>
       </div>
-      <div id="riderConnStatus" style="display:none;align-items:center;gap:4px;background:rgba(45,189,110,0.15);color:#2dbd6e;padding:4px 10px;border-radius:100px;font-size:0.7rem;font-weight:700;">
-        <div style="width:6px;height:6px;border-radius:50%;background:#2dbd6e;animation:pulse 1.5s infinite"></div>Live
-      </div>
-      <button class="sos-btn" onclick="triggerSOS()">SOS</button>
+      <button class="sos-btn" onclick="doSOS()">SOS</button>
     </div>
   </div>
 
   <!-- Bottom Sheet -->
-  <div class="sheet" id="mainSheet">
+  <div class="bsheet" id="bsheet">
     <div class="sheet-handle"></div>
 
-    <!-- Booking Panel -->
-    <div id="bookingPanel">
-      <div class="panel-greeting" id="greetingText">හෙලෝ! 👋</div>
-      <div class="panel-sub">කොහේ යනවද අද?</div>
-
-      <!-- Location Box -->
-      <div class="loc-box">
-        <div class="loc-row" onclick="openLocationPicker('from')">
-          <div class="loc-indicator">
-            <div class="loc-dot dot-from"></div>
-            <div class="loc-line"></div>
-          </div>
-          <div class="loc-text">
-            <div class="loc-label">Pickup</div>
-            <div class="loc-value placeholder" id="fromDisplay">Current location...</div>
+    <!-- Booking -->
+    <div id="pBook">
+      <div class="greet" id="greetTxt">හෙලෝ! 👋</div>
+      <div class="greet-sub">කොහේ යනවද?</div>
+      <div class="loc-card">
+        <div class="loc-row" onclick="openLocPick('from')">
+          <div class="loc-row-left"><div class="ldot ldot-from"></div><div class="lline"></div></div>
+          <div class="loc-row-txt">
+            <div class="loc-lbl">Pickup</div>
+            <div class="loc-val" id="fromTxt">Current location...</div>
           </div>
         </div>
-        <div class="loc-row" onclick="openLocationPicker('to')">
-          <div class="loc-indicator">
-            <div class="loc-dot dot-to"></div>
+        <div class="loc-row" onclick="openLocPick('to')">
+          <div class="loc-row-left"><div class="ldot ldot-to"></div></div>
+          <div class="loc-row-txt">
+            <div class="loc-lbl">Destination</div>
+            <div class="loc-val" id="toTxt">ගමනාන්ත ස්ථානය?</div>
           </div>
-          <div class="loc-text">
-            <div class="loc-label">Destination</div>
-            <div class="loc-value placeholder" id="toDisplay">ගමනාන්ත ස්ථානය?</div>
-          </div>
-          <button class="swap-fab" onclick="swapLocations(event)">⇅</button>
+          <button class="swap-btn" onclick="event.stopPropagation();swapLocs()">⇅</button>
         </div>
       </div>
-
-      <!-- Vehicle Selection -->
-      <div class="vehicle-scroll" id="vehicleScroll">
-        <div class="v-card active" data-type="tuk" data-rate="45" data-base="60" onclick="selectVehicle(this)">
-          <div class="v-icon">🛺</div>
-          <div class="v-name">Tuk-Tuk</div>
-          <div class="v-price">Rs.45/km</div>
-          <div class="v-eta" id="eta-tuk">3 min</div>
+      <div class="v-scroll" id="vScroll">
+        <div class="v-card on" data-type="tuk" data-rate="45" data-base="60" onclick="pickVehicle(this)">
+          <div class="v-ic">🛺</div><div class="v-nm">Tuk-Tuk</div>
+          <div class="v-pr">Rs.45/km</div><div class="v-eta">~3 min</div>
         </div>
-        <div class="v-card" data-type="car" data-rate="80" data-base="100" onclick="selectVehicle(this)">
-          <div class="v-icon">🚗</div>
-          <div class="v-name">Car</div>
-          <div class="v-price">Rs.80/km</div>
-          <div class="v-eta" id="eta-car">5 min</div>
+        <div class="v-card" data-type="car" data-rate="80" data-base="100" onclick="pickVehicle(this)">
+          <div class="v-ic">🚗</div><div class="v-nm">Car</div>
+          <div class="v-pr">Rs.80/km</div><div class="v-eta">~5 min</div>
         </div>
-        <div class="v-card" data-type="bike" data-rate="30" data-base="40" onclick="selectVehicle(this)">
-          <div class="v-icon">🏍️</div>
-          <div class="v-name">Bike</div>
-          <div class="v-price">Rs.30/km</div>
-          <div class="v-eta" id="eta-bike">2 min</div>
+        <div class="v-card" data-type="bike" data-rate="30" data-base="40" onclick="pickVehicle(this)">
+          <div class="v-ic">🏍️</div><div class="v-nm">Bike</div>
+          <div class="v-pr">Rs.30/km</div><div class="v-eta">~2 min</div>
         </div>
-        <div class="v-card" data-type="xl" data-rate="110" data-base="150" onclick="selectVehicle(this)">
-          <div class="v-icon">🚐</div>
-          <div class="v-name">Van / XL</div>
-          <div class="v-price">Rs.110/km</div>
-          <div class="v-eta" id="eta-xl">7 min</div>
+        <div class="v-card" data-type="xl" data-rate="110" data-base="150" onclick="pickVehicle(this)">
+          <div class="v-ic">🚐</div><div class="v-nm">Van/XL</div>
+          <div class="v-pr">Rs.110/km</div><div class="v-eta">~7 min</div>
         </div>
       </div>
-
-      <!-- Fare Summary -->
-      <div class="fare-summary">
+      <div class="fare-row">
         <div>
-          <div class="fare-total-lbl">Estimated Fare</div>
-          <div class="fare-breakdown" id="fareBreakdown">Destination select කරන්න</div>
+          <div class="fare-info-lbl">Estimated Fare</div>
+          <div class="fare-info-sub" id="fareSub">Destination select කරන්න</div>
         </div>
-        <div class="fare-total-val" id="fareTotal">—</div>
+        <div class="fare-val" id="fareVal">—</div>
       </div>
-
-      <!-- Payment Method -->
-      <div class="payment-row">
-        <button class="pay-opt active" id="payCash" onclick="selectPayment('cash')">💵 Cash</button>
-        <button class="pay-opt" id="payCard" onclick="selectPayment('card')">💳 Card</button>
+      <div class="pay-row">
+        <button class="pay-btn on" id="payCash" onclick="pickPay('cash')">💵 Cash</button>
+        <button class="pay-btn" id="payCard" onclick="pickPay('card')">💳 Card</button>
       </div>
-
-      <!-- Book Button -->
-      <button class="book-btn" id="bookBtn" onclick="bookRide()" disabled>
-        <span>🚀</span> Ride Book කරන්න
-      </button>
+      <button class="book-cta" id="bookBtn" onclick="bookRide()" disabled>🚀 &nbsp;Ride Book කරන්න</button>
     </div>
 
-    <!-- Searching Panel -->
-    <div id="searchingPanel">
-      <div class="searching-anim">🔍</div>
-      <div class="searching-title">Driver සොයමින්...</div>
-      <div class="searching-sub">ඔබට ළඟ driver කෙනෙක් හොයනවා</div>
-      <button class="cancel-search-btn" onclick="cancelSearch()">Cancel Ride</button>
+    <!-- Searching -->
+    <div id="pSearch">
+      <div class="search-anim-wrap">
+        <div class="search-ring"></div>
+        <div class="search-ring"></div>
+        <div class="search-ring"></div>
+        <div class="search-ic">🔍</div>
+      </div>
+      <div class="search-title">Driver සොයමින්...</div>
+      <div class="search-sub">ඔබට ළඟ driver කෙනෙක් හොයනවා</div>
+      <button class="cancel-btn" onclick="cancelSearch()">Cancel Ride</button>
     </div>
 
-    <!-- Driver Found Panel -->
-    <div id="driverPanel">
-      <div class="driver-found-tag">✅ Driver Found!</div>
-      <div class="driver-card-inner">
-        <div class="driver-avatar" id="driverEmoji">👨</div>
-        <div class="driver-info">
-          <div class="driver-name" id="driverName">—</div>
-          <div class="driver-meta" id="driverMeta">—</div>
-          <div class="driver-rating">
-            <span class="stars">★★★★★</span>
-            <span id="driverRating">4.9</span>
-          </div>
+    <!-- Driver Found -->
+    <div id="pDriver">
+      <div class="driver-found-badge">✅ Driver Found!</div>
+      <div class="driver-info-card">
+        <div class="driver-avi" id="dAvi">👨</div>
+        <div style="flex:1;min-width:0;">
+          <div class="driver-name" id="dName">—</div>
+          <div class="driver-meta" id="dMeta">—</div>
+          <div class="driver-stars">★★★★★ <span id="dRating">5.0</span></div>
         </div>
-        <div class="driver-plate" id="driverPlate">—</div>
+        <div class="driver-plate" id="dPlate">—</div>
       </div>
-      <div class="eta-strip">
-        <div class="eta-chip">
-          <div class="eta-chip-val" id="driverETA">—</div>
-          <div class="eta-chip-lbl">Arrival ETA</div>
-        </div>
-        <div class="eta-chip">
-          <div class="eta-chip-val" id="tripDist">—</div>
-          <div class="eta-chip-lbl">Trip Distance</div>
-        </div>
-        <div class="eta-chip">
-          <div class="eta-chip-val" id="tripFare">—</div>
-          <div class="eta-chip-lbl">Total Fare</div>
-        </div>
+      <div class="eta-chips">
+        <div class="eta-chip"><div class="eta-v" id="dETA">—</div><div class="eta-l">Arrival ETA</div></div>
+        <div class="eta-chip"><div class="eta-v" id="dDist">—</div><div class="eta-l">Distance</div></div>
+        <div class="eta-chip"><div class="eta-v" id="dFare">—</div><div class="eta-l">Fare</div></div>
       </div>
       <div class="action-row">
-        <button class="action-btn" onclick="callDriver()">📞 Call</button>
-        <button class="action-btn" onclick="chatDriver()">💬 Chat</button>
-        <button class="action-btn" onclick="cancelRide()">✕ Cancel</button>
+        <button class="act-btn" onclick="callDriver()">📞 Call</button>
+        <button class="act-btn" onclick="openChat()">💬 Chat</button>
+        <button class="act-btn" onclick="cancelRide()">✕ Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- LOCATION PICKER MODAL -->
-<div class="modal" id="locationModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title-text" id="modalTitle">📍 Pickup Select කරන්න</div>
-      <button class="modal-close" onclick="closeLocationPicker()">✕</button>
+<!-- LOCATION PICKER -->
+<div class="screen" id="scLocPick">
+  <div class="locpick-box">
+    <div class="locpick-head">
+      <div class="locpick-title" id="locPickTitle">📍 Pickup Select කරන්න</div>
+      <button class="locpick-close" onclick="closeLocPick()">✕</button>
     </div>
-    <div class="search-input-wrap">
-      <input class="loc-search-input" id="locationSearch" placeholder="ස්ථානය search කරන්න..." oninput="searchPlaces(this.value)" />
+    <div class="locpick-search">
+      <input class="locpick-input" id="locInput" placeholder="ස්ථානය search කරන්න..." oninput="searchLoc(this.value)" autocomplete="off">
     </div>
-    <div class="suggestions-list">
-      <div class="use-current-btn" onclick="useCurrentLocation()">
-        📍 &nbsp; Current Location use කරන්න
-      </div>
-      <div id="placesSuggestions"></div>
+    <div class="locpick-list" id="locList">
+      <div class="loc-cur-btn" onclick="useCurrLoc()">📍 &nbsp;Current Location use කරන්න</div>
+      <div id="locSuggestions"></div>
     </div>
   </div>
 </div>
 
 <!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
-  <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
-  <div class="sidebar-box">
-    <div class="sidebar-header">
-      <div class="sidebar-avatar">👤</div>
-      <div class="sidebar-name" id="sidebarName">Loading...</div>
-      <div class="sidebar-email" id="sidebarEmail">—</div>
+<div class="screen" id="scSidebar">
+  <div class="sb-bg" onclick="closeSidebar()"></div>
+  <div class="sb-panel">
+    <div class="sb-head">
+      <div class="sb-avi">👤</div>
+      <div class="sb-name" id="sbName">Rider</div>
+      <div class="sb-email" id="sbEmail">—</div>
     </div>
-    <div class="sidebar-menu">
-      <div class="sidebar-item"><span class="sidebar-item-icon">🚗</span> My Rides</div>
-      <div class="sidebar-item"><span class="sidebar-item-icon">💳</span> Payment Methods</div>
-      <div class="sidebar-item"><span class="sidebar-item-icon">❤️</span> Saved Places</div>
-      <div class="sidebar-item"><span class="sidebar-item-icon">🎁</span> Promotions</div>
-      <div class="sidebar-item"><span class="sidebar-item-icon">⚙️</span> Settings</div>
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-item"><span class="sidebar-item-icon">❓</span> Help & Support</div>
-      <div class="sidebar-item danger" onclick="logoutUser()"><span class="sidebar-item-icon">🚪</span> Log Out</div>
+    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">🚗</span> My Rides</div>
+    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">💳</span> Payment</div>
+    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">❤️</span> Saved Places</div>
+    <div class="sb-item" onclick="closeSidebar()"><span class="sb-ic">⚙️</span> Settings</div>
+    <div class="sb-item red" onclick="doLogout()"><span class="sb-ic">🚪</span> Log Out</div>
+  </div>
+</div>
+
+<!-- CHAT -->
+<div class="screen" id="scChat">
+  <div class="chat-wrap">
+    <div class="chat-head">
+      <div class="chat-head-avi" id="chatAvi">👨</div>
+      <div>
+        <div class="chat-head-name" id="chatName">Driver</div>
+        <div class="chat-head-status">🟢 Active Ride</div>
+      </div>
+      <button class="chat-head-close" onclick="closeChat()">✕</button>
+    </div>
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="chat-no-msg" id="chatNoMsg">💬 Chat start කරන්න</div>
+    </div>
+    <div class="chat-quick">
+      <button class="cqr" onclick="quickReply('ඔබ කොහේද? 📍')">ඔබ කොහේද?</button>
+      <button class="cqr" onclick="quickReply('2 min ලෙ ready 🙏')">2 min ready</button>
+      <button class="cqr" onclick="quickReply('Main road ලෙ 🛣️')">Main road</button>
+      <button class="cqr" onclick="quickReply('OK 👍')">OK 👍</button>
+    </div>
+    <div class="chat-inp-row">
+      <input class="chat-inp" id="chatInp" placeholder="Message..." onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="chat-send" onclick="sendMsg()">➤</button>
     </div>
   </div>
 </div>
 
 <!-- TOAST -->
-<div class="toast" id="toast"></div>
+<div id="toast"></div>
 
-<!-- Google Maps API — ඔයාගේ API key දාන්න -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=places,geocoding&callback=initMap" async defer></script>
-
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geocoding&callback=initMap" async defer></script>
 <script>
-// ══════════════════════════════════════════════
-// FIREBASE CONFIG — ඔයාගේ config paste කරන්න
-// ══════════════════════════════════════════════
+// ══ FIREBASE ══
 const firebaseConfig = {
-  apiKey: "AIzaSyARwN5Iho-m96PWEQOAbKIJhPyEjOM7ZVA",
-  authDomain: "tuktuk-d428d.firebaseapp.com",
-  databaseURL: "https://tuktuk-d428d-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "tuktuk-d428d",
-  storageBucket: "tuktuk-d428d.firebasestorage.app",
-  messagingSenderId: "1064642828578",
-  appId: "1:1064642828578:web:02086769db0e407a41ed7b",
-  measurementId: "G-XQD53DYE1B"
+  apiKey:"AIzaSyARwN5Iho-m96PWEQOAbKIJhPyEjOM7ZVA",
+  authDomain:"tuktuk-d428d.firebaseapp.com",
+  databaseURL:"https://tuktuk-d428d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"tuktuk-d428d",
+  storageBucket:"tuktuk-d428d.firebasestorage.app",
+  messagingSenderId:"1064642828578",
+  appId:"1:1064642828578:web:02086769db0e407a41ed7b"
 };
-
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const rtdb = firebase.database();
+const auth=firebase.auth(), db=firebase.firestore(), rtdb=firebase.database();
 
-// ══════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════
-let map, fromMarker, toMarker, driverMarker, routePolyline;
-let currentUser = null;
-let selectedVehicle = { type:'tuk', rate:45, base:60 };
-let fromLocation = null, toLocation = null;
-let activeRideId = null;
-let rideListener = null;
-let driverTrackListener = null;
-let pickingFor = 'from';
-let paymentMethod = 'cash';
-// Places API v2025
+// ══ STATE ══
+let map,fromMarker,toMarker,driverMarker,routeRenderer;
+let currentUser=null,activeRideId=null,rideListener=null;
+let fromLoc=null,toLoc=null,locWatcher=null;
+let selVehicle={type:'tuk',rate:45,base:60};
+let payMethod='cash',pickFor='from';
+let chatListener=null;
+let searchTimer=null;
+let _geoResults=null,_driverProfile=null;
+const VTICONS={tuk:'🛺',car:'🚗',bike:'🏍️',xl:'🚐'};
 
-// ══════════════════════════════════════════════
-// MAP INIT
-// ══════════════════════════════════════════════
-function initMap() {
-  // Default: Colombo
-  const colombo = { lat: 6.9271, lng: 79.8612 };
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: colombo,
-    zoom: 14,
-    disableDefaultUI: true,
-    styles: [
+// ══ LOADING ══
+setTimeout(()=>{
+  document.getElementById('ldProg').style.width='100%';
+},100);
+
+// ══ SCREEN MANAGER ══
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function overlay(id,open){
+  const el=document.getElementById(id);
+  if(open){el.classList.add('active');el.style.display='flex';}
+  else{el.classList.remove('active');el.style.display='none';}
+}
+
+// ══ MAP ══
+function initMap(){
+  map=new google.maps.Map(document.getElementById('map'),{
+    center:{lat:6.9271,lng:79.8612},zoom:13,
+    disableDefaultUI:true,gestureHandling:'greedy',
+    styles:[
       {featureType:'all',elementType:'geometry',stylers:[{color:'#f5f0e8'}]},
-      {featureType:'road',elementType:'geometry',stylers:[{color:'#ffffff'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#fff'}]},
       {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#e8e0d0'}]},
-      {featureType:'water',elementType:'geometry',stylers:[{color:'#c5dff5'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#cce5f5'}]},
       {featureType:'poi',elementType:'geometry',stylers:[{color:'#dff0d8'}]},
-      {featureType:'transit',elementType:'geometry',stylers:[{color:'#f2f2f2'}]},
-      {featureType:'administrative',elementType:'geometry.stroke',stylers:[{color:'#d0c8b8'}]}
+      {featureType:'transit',elementType:'geometry',stylers:[{color:'#f0f0f0'}]}
     ]
   });
-
-  
-  
-
-  // Location handled by requestLocation() separately
 }
 
-// ══════════════════════════════════════════════
-// LOCATION PERMISSION & TRACKING
-// ══════════════════════════════════════════════
-let locationWatcher = null;
-
-function requestLocation() {
-  document.getElementById('permDenied').style.display = 'none';
-  if (!navigator.geolocation) {
-    document.getElementById('permDenied').style.display = 'block';
-    document.getElementById('permDenied').textContent = '⚠️ Browser ලෙ GPS support නෑ';
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    pos => { onLocationSuccess(pos); startLocationWatch(); },
-    err => {
-      if (err.code === err.PERMISSION_DENIED) {
-        document.getElementById('permDenied').style.display = 'block';
-      } else {
-        skipLocation();
-      }
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
+// ══ AUTH ══
+function authTab(tab){
+  const isL=tab==='login';
+  document.getElementById('tabL').classList.toggle('on',isL);
+  document.getElementById('tabS').classList.toggle('on',!isL);
+  document.getElementById('fLogin').style.display=isL?'block':'none';
+  document.getElementById('fSignup').style.display=isL?'none':'block';
+  document.getElementById('authErr').textContent='';
 }
 
-function startLocationWatch() {
-  if (locationWatcher) return;
-  locationWatcher = navigator.geolocation.watchPosition(
-    pos => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      fromLocation = loc;
-      // Update marker
-      if (fromMarker) {
-        fromMarker.setPosition(loc);
-      } else if (map) {
-        fromMarker = new google.maps.Marker({
-          position: loc, map,
-          icon: { path: google.maps.SymbolPath.CIRCLE, scale:11, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
-          title: 'You'
-        });
-      }
-      // Show live badge
-      document.getElementById('liveBadge').style.display = 'flex';
-      // Store in RTDB for driver to see rider location too
-      if (currentUser && activeRideId) {
-        rtdb.ref('riders/' + currentUser.uid + '/location').set({
-          lat: loc.lat, lng: loc.lng, ts: Date.now()
-        });
-      }
-    },
-    err => console.log('Watch error:', err.message),
-    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-  );
+async function doLogin(){
+  const email=document.getElementById('lEmail').value.trim();
+  const pass=document.getElementById('lPass').value;
+  if(!email||!pass){setAuthErr('Email සහ password දාන්න');return;}
+  try{await auth.signInWithEmailAndPassword(email,pass);}
+  catch(e){setAuthErr(getErrMsg(e.code));}
 }
 
-function onLocationSuccess(pos) {
-  const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-  fromLocation = loc;
-
-  // Hide permission screen
-  document.getElementById('locPermScreen').style.display = 'none';
-
-  if (map) {
-    map.setCenter(loc);
-    map.setZoom(15);
-    if (!fromMarker) {
-      fromMarker = new google.maps.Marker({
-        position: loc, map,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale:11, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
-        title: 'You'
-      });
-    } else {
-      fromMarker.setPosition(loc);
-    }
-  }
-
-  // Reverse geocode
-  const geocoder = new google.maps.Geocoder();
-  geocoder.geocode({ location: loc }, (results, status) => {
-    if (status === 'OK' && results[0]) {
-      const addr = results[0].formatted_address;
-      const short = addr.split(',').slice(0,2).join(',').trim();
-      document.getElementById('fromDisplay').textContent = short;
-      document.getElementById('fromDisplay').classList.remove('placeholder');
-      document.getElementById('topbarLocation').textContent = short.substring(0,32);
-    }
-  });
+async function doSignup(){
+  const name=document.getElementById('sName').value.trim();
+  const phone=document.getElementById('sPhone').value.trim();
+  const email=document.getElementById('sEmail').value.trim();
+  const pass=document.getElementById('sPass').value;
+  if(!name||!phone||!email||!pass){setAuthErr('සියලු fields fill කරන්න');return;}
+  if(pass.length<6){setAuthErr('Password min 6 characters');return;}
+  try{
+    const c=await auth.createUserWithEmailAndPassword(email,pass);
+    await db.collection('riders').doc(c.user.uid).set({name,phone,email,role:'rider',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await c.user.updateProfile({displayName:name});
+  }catch(e){setAuthErr(getErrMsg(e.code));}
 }
 
-function skipLocation() {
-  document.getElementById('locPermScreen').style.display = 'none';
-  showToast('📍 Location නැතිව continue — manually enter කරන්න');
-}
-
-// ══════════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════════
-function switchTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?i===0:i===1)));
-  document.getElementById('loginForm').style.display = tab==='login'?'block':'none';
-  document.getElementById('signupForm').style.display = tab==='signup'?'block':'none';
-  document.getElementById('authError').textContent = '';
-}
-
-async function loginUser() {
-  const email = document.getElementById('loginEmail').value;
-  const pass = document.getElementById('loginPass').value;
-  if (!email || !pass) { showAuthError('Email සහ password දාන්න'); return; }
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch(e) {
-    showAuthError(getAuthError(e.code));
-  }
-}
-
-async function signupUser() {
-  const name = document.getElementById('signupName').value;
-  const phone = document.getElementById('signupPhone').value;
-  const email = document.getElementById('signupEmail').value;
-  const pass = document.getElementById('signupPass').value;
-  if (!name||!phone||!email||!pass) { showAuthError('සියලු fields fill කරන්න'); return; }
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pass);
-    await db.collection('riders').doc(cred.user.uid).set({
-      name, phone, email,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      role: 'rider'
-    });
-    await cred.user.updateProfile({ displayName: name });
-  } catch(e) {
-    showAuthError(getAuthError(e.code));
-  }
-}
-
-async function googleLogin() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  try {
-    const result = await auth.signInWithPopup(provider);
-    const user = result.user;
-    const doc = await db.collection('riders').doc(user.uid).get();
-    if (!doc.exists) {
-      await db.collection('riders').doc(user.uid).set({
-        name: user.displayName,
-        email: user.email,
-        phone: '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        role: 'rider'
-      });
-    }
-  } catch(e) {
-    showAuthError('Google login failed: ' + e.message);
-  }
-}
-
-async function logoutUser() {
+async function doLogout(){
+  closeSidebar();
   await auth.signOut();
-  toggleSidebar();
+  toast('Logged out');
 }
 
-auth.onAuthStateChanged(async user => {
-  document.getElementById('loadingOverlay').style.display = 'none';
-  if (user) {
-    currentUser = user;
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    // Check location permission
-    if (navigator.permissions) {
-      navigator.permissions.query({ name:'geolocation' }).then(r => {
-        if (r.state === 'granted') { requestLocation(); }
-        else { document.getElementById('locPermScreen').style.display = 'flex'; }
-      }).catch(() => { document.getElementById('locPermScreen').style.display = 'flex'; });
-    } else {
-      document.getElementById('locPermScreen').style.display = 'flex';
+auth.onAuthStateChanged(async user=>{
+  document.getElementById('ldProg').style.width='100%';
+  setTimeout(async()=>{
+    if(user){
+      currentUser=user;
+      // Load profile
+      try{
+        const doc=await db.collection('riders').doc(user.uid).get();
+        const d=doc.data()||{};
+        const n=d.name||user.displayName||'Rider';
+        document.getElementById('greetTxt').textContent='හෙලෝ, '+n.split(' ')[0]+'! 👋';
+        document.getElementById('sbName').textContent=n;
+        document.getElementById('sbEmail').textContent=user.email||d.phone||'';
+      }catch(e){}
+      // Check location
+      if(navigator.permissions){
+        try{
+          const r=await navigator.permissions.query({name:'geolocation'});
+          if(r.state==='granted'){show('scApp');reqLocation();}
+          else{show('scPerm');}
+        }catch(e){show('scPerm');}
+      }else{show('scPerm');}
+      listenActiveRide();
+    }else{
+      currentUser=null;
+      show('scAuth');
     }
-
-    // Load user profile
-    const doc = await db.collection('riders').doc(user.uid).get();
-    const data = doc.data() || {};
-    const name = data.name || user.displayName || 'Rider';
-    document.getElementById('greetingText').textContent = `හෙලෝ, ${name.split(' ')[0]}! 👋`;
-    document.getElementById('sidebarName').textContent = name;
-    document.getElementById('sidebarEmail').textContent = user.email || data.phone || '';
-
-    // Check for active ride
-    listenForActiveRide();
-
-    // Request push notification permission
-    requestPushPermission();
-
-    // location permission handled after auth screen dismissed
-    // Test Firebase connection
-    try {
-      await db.collection('riders').doc(user.uid).get();
-      document.getElementById('riderConnStatus').style.display = 'flex';
-      console.log('✅ Firebase connected');
-    } catch(e) { console.error('Firebase test failed:', e.message); }
-
-  } else {
-    currentUser = null;
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
-  }
+  },1800);
 });
 
-function getAuthError(code) {
-  const map = {
-    'auth/user-not-found': 'User නෑ — Sign up කරන්න',
-    'auth/wrong-password': 'Password වැරදියි',
-    'auth/email-already-in-use': 'Email already registered',
-    'auth/weak-password': 'Password min 6 characters',
-    'auth/invalid-email': 'Valid email address දාන්න'
-  };
-  return map[code] || 'Error: ' + code;
+// ══ LOCATION ══
+function reqLocation(){
+  document.getElementById('permDeny').style.display='none';
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      onLocSuccess(pos);
+      startLocWatch();
+      show('scApp');
+    },
+    err=>{
+      if(err.code===1)document.getElementById('permDeny').style.display='block';
+      else skipLoc();
+    },
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
 }
 
-function showAuthError(msg) { document.getElementById('authError').textContent = msg; }
-
-// ══════════════════════════════════════════════
-// LOCATION PICKER
-// ══════════════════════════════════════════════
-function openLocationPicker(forWhat) {
-  pickingFor = forWhat;
-  document.getElementById('modalTitle').textContent = forWhat==='from' ? '📍 Pickup Select කරන්න' : '🎯 Destination Select කරන්න';
-  document.getElementById('locationSearch').value = '';
-  document.getElementById('placesSuggestions').innerHTML = '';
-  document.getElementById('locationModal').classList.add('show');
-  setTimeout(() => document.getElementById('locationSearch').focus(), 300);
+function startLocWatch(){
+  if(locWatcher)return;
+  locWatcher=navigator.geolocation.watchPosition(pos=>{
+    const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    fromLoc=loc;
+    if(fromMarker)fromMarker.setPosition(loc);
+    document.getElementById('liveBadge').style.display='flex';
+    if(currentUser&&activeRideId){
+      rtdb.ref('riders/'+currentUser.uid+'/location').set({lat:loc.lat,lng:loc.lng,ts:Date.now()});
+    }
+  },null,{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
 }
 
-function closeLocationPicker() {
-  document.getElementById('locationModal').classList.remove('show');
+function onLocSuccess(pos){
+  const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+  fromLoc=loc;
+  if(map){
+    map.setCenter(loc);map.setZoom(15);
+    if(!fromMarker){
+      fromMarker=new google.maps.Marker({position:loc,map,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:'#f5c842',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+        title:'You'
+      });
+    }else fromMarker.setPosition(loc);
+  }
+  // Reverse geocode
+  const gc=new google.maps.Geocoder();
+  gc.geocode({location:loc},(res,st)=>{
+    if(st==='OK'&&res[0]){
+      const addr=res[0].formatted_address.split(',').slice(0,2).join(',').trim();
+      document.getElementById('fromTxt').textContent=addr;
+      document.getElementById('fromTxt').classList.add('set');
+      document.getElementById('topLocTxt').textContent=addr.substring(0,32);
+    }
+  });
 }
 
-let searchTimeout = null;
+function skipLoc(){show('scApp');}
 
-function searchPlaces(query) {
-  const container = document.getElementById('placesSuggestions');
-  if (!query || query.length < 2) { container.innerHTML = ''; return; }
-  clearTimeout(searchTimeout);
-  container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">🔍 Searching...</div>';
-  searchTimeout = setTimeout(async () => {
-    try {
-      const q = encodeURIComponent(query);
-      const url = `https://nominatim.openstreetmap.org/search?q=${q}&countrycodes=lk&format=json&limit=6&addressdetails=1`;
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'RideGoApp/1.0' } });
-      const data = await res.json();
-      if (!data || data.length === 0) {
-        container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">No results — වෙනත් නමක් try කරන්න</div>';
-        return;
-      }
-      window._geoResults = data;
-      container.innerHTML = data.map((r, i) => {
-        const parts = r.display_name.split(',');
-        const main = parts[0].trim();
-        const sub = parts.slice(1, 3).join(',').trim();
-        return `<div class="suggestion-item" onclick="selectPlace(${i})">
-          <span class="sugg-icon">📍</span>
-          <div>
-            <div class="sugg-main">${escHtml(main)}</div>
-            <div class="sugg-sub">${escHtml(sub)}</div>
-          </div>
+// ══ LOCATION PICKER ══
+function openLocPick(forWhat){
+  pickFor=forWhat;
+  document.getElementById('locPickTitle').textContent=forWhat==='from'?'📍 Pickup Select කරන්න':'🎯 Destination Select කරන්න';
+  document.getElementById('locInput').value='';
+  document.getElementById('locSuggestions').innerHTML='';
+  overlay('scLocPick',true);
+  setTimeout(()=>document.getElementById('locInput').focus(),300);
+}
+
+function closeLocPick(){overlay('scLocPick',false);}
+
+function searchLoc(q){
+  clearTimeout(searchTimer);
+  const container=document.getElementById('locSuggestions');
+  if(!q||q.length<2){container.innerHTML='';return;}
+  container.innerHTML='<div class="loc-searching">🔍 Searching...</div>';
+  searchTimer=setTimeout(async()=>{
+    try{
+      const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=lk&format=json&limit=6&addressdetails=1`;
+      const r=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'RideGoApp/1.0'}});
+      const data=await r.json();
+      if(!data||!data.length){container.innerHTML='<div class="loc-searching">No results</div>';return;}
+      _geoResults=data;
+      container.innerHTML=data.map((d,i)=>{
+        const pts=d.display_name.split(',');
+        return `<div class="loc-sugg-item" onclick="pickLocResult(${i})">
+          <div class="loc-sugg-ic">📍</div>
+          <div><div class="loc-sugg-main">${esc(pts[0].trim())}</div>
+          <div class="loc-sugg-sub">${esc(pts.slice(1,3).join(',').trim())}</div></div>
         </div>`;
       }).join('');
-    } catch(e) {
-      container.innerHTML = '<div style="padding:16px;color:#aaa;font-size:0.85rem;text-align:center;">Error — internet check කරන්න</div>';
-      console.error('Search error:', e);
-    }
-  }, 500);
+    }catch(e){container.innerHTML='<div class="loc-searching">Error — retry</div>';}
+  },500);
 }
 
-function selectPlace(idx) {
-  const result = window._geoResults[idx];
-  if (!result) return;
-  const loc = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) };
-  const parts = result.display_name.split(',');
-  const name = parts.slice(0, 2).join(',').trim();
+function pickLocResult(i){
+  const r=_geoResults[i];
+  if(!r)return;
+  const loc={lat:parseFloat(r.lat),lng:parseFloat(r.lon)};
+  const pts=r.display_name.split(',');
+  const name=pts.slice(0,2).join(',').trim();
+  setLocation(loc,name);
+  closeLocPick();
+}
 
-  if (pickingFor === 'from') {
-    fromLocation = loc;
-    document.getElementById('fromDisplay').textContent = name;
-    document.getElementById('fromDisplay').classList.remove('placeholder');
-    document.getElementById('topbarLocation').textContent = name.substring(0,30);
-    updateFromMarker(loc);
-  } else {
-    toLocation = loc;
-    document.getElementById('toDisplay').textContent = name;
-    document.getElementById('toDisplay').classList.remove('placeholder');
-    updateToMarker(loc);
+function useCurrLoc(){
+  if(!fromLoc){toast('📍 Location not ready yet');return;}
+  if(pickFor==='from'){
+    const txt=document.getElementById('fromTxt').textContent;
+    setLocation(fromLoc,txt||'Current Location');
   }
+  closeLocPick();
+}
 
-  if (fromLocation && toLocation) drawRoute();
+function setLocation(loc,name){
+  if(pickFor==='from'){
+    fromLoc=loc;
+    document.getElementById('fromTxt').textContent=name;
+    document.getElementById('fromTxt').classList.add('set');
+    document.getElementById('topLocTxt').textContent=name.substring(0,32);
+    if(fromMarker)fromMarker.setPosition(loc);
+    else if(map){
+      fromMarker=new google.maps.Marker({position:loc,map,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:'#f5c842',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}});
+    }
+  }else{
+    toLoc=loc;
+    document.getElementById('toTxt').textContent=name;
+    document.getElementById('toTxt').classList.add('set');
+    if(toMarker)toMarker.setPosition(loc);
+    else if(map){
+      toMarker=new google.maps.Marker({position:loc,map,
+        icon:{url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="34"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 22 12 22s12-13 12-22C24 5.4 18.6 0 12 0z" fill="#ff6b35"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>'),
+        scaledSize:new google.maps.Size(24,34),anchor:new google.maps.Point(12,34)
+      }});
+    }
+  }
+  if(fromLoc&&toLoc)calcRoute();
   updateBookBtn();
-  closeLocationPicker();
 }
 
-function useCurrentLocation() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(pos => {
-    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    fromLocation = loc;
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ location: loc }, (results, status) => {
-      const addr = status === 'OK' ? results[0].formatted_address : 'Current Location';
-      document.getElementById('fromDisplay').textContent = addr.substring(0,40);
-      document.getElementById('fromDisplay').classList.remove('placeholder');
-      updateFromMarker(loc);
-      updateBookBtn();
-    });
-    closeLocationPicker();
-  });
+function swapLocs(){
+  [fromLoc,toLoc]=[toLoc,fromLoc];
+  const ft=document.getElementById('fromTxt').textContent;
+  const tt=document.getElementById('toTxt').textContent;
+  document.getElementById('fromTxt').textContent=tt;
+  document.getElementById('toTxt').textContent=ft;
+  if(fromLoc&&toLoc)calcRoute();
 }
 
-function swapLocations(e) {
-  e.stopPropagation();
-  [fromLocation, toLocation] = [toLocation, fromLocation];
-  const fromTxt = document.getElementById('fromDisplay').textContent;
-  const toTxt = document.getElementById('toDisplay').textContent;
-  document.getElementById('fromDisplay').textContent = toTxt;
-  document.getElementById('toDisplay').textContent = fromTxt;
-  if (fromLocation && toLocation) drawRoute();
-}
-
-// ══════════════════════════════════════════════
-// MAP MARKERS & ROUTE
-// ══════════════════════════════════════════════
-function updateFromMarker(loc) {
-  if (fromMarker) fromMarker.setPosition(loc);
-  else fromMarker = new google.maps.Marker({
-    position: loc, map,
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale:10, fillColor:'#f5c842', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 }
-  });
-  map.panTo(loc);
-}
-
-function updateToMarker(loc) {
-  if (toMarker) toMarker.setPosition(loc);
-  else toMarker = new google.maps.Marker({
-    position: loc, map,
-    icon: { url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }
-  });
-}
-
-function drawRoute() {
-  const ds = new google.maps.DirectionsService();
-  const dr = new google.maps.DirectionsRenderer({ map, suppressMarkers:true, polylineOptions:{ strokeColor:'#f5c842', strokeWeight:5, strokeOpacity:0.9 } });
-  if (routePolyline) routePolyline.setMap(null);
-
-  ds.route({
-    origin: fromLocation,
-    destination: toLocation,
-    travelMode: google.maps.TravelMode.DRIVING
-  }, (result, status) => {
-    if (status === 'OK') {
-      dr.setDirections(result);
-      routePolyline = dr;
-      const leg = result.routes[0].legs[0];
-      const distKm = leg.distance.value / 1000;
-      const dur = leg.duration.text;
-      updateFare(distKm, dur);
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(fromLocation);
-      bounds.extend(toLocation);
-      map.fitBounds(bounds, { top:80, bottom:350, left:20, right:20 });
+// ══ ROUTE ══
+function calcRoute(){
+  if(!fromLoc||!toLoc||!map)return;
+  const ds=new google.maps.DirectionsService();
+  if(routeRenderer)routeRenderer.setMap(null);
+  routeRenderer=new google.maps.DirectionsRenderer({map,suppressMarkers:true,
+    polylineOptions:{strokeColor:'#f5c842',strokeWeight:4,strokeOpacity:0.9}});
+  ds.route({origin:fromLoc,destination:toLoc,travelMode:google.maps.TravelMode.DRIVING},(res,st)=>{
+    if(st==='OK'){
+      routeRenderer.setDirections(res);
+      const leg=res.routes[0].legs[0];
+      const km=(leg.distance.value/1000).toFixed(1);
+      const {rate,base}=selVehicle;
+      const total=base+Math.round(rate*km)+15;
+      document.getElementById('fareVal').textContent='Rs. '+total;
+      document.getElementById('fareSub').textContent='Rs.'+base+' base + Rs.'+(Math.round(rate*km))+' ('+km+'km) + Rs.15';
+      document.getElementById('dDist').textContent=km+' km';
+      document.getElementById('dFare').textContent='Rs. '+total;
+      map.fitBounds(res.routes[0].bounds,{top:100,bottom:280,left:20,right:20});
     }
   });
 }
 
-function updateFare(distKm, dur) {
-  const { rate, base } = selectedVehicle;
-  const distCost = Math.round(rate * distKm);
-  const total = base + distCost + 15;
-  document.getElementById('fareTotal').textContent = 'Rs. ' + total;
-  document.getElementById('fareBreakdown').textContent = `Rs.${base} base + Rs.${distCost} (${distKm.toFixed(1)}km) + Rs.15 fee`;
-  document.getElementById('tripDist').textContent = distKm.toFixed(1) + ' km';
-  document.getElementById('tripFare').textContent = 'Rs. ' + total;
+// ══ VEHICLE ══
+function pickVehicle(el){
+  document.querySelectorAll('.v-card').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  selVehicle={type:el.dataset.type,rate:parseInt(el.dataset.rate),base:parseInt(el.dataset.base)};
+  if(fromLoc&&toLoc)calcRoute();
 }
 
-// ══════════════════════════════════════════════
-// VEHICLE SELECTION
-// ══════════════════════════════════════════════
-function selectVehicle(el) {
-  document.querySelectorAll('.v-card').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  selectedVehicle = { type: el.dataset.type, rate: parseInt(el.dataset.rate), base: parseInt(el.dataset.base) };
-  if (fromLocation && toLocation) drawRoute();
+function pickPay(m){
+  payMethod=m;
+  document.getElementById('payCash').classList.toggle('on',m==='cash');
+  document.getElementById('payCard').classList.toggle('on',m==='card');
 }
 
-// ══════════════════════════════════════════════
-// PAYMENT
-// ══════════════════════════════════════════════
-function selectPayment(method) {
-  paymentMethod = method;
-  document.getElementById('payCash').classList.toggle('active', method==='cash');
-  document.getElementById('payCard').classList.toggle('active', method==='card');
+function updateBookBtn(){
+  document.getElementById('bookBtn').disabled=!(fromLoc&&toLoc);
 }
 
-// ══════════════════════════════════════════════
-// BOOKING
-// ══════════════════════════════════════════════
-function updateBookBtn() {
-  document.getElementById('bookBtn').disabled = !(fromLocation && toLocation);
-}
-
-async function bookRide() {
-  if (!fromLocation || !toLocation) return;
-  if (!currentUser) { showToast('Login කරන්න'); return; }
-
-  const fare = document.getElementById('fareTotal').textContent;
-  const dist = document.getElementById('tripDist').textContent;
-
-  // Create ride doc in Firestore
-  // Get rider phone from Firestore
-  let riderPhone = '';
-  try {
-    const rDoc = await db.collection('riders').doc(currentUser.uid).get();
-    riderPhone = rDoc.data()?.phone || '';
-  } catch(e) {}
-
-  const rideData = {
-    riderId: currentUser.uid,
-    riderName: currentUser.displayName || 'Rider',
-    riderPhone: riderPhone,
-    from: { lat: fromLocation.lat, lng: fromLocation.lng, address: document.getElementById('fromDisplay').textContent },
-    to: { lat: toLocation.lat, lng: toLocation.lng, address: document.getElementById('toDisplay').textContent },
-    vehicleType: selectedVehicle.type,
-    estimatedFare: fare,
-    estimatedDist: dist,
-    paymentMethod,
-    status: 'searching',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+// ══ BOOKING ══
+async function bookRide(){
+  if(!fromLoc||!toLoc){toast('Locations select කරන්න');return;}
+  if(!currentUser){toast('Login කරන්න');return;}
+  let riderPhone='';
+  try{const d=await db.collection('riders').doc(currentUser.uid).get();riderPhone=d.data()?.phone||'';}catch(e){}
+  const fare=document.getElementById('fareVal').textContent;
+  const dist=document.getElementById('dDist').textContent;
+  const rideData={
+    riderId:currentUser.uid,
+    riderName:currentUser.displayName||'Rider',
+    riderPhone,
+    from:{lat:fromLoc.lat,lng:fromLoc.lng,address:document.getElementById('fromTxt').textContent},
+    to:{lat:toLoc.lat,lng:toLoc.lng,address:document.getElementById('toTxt').textContent},
+    vehicleType:selVehicle.type,
+    estimatedFare:fare,estimatedDist:dist,
+    paymentMethod:payMethod,status:'searching',
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
   };
-
-  try {
-    const ref = await db.collection('rides').add(rideData);
-    activeRideId = ref.id;
-    showPanel('searching');
-    listenForRideUpdates(ref.id);
-  } catch(e) {
-    console.error('BookRide error:', e);
-    if (e.message.includes('permission') || e.message.includes('PERMISSION')) {
-      showToast('❌ Firebase Rules issue — F12 console check');
-    } else if (e.message.includes('offline') || e.message.includes('network')) {
-      showToast('❌ Internet connection check කරන්න');
-    } else {
-      showToast('❌ Error: ' + e.message);
-    }
-  }
+  try{
+    const ref=await db.collection('rides').add(rideData);
+    activeRideId=ref.id;
+    showPanel('search');
+    listenRide(ref.id);
+  }catch(e){toast('❌ '+e.message);}
 }
 
-// ══════════════════════════════════════════════
-// REAL-TIME RIDE LISTENER
-// ══════════════════════════════════════════════
-function listenForRideUpdates(rideId) {
-  if (rideListener) rideListener();
-  rideListener = db.collection('rides').doc(rideId).onSnapshot(snap => {
-    const data = snap.data();
-    if (!data) return;
+// ══ PANELS ══
+function showPanel(p){
+  document.getElementById('pBook').style.display=p==='book'?'block':'none';
+  document.getElementById('pSearch').style.display=p==='search'?'block':'none';
+  document.getElementById('pDriver').style.display=p==='driver'?'block':'none';
+}
 
-    if (data.status === 'accepted' || data.status === 'in_progress') {
-      showDriverFound(data);
-    } else if (data.status === 'completed') {
-      showToast('✅ Ride completed! Rs. ' + data.finalFare);
-      activeRideId = null;
-      showPanel('booking');
-      stopDriverTracking();
-    } else if (data.status === 'cancelled_driver') {
-      showToast('❌ Driver cancelled. Searching again...');
-      showPanel('searching');
+// ══ RIDE LISTENERS ══
+function listenRide(id){
+  if(rideListener)rideListener();
+  rideListener=db.collection('rides').doc(id).onSnapshot(snap=>{
+    const d=snap.data();if(!d)return;
+    if(d.status==='accepted'||d.status==='in_progress')showDriver(d);
+    else if(d.status==='completed'){toast('✅ Ride complete! '+d.finalFare);activeRideId=null;showPanel('book');stopDriverTrack();}
+    else if(d.status==='cancelled_driver'){toast('❌ Driver cancelled');showPanel('search');}
+  });
+}
+
+function listenActiveRide(){
+  if(!currentUser)return;
+  db.collection('rides').where('riderId','==',currentUser.uid).onSnapshot(snap=>{
+    const active=snap.docs.filter(d=>['searching','accepted','in_progress'].includes(d.data().status))
+      .sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
+    if(active.length>0){
+      const doc=active[0];activeRideId=doc.id;
+      const d=doc.data();
+      if(d.status==='accepted'||d.status==='in_progress')showDriver(d);
+      else if(d.status==='searching')showPanel('search');
+      listenRide(doc.id);
     }
   });
 }
 
-function listenForActiveRide() {
-  if (!currentUser) return;
-  db.collection('rides')
-    .where('riderId','==',currentUser.uid)
-    .onSnapshot(snap => {
-      // sort + filter client-side — no index needed
-      const activeDocs = snap.docs
-        .filter(d => ['searching','accepted','in_progress'].includes(d.data().status))
-        .sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
-      if (activeDocs.length > 0) {
-        const doc = activeDocs[0];
-        const newRideId = doc.id;
-        const data = doc.data();
-        // Only update if different ride or status changed
-        if (newRideId !== activeRideId) {
-          activeRideId = newRideId;
-          listenForRideUpdates(newRideId);
-        }
-        if (data.status === 'accepted' || data.status === 'in_progress') {
-          showDriverFound(data);
-        } else if (data.status === 'searching') {
-          showPanel('searching');
-        }
-      }
-    });
-}
-
-const vtypeIcons = { tuk:'🛺', car:'🚗', bike:'🏍️', xl:'🚐' };
-
-function updateDriverPanel(data) {
-  const vIcon = vtypeIcons[data.vehicleType] || '🚗';
-  const vName = data.vehicleModel || data.vehicleType || 'Vehicle';
-  document.getElementById('driverName').textContent = data.driverName || 'Driver';
-  document.getElementById('driverMeta').textContent = vIcon + ' ' + vName + ' • ' + (data.vehiclePlate||'—');
-  document.getElementById('driverPlate').textContent = data.vehiclePlate || '—';
-  document.getElementById('driverRating').textContent = (data.driverRating || '5.0');
-  document.getElementById('driverETA').textContent = (data.eta || '~3') + ' min';
-  document.getElementById('tripDist').textContent = data.estimatedDist || '—';
-  document.getElementById('tripFare').textContent = data.estimatedFare || '—';
-}
-
-function showDriverFound(data) {
-  updateDriverPanel(data);
+async function showDriver(data){
+  const vIcon=VTICONS[data.vehicleType]||'🚗';
+  document.getElementById('dAvi').textContent=vIcon;
+  document.getElementById('dName').textContent=data.driverName||'Driver';
+  document.getElementById('dMeta').textContent=vIcon+' '+(data.vehicleModel||data.vehicleType||'Vehicle')+' • '+(data.vehiclePlate||'—');
+  document.getElementById('dPlate').textContent=data.vehiclePlate||'—';
+  document.getElementById('dRating').textContent=(data.driverRating||5.0);
+  document.getElementById('dETA').textContent=(data.eta||'~3')+' min';
   showPanel('driver');
-  // Start tracking only if not already tracking this driver
-  if (data.driverId && data.driverId !== lastKnownDriverId) {
-    lastKnownDriverId = data.driverId;
-    startDriverTracking(data);
+  // Fetch real profile
+  if(data.driverId){
+    try{
+      const dd=(await db.collection('drivers').doc(data.driverId).get()).data()||{};
+      document.getElementById('dName').textContent=dd.name||data.driverName||'Driver';
+      document.getElementById('dPlate').textContent=dd.vehiclePlate||data.vehiclePlate||'—';
+      document.getElementById('dRating').textContent=(dd.rating||data.driverRating||5.0).toFixed(1);
+      document.getElementById('chatName').textContent=dd.name||'Driver';
+      document.getElementById('chatAvi').textContent=dd.vehicleIcon||vIcon;
+      _driverProfile={...dd,driverId:data.driverId};
+    }catch(e){}
+    startDriverTrack(data);
   }
 }
 
-function startDriverTracking(data) {
-  stopDriverTracking(); // clean up first
-  if (!data.driverId) {
-    showToast('⚠️ Driver ID නෑ — tracking නොකෙරේ');
-    return;
-  }
-
-  const vIcon = vtypeIcons[data.vehicleType] || '🚗';
-  const refPath = 'drivers/' + data.driverId + '/location';
-  const locRef = rtdb.ref(refPath);
-
-  // Store both ref and callback for proper cleanup
-  window._driverLocRef = locRef;
-  window._driverLocCallback = locRef.on('value', snap => {
-    const loc = snap.val();
-    if (!loc) {
-      // Driver location not in RTDB yet — driver might not be online
-      console.log('No driver location in RTDB path:', refPath);
-      return;
+// ══ DRIVER TRACKING ══
+function startDriverTrack(data){
+  stopDriverTrack();
+  if(!data.driverId)return;
+  const vIcon=VTICONS[data.vehicleType]||'🚗';
+  const ref=rtdb.ref('drivers/'+data.driverId+'/location');
+  window._dLocRef=ref;
+  window._dLocCb=ref.on('value',snap=>{
+    const loc=snap.val();
+    if(!loc?.lat||!loc?.lng)return;
+    const dLoc={lat:parseFloat(loc.lat),lng:parseFloat(loc.lng)};
+    const svg='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><circle cx="24" cy="24" r="22" fill="#f5c842" stroke="#000" stroke-width="2.5"/><text x="24" y="32" text-anchor="middle" font-size="22">'+vIcon+'</text></svg>';
+    const icon={url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(48,48),anchor:new google.maps.Point(24,24)};
+    if(driverMarker){driverMarker.setPosition(dLoc);driverMarker.setIcon(icon);}
+    else driverMarker=new google.maps.Marker({position:dLoc,map,icon,title:data.driverName||'Driver',zIndex:999});
+    if(fromLoc&&map){
+      const b=new google.maps.LatLngBounds();
+      b.extend(new google.maps.LatLng(fromLoc.lat,fromLoc.lng));
+      b.extend(new google.maps.LatLng(dLoc.lat,dLoc.lng));
+      map.fitBounds(b,{top:100,bottom:320,left:40,right:40});
     }
-    const dLoc = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) };
-    if (isNaN(dLoc.lat) || isNaN(dLoc.lng)) return;
-
-    // Build driver marker icon
-    const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">' +
-      '<circle cx="24" cy="24" r="22" fill="#f5c842" stroke="#000" stroke-width="2.5"/>' +
-      '<text x="24" y="32" text-anchor="middle" font-size="22">' + vIcon + '</text></svg>';
-    const icon = {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgStr),
-      scaledSize: new google.maps.Size(48,48),
-      anchor: new google.maps.Point(24,24)
-    };
-
-    // Place/move driver marker on map
-    if (driverMarker) {
-      driverMarker.setPosition(dLoc);
-      driverMarker.setIcon(icon);
-    } else {
-      driverMarker = new google.maps.Marker({
-        position: dLoc, map, icon,
-        title: data.driverName || 'Driver',
-        zIndex: 999
-      });
-    }
-
-    // Fit bounds to show both rider + driver
-    try {
-      const bounds = new google.maps.LatLngBounds();
-      if (fromLocation) bounds.extend(new google.maps.LatLng(fromLocation.lat, fromLocation.lng));
-      bounds.extend(new google.maps.LatLng(dLoc.lat, dLoc.lng));
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { top:100, bottom:320, left:40, right:40 });
-      }
-    } catch(e) {}
-
-    // Live ETA (Haversine)
-    if (fromLocation) {
-      const R = 6371;
-      const φ1 = fromLocation.lat * Math.PI/180;
-      const φ2 = dLoc.lat * Math.PI/180;
-      const Δφ = (dLoc.lat - fromLocation.lat) * Math.PI/180;
-      const Δλ = (dLoc.lng - fromLocation.lng) * Math.PI/180;
-      const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2);
-      const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const etaMins = Math.max(1, Math.round(distKm / 0.35));
-      const el = document.getElementById('driverETA');
-      if (el) el.textContent = etaMins + ' min';
+    // ETA
+    if(fromLoc){
+      const R=6371,φ1=fromLoc.lat*Math.PI/180,φ2=dLoc.lat*Math.PI/180;
+      const Δφ=(dLoc.lat-fromLoc.lat)*Math.PI/180,Δλ=(dLoc.lng-fromLoc.lng)*Math.PI/180;
+      const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      const km=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      document.getElementById('dETA').textContent=Math.max(1,Math.round(km/0.35))+' min';
     }
   });
 }
 
-function stopDriverTracking() {
-  if (window._driverLocRef && window._driverLocCallback) {
-    window._driverLocRef.off('value', window._driverLocCallback);
-  }
-  window._driverLocRef = null;
-  window._driverLocCallback = null;
-  if (driverMarker) { driverMarker.setMap(null); driverMarker = null; }
+function stopDriverTrack(){
+  if(window._dLocRef&&window._dLocCb)window._dLocRef.off('value',window._dLocCb);
+  window._dLocRef=null;window._dLocCb=null;
+  if(driverMarker){driverMarker.setMap(null);driverMarker=null;}
 }
 
-async function cancelSearch() {
-  if (activeRideId) {
-    await db.collection('rides').doc(activeRideId).update({ status: 'cancelled_rider' });
-    activeRideId = null;
-  }
-  if (rideListener) { rideListener(); rideListener = null; }
-  showPanel('booking');
+// ══ CANCEL ══
+async function cancelSearch(){
+  if(activeRideId)await db.collection('rides').doc(activeRideId).update({status:'cancelled_rider'}).catch(()=>{});
+  if(rideListener){rideListener();rideListener=null;}
+  activeRideId=null;showPanel('book');
 }
 
-async function cancelRide() {
-  if (!confirm('Ride cancel කරන්නද?')) return;
-  if (activeRideId) {
-    await db.collection('rides').doc(activeRideId).update({ status: 'cancelled_rider' });
-    activeRideId = null;
-  }
-  stopDriverTracking();
-  showPanel('booking');
-  showToast('Ride cancelled');
+async function cancelRide(){
+  if(!confirm('Ride cancel කරන්නද?'))return;
+  if(activeRideId)await db.collection('rides').doc(activeRideId).update({status:'cancelled_rider'}).catch(()=>{});
+  stopDriverTrack();activeRideId=null;showPanel('book');toast('Ride cancelled');
 }
 
-function callDriver() { showToast('📞 Calling driver...'); }
-function chatDriver() { showToast('💬 Chat — Coming Soon'); }
-
-// ══════════════════════════════════════════════
-// PUSH NOTIFICATIONS
-// ══════════════════════════════════════════════
-async function requestPushPermission() {
-  try {
-    const messaging = firebase.messaging();
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      const token = await messaging.getToken({ vapidKey: 'YOUR_VAPID_KEY' });
-      if (currentUser) {
-        await db.collection('riders').doc(currentUser.uid).update({ fcmToken: token });
-      }
-      messaging.onMessage(payload => {
-        showToast('🔔 ' + (payload.notification?.title || 'Notification'));
-      });
-    }
-  } catch(e) {
-    console.log('FCM setup skipped:', e.message);
+// ══ CALL ══
+function callDriver(){
+  const p=_driverProfile?.phone||'';
+  if(p&&p!=='—'&&p.length>5){
+    if(confirm('📞 Call '+((_driverProfile?.name)||'Driver')+'?\n'+p))
+      window.location.href='tel:'+p.replace(/\s/g,'');
+  }else{
+    if(activeRideId){
+      db.collection('rides').doc(activeRideId).update({riderCallRequest:true,riderCalledAt:firebase.firestore.FieldValue.serverTimestamp()});
+      toast('📞 Driver ලෙ call request sent!');
+    }else toast('Phone number නෑ');
   }
 }
 
-// ══════════════════════════════════════════════
-// UI HELPERS
-// ══════════════════════════════════════════════
-function showPanel(panel) {
-  document.getElementById('bookingPanel').style.display = panel==='booking' ? 'block' : 'none';
-  document.getElementById('searchingPanel').style.display = panel==='searching' ? 'block' : 'none';
-  document.getElementById('driverPanel').style.display = panel==='driver' ? 'block' : 'none';
+// ══ CHAT ══
+function openChat(){
+  overlay('scChat',true);
+  loadChat();
 }
-
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('show');
+function closeChat(){
+  overlay('scChat',false);
+  if(chatListener){chatListener();chatListener=null;}
 }
+function loadChat(){
+  if(!activeRideId)return;
+  const c=document.getElementById('chatMsgs');
+  if(chatListener){chatListener();chatListener=null;}
+  chatListener=db.collection('rides').doc(activeRideId).collection('messages').orderBy('ts').onSnapshot(snap=>{
+    const noMsg=document.getElementById('chatNoMsg');
+    noMsg.style.display=snap.empty?'block':'none';
+    const html=snap.docs.map(d=>{
+      const m=d.data();
+      const me=m.senderId===currentUser?.uid;
+      const t=m.ts?.toDate?m.ts.toDate().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
+      return`<div class="cmsg ${me?'me':'them'}"><div class="cmsg-b">${esc(m.text||'')}</div><div class="cmsg-t">${me?'You':'Driver'} • ${t}</div></div>`;
+    }).join('');
+    c.innerHTML='';c.appendChild(noMsg);c.insertAdjacentHTML('beforeend',html);
+    c.scrollTop=c.scrollHeight;
+  },e=>console.log('chat:',e.message));
+}
+async function sendMsg(){
+  const inp=document.getElementById('chatInp');
+  const txt=inp.value.trim();
+  if(!txt||!activeRideId||!currentUser)return;
+  inp.value='';
+  try{await db.collection('rides').doc(activeRideId).collection('messages').add({text:txt,senderId:currentUser.uid,senderName:currentUser.displayName||'Rider',senderRole:'rider',ts:firebase.firestore.FieldValue.serverTimestamp()});}
+  catch(e){toast('Send failed');inp.value=txt;}
+}
+function quickReply(t){document.getElementById('chatInp').value=t;sendMsg();}
 
-function triggerSOS() {
-  if (confirm('🆘 Emergency SOS send කරන්නද?')) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const loc = pos.coords;
-      showToast('🆘 SOS sent! Location shared');
-      // In production: send SMS/call via Twilio with coords
-    });
+// ══ SOS ══
+function doSOS(){
+  if(confirm('🆘 Emergency SOS send කරන්නද?')){
+    navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{toast('🆘 SOS sent — location shared');});
   }
 }
 
-let toastTimer;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+// ══ SIDEBAR ══
+function openSidebar(){document.getElementById('scSidebar').classList.add('open');}
+function closeSidebar(){document.getElementById('scSidebar').classList.remove('open');}
+
+// ══ HELPERS ══
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setAuthErr(m){document.getElementById('authErr').textContent=m;}
+function getErrMsg(c){
+  return({'auth/user-not-found':'User නෑ — Sign up කරන්න','auth/wrong-password':'Password වැරදියි','auth/email-already-in-use':'Email already registered','auth/weak-password':'Min 6 chars','auth/invalid-credential':'Email හෝ password වැරදියි'}[c]||c);
 }
-
-function fillDest(place) {
-  document.getElementById('toInput') && (document.getElementById('toInput').value = place);
-  document.getElementById('toDisplay').textContent = place;
-  document.getElementById('toDisplay').classList.remove('placeholder');
-  // Geocode the place name
-  const geocoder = new google.maps.Geocoder();
-  geocoder.geocode({ address: place + ', Sri Lanka' }, (results, status) => {
-    if (status === 'OK' && results[0]) {
-      toLocation = { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() };
-      updateToMarker(toLocation);
-      if (fromLocation) drawRoute();
-      updateBookBtn();
-    }
-  });
+let toastT;
+function toast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);
 }
-
-function escHtml(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// Hide loading after 2s max
-setTimeout(() => {
-  document.getElementById('loadingOverlay').style.display = 'none';
-  // locPermScreen shown after auth state resolves
-}, 2000);
+// Prevent zoom on input focus (iOS)
+document.addEventListener('touchstart',()=>{},true);
 </script>
 </body>
 </html>

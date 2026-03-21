@@ -477,7 +477,7 @@ body {
 
 
 <!-- LOCATION PERMISSION SCREEN -->
-<div id="locPermScreen">
+<div id="locPermScreen" style="display:none;">
   <div class="perm-box">
     <div class="perm-icon">📍</div>
     <div class="perm-title">Location Access ඕනේ!</div>
@@ -571,6 +571,9 @@ body {
       <div class="topbar-search" onclick="openLocationPicker('from')">
         <span>📍</span>
         <span class="topbar-search-text" id="topbarLocation">ඔබ ඉන්නේ කොහේද?</span>
+      </div>
+      <div id="riderConnStatus" style="display:none;align-items:center;gap:4px;background:rgba(45,189,110,0.15);color:#2dbd6e;padding:4px 10px;border-radius:100px;font-size:0.7rem;font-weight:700;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#2dbd6e;animation:pulse 1.5s infinite"></div>Live
       </div>
       <button class="sos-btn" onclick="triggerSOS()">SOS</button>
     </div>
@@ -977,6 +980,15 @@ auth.onAuthStateChanged(async user => {
     currentUser = user;
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
+    // Check location permission
+    if (navigator.permissions) {
+      navigator.permissions.query({ name:'geolocation' }).then(r => {
+        if (r.state === 'granted') { requestLocation(); }
+        else { document.getElementById('locPermScreen').style.display = 'flex'; }
+      }).catch(() => { document.getElementById('locPermScreen').style.display = 'flex'; });
+    } else {
+      document.getElementById('locPermScreen').style.display = 'flex';
+    }
 
     // Load user profile
     const doc = await db.collection('riders').doc(user.uid).get();
@@ -992,12 +1004,13 @@ auth.onAuthStateChanged(async user => {
     // Request push notification permission
     requestPushPermission();
 
-    // Start location watch if permission already granted
-    if (navigator.permissions) {
-      navigator.permissions.query({ name:'geolocation' }).then(r => {
-        if (r.state === 'granted') startLocationWatch();
-      }).catch(()=>{});
-    }
+    // location permission handled after auth screen dismissed
+    // Test Firebase connection
+    try {
+      await db.collection('riders').doc(user.uid).get();
+      document.getElementById('riderConnStatus').style.display = 'flex';
+      console.log('✅ Firebase connected');
+    } catch(e) { console.error('Firebase test failed:', e.message); }
 
   } else {
     currentUser = null;
@@ -1214,10 +1227,17 @@ async function bookRide() {
   const dist = document.getElementById('tripDist').textContent;
 
   // Create ride doc in Firestore
+  // Get rider phone from Firestore
+  let riderPhone = '';
+  try {
+    const rDoc = await db.collection('riders').doc(currentUser.uid).get();
+    riderPhone = rDoc.data()?.phone || '';
+  } catch(e) {}
+
   const rideData = {
     riderId: currentUser.uid,
     riderName: currentUser.displayName || 'Rider',
-    riderPhone: '',
+    riderPhone: riderPhone,
     from: { lat: fromLocation.lat, lng: fromLocation.lng, address: document.getElementById('fromDisplay').textContent },
     to: { lat: toLocation.lat, lng: toLocation.lng, address: document.getElementById('toDisplay').textContent },
     vehicleType: selectedVehicle.type,
@@ -1234,7 +1254,14 @@ async function bookRide() {
     showPanel('searching');
     listenForRideUpdates(ref.id);
   } catch(e) {
-    showToast('❌ Error: ' + e.message);
+    console.error('BookRide error:', e);
+    if (e.message.includes('permission') || e.message.includes('PERMISSION')) {
+      showToast('❌ Firebase Rules issue — F12 console check');
+    } else if (e.message.includes('offline') || e.message.includes('network')) {
+      showToast('❌ Internet connection check කරන්න');
+    } else {
+      showToast('❌ Error: ' + e.message);
+    }
   }
 }
 
@@ -1272,35 +1299,44 @@ function listenForActiveRide() {
         .sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
       if (activeDocs.length > 0) {
         const doc = activeDocs[0];
-        activeRideId = doc.id;
+        const newRideId = doc.id;
         const data = doc.data();
+        // Only update if different ride or status changed
+        if (newRideId !== activeRideId) {
+          activeRideId = newRideId;
+          listenForRideUpdates(newRideId);
+        }
         if (data.status === 'accepted' || data.status === 'in_progress') {
           showDriverFound(data);
         } else if (data.status === 'searching') {
           showPanel('searching');
         }
-        listenForRideUpdates(doc.id);
       }
     });
 }
 
 const vtypeIcons = { tuk:'🛺', car:'🚗', bike:'🏍️', xl:'🚐' };
 
-function showDriverFound(data) {
+function updateDriverPanel(data) {
   const vIcon = vtypeIcons[data.vehicleType] || '🚗';
   const vName = data.vehicleModel || data.vehicleType || 'Vehicle';
-
   document.getElementById('driverName').textContent = data.driverName || 'Driver';
   document.getElementById('driverMeta').textContent = vIcon + ' ' + vName + ' • ' + (data.vehiclePlate||'—');
   document.getElementById('driverPlate').textContent = data.vehiclePlate || '—';
-  document.getElementById('driverRating').textContent = data.driverRating || '5.0';
+  document.getElementById('driverRating').textContent = (data.driverRating || '5.0');
   document.getElementById('driverETA').textContent = (data.eta || '~3') + ' min';
   document.getElementById('tripDist').textContent = data.estimatedDist || '—';
   document.getElementById('tripFare').textContent = data.estimatedFare || '—';
-  showPanel('driver');
+}
 
-  // Track driver GPS — proper listener pattern
-  startDriverTracking(data);
+function showDriverFound(data) {
+  updateDriverPanel(data);
+  showPanel('driver');
+  // Start tracking only if not already tracking this driver
+  if (data.driverId && data.driverId !== lastKnownDriverId) {
+    lastKnownDriverId = data.driverId;
+    startDriverTracking(data);
+  }
 }
 
 function startDriverTracking(data) {
@@ -1459,21 +1495,28 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
+function fillDest(place) {
+  document.getElementById('toInput') && (document.getElementById('toInput').value = place);
+  document.getElementById('toDisplay').textContent = place;
+  document.getElementById('toDisplay').classList.remove('placeholder');
+  // Geocode the place name
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ address: place + ', Sri Lanka' }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      toLocation = { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() };
+      updateToMarker(toLocation);
+      if (fromLocation) drawRoute();
+      updateBookBtn();
+    }
+  });
+}
+
 function escHtml(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// Hide loading after 2s max, then show location permission
+// Hide loading after 2s max
 setTimeout(() => {
   document.getElementById('loadingOverlay').style.display = 'none';
-  // Check if already granted
-  if (navigator.permissions) {
-    navigator.permissions.query({ name:'geolocation' }).then(result => {
-      if (result.state === 'granted') {
-        document.getElementById('locPermScreen').style.display = 'none';
-        requestLocation();
-      }
-      // else permission screen shows
-    }).catch(() => {});
-  }
+  // locPermScreen shown after auth state resolves
 }, 2000);
 </script>
 </body>

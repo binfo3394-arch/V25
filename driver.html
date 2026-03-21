@@ -549,6 +549,7 @@ body{font-family:'DM Sans',sans-serif;color:#f0f0f8;position:fixed;inset:0;}
 </div>
 
 <div id="callReqBadge" onclick="dismissCallReq()">📞 Rider is calling! Tap to dismiss</div>
+<audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
 <div id="toast"></div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" async defer></script>
@@ -943,60 +944,157 @@ function doCall(){
   closeCallModal();
 }
 
-// ══ IN-APP CALL (via Firestore signaling) ══
-let iapCallInterval=null,iapCallSecs=0,iapMuted=false,iapCallListener=null;
+// ══════════════════════════════════════════
+// IN-APP CALL — WebRTC Audio
+// Driver can be CALLER (calls rider) or ANSWERER (rider calls driver)
+// ══════════════════════════════════════════
+let iapCallInterval=null, iapCallSecs=0, iapMuted=false, iapCallListener=null;
+let _pc=null, _localStream=null, _remoteStream=null;
+const _iceServers={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'}
+]};
 
-function startInAppCall(){
-  closeCallModal();
-  const riderName=currentRideData?.riderName||'Rider';
-  document.getElementById('iapName').textContent=riderName;
-  document.getElementById('iapSub').textContent='In-App Call • App ඇතුළෙන්';
-  document.getElementById('iapStatus').textContent='Connecting...';
+function _setCallUI(name, status, sub){
+  document.getElementById('iapName').textContent=name;
+  document.getElementById('iapSub').textContent=sub||'In-App Call';
+  document.getElementById('iapStatus').textContent=status;
   document.getElementById('iapTimer').textContent='';
   document.getElementById('iapMuteBtn').textContent='🎙️';
   document.getElementById('iapMuteLbl').textContent='Mute';
   iapMuted=false;iapCallSecs=0;
+}
+
+// Driver calls rider (Offer side)
+async function startInAppCall(){
+  closeCallModal();
+  const riderName=currentRideData?.riderName||'Rider';
+  _setCallUI(riderName,'Connecting mic...','In-App Call • Calling...');
   overlay('scInAppCall',true);
 
-  // Signal rider via Firestore
-  if(currentRideId){
-    db.collection('rides').doc(currentRideId).update({
-      inAppCallFromDriver:true,
-      inAppCallStatus:'calling',
-      inAppCallAt:firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(()=>{});
+  // 1. Mic
+  try{
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }catch(e){
+    toast('🎙️ Mic access denied — Settings ලෙ allow කරන්න');
+    overlay('scInAppCall',false); return;
   }
 
-  // Listen for rider answer
+  // 2. PeerConnection
+  _pc=new RTCPeerConnection(_iceServers);
+  _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
+  _remoteStream=new MediaStream();
+  const ra=document.getElementById('remoteAudio');
+  ra.srcObject=_remoteStream;
+  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+
+  const rideId=currentRideId;
+  _pc.onicecandidate=e=>{
+    if(e.candidate&&rideId)
+      rtdb.ref('calls/'+rideId+'/callerCandidates').push(e.candidate.toJSON());
+  };
+  _pc.onconnectionstatechange=()=>{
+    const s=_pc.connectionState;
+    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
+    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  };
+
+  // 3. Create offer
+  const offer=await _pc.createOffer();
+  await _pc.setLocalDescription(offer);
+  await rtdb.ref('calls/'+rideId).set({
+    offer:{type:offer.type,sdp:offer.sdp},
+    status:'calling', callerId:currentDriver?.uid||'driver', ts:Date.now()
+  });
+
+  // 4. Signal Firestore
+  db.collection('rides').doc(rideId).update({
+    inAppCallFromDriver:true, inAppCallStatus:'calling',
+    inAppCallAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(()=>{});
+
+  document.getElementById('iapStatus').textContent='Calling...';
+
+  // 5. Listen for answer (RTDB)
+  rtdb.ref('calls/'+rideId+'/answer').on('value',async snap=>{
+    const ans=snap.val();
+    if(ans&&_pc&&!_pc.currentRemoteDescription){
+      await _pc.setRemoteDescription(new RTCSessionDescription(ans));
+    }
+  });
+  rtdb.ref('calls/'+rideId+'/calleeCandidates').on('child_added',snap=>{
+    const c=snap.val();
+    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+  });
+
+  // 6. Firestore decline/end listener
   if(iapCallListener){iapCallListener();iapCallListener=null;}
-  if(currentRideId){
-    iapCallListener=db.collection('rides').doc(currentRideId).onSnapshot(snap=>{
-      const d=snap.data();
-      if(d?.inAppCallStatus==='answered'){
-        document.getElementById('iapStatus').textContent='Connected 🟢';
-        startCallTimer();
-        if(iapCallListener){iapCallListener();iapCallListener=null;}
-      } else if(d?.inAppCallStatus==='declined'||d?.inAppCallStatus==='ended'){
-        toast('📵 Rider declined the call');
-        endInAppCall();
-      }
-    });
-    // Auto timeout after 30s
-    setTimeout(()=>{
-      if(document.getElementById('scInAppCall').classList.contains('active')){
-        if(document.getElementById('iapStatus').textContent==='Connecting...'){
-          toast('📵 No answer — try again');
-          endInAppCall();
-        }
-      }
-    },30000);
-  } else {
-    // Demo mode - no active ride
-    setTimeout(()=>{
-      document.getElementById('iapStatus').textContent='Connected 🟢';
-      startCallTimer();
-    },1500);
+  iapCallListener=db.collection('rides').doc(rideId).onSnapshot(snap=>{
+    const d=snap.data();
+    if(d?.inAppCallStatus==='declined'){
+      toast('📵 Rider declined the call');
+      endInAppCall();
+    }
+  });
+  setTimeout(()=>{
+    if(document.getElementById('scInAppCall').classList.contains('active')&&
+       document.getElementById('iapStatus').textContent==='Calling...'){
+      toast('📵 No answer');
+      endInAppCall();
+    }
+  },30000);
+}
+
+// Driver answers incoming call from rider (Answer side)
+async function answerIncomingCall(){
+  document.getElementById('callReqBadge').style.display='none';
+  const riderName=currentRideData?.riderName||'Rider';
+  _setCallUI(riderName,'Connecting mic...','In-App Call • Answering');
+  overlay('scInAppCall',true);
+
+  try{
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }catch(e){
+    toast('🎙️ Mic access denied');
+    overlay('scInAppCall',false); return;
   }
+
+  _pc=new RTCPeerConnection(_iceServers);
+  _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
+  _remoteStream=new MediaStream();
+  const ra=document.getElementById('remoteAudio');
+  ra.srcObject=_remoteStream;
+  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+
+  const rideId=currentRideId;
+  _pc.onicecandidate=e=>{
+    if(e.candidate&&rideId)
+      rtdb.ref('calls/'+rideId+'/calleeCandidates').push(e.candidate.toJSON());
+  };
+  _pc.onconnectionstatechange=()=>{
+    const s=_pc.connectionState;
+    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
+    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  };
+
+  // Get offer
+  const offerSnap=await rtdb.ref('calls/'+rideId+'/offer').get();
+  const offerData=offerSnap.val();
+  if(!offerData){ toast('Call data error'); overlay('scInAppCall',false); return; }
+  await _pc.setRemoteDescription(new RTCSessionDescription(offerData));
+  const answer=await _pc.createAnswer();
+  await _pc.setLocalDescription(answer);
+  await rtdb.ref('calls/'+rideId+'/answer').set({type:answer.type,sdp:answer.sdp});
+
+  rtdb.ref('calls/'+rideId+'/callerCandidates').on('child_added',snap=>{
+    const c=snap.val();
+    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+  });
+
+  db.collection('rides').doc(rideId).update({inAppCallStatus:'answered'}).catch(()=>{});
+  document.getElementById('iapStatus').textContent='Connected 🟢';
+  startCallTimer();
 }
 
 function startCallTimer(){
@@ -1013,10 +1111,14 @@ function startCallTimer(){
 function endInAppCall(){
   clearInterval(iapCallInterval);
   if(iapCallListener){iapCallListener();iapCallListener=null;}
+  if(_localStream){_localStream.getTracks().forEach(t=>t.stop());_localStream=null;}
+  if(_pc){_pc.close();_pc=null;}
+  const ra=document.getElementById('remoteAudio');
+  if(ra) ra.srcObject=null;
   if(currentRideId){
+    rtdb.ref('calls/'+currentRideId).remove().catch(()=>{});
     db.collection('rides').doc(currentRideId).update({
-      inAppCallFromDriver:false,
-      inAppCallStatus:'ended'
+      inAppCallFromDriver:false, inAppCallFromRider:false, inAppCallStatus:'ended'
     }).catch(()=>{});
   }
   overlay('scInAppCall',false);
@@ -1024,6 +1126,7 @@ function endInAppCall(){
 
 function toggleMute(){
   iapMuted=!iapMuted;
+  if(_localStream) _localStream.getAudioTracks().forEach(t=>t.enabled=!iapMuted);
   document.getElementById('iapMuteBtn').textContent=iapMuted?'🔇':'🎙️';
   document.getElementById('iapMuteLbl').textContent=iapMuted?'Unmute':'Mute';
   toast(iapMuted?'🔇 Muted':'🎙️ Unmuted');
@@ -1173,28 +1276,13 @@ function listenCallReq(){
 }
 
 function showIncomingFromRider(name){
-  // Show a special incoming call toast
   const badge=document.getElementById('callReqBadge');
   badge.innerHTML='📞 '+esc(name)+' calling! <u>Answer</u>';
   badge.style.display='flex';
-  badge.onclick=()=>{
-    badge.style.display='none';
-    answerIncomingCall();
-  };
-  setTimeout(()=>{badge.style.display='none';},20000);
+  badge.onclick=()=>{ badge.style.display='none'; answerIncomingCall(); };
+  setTimeout(()=>{ badge.style.display='none'; },25000);
 }
 
-function answerIncomingCall(){
-  if(!currentRideId)return;
-  db.collection('rides').doc(currentRideId).update({inAppCallStatus:'answered'}).catch(()=>{});
-  // Show call screen as receiver
-  document.getElementById('iapName').textContent=currentRideData?.riderName||'Rider';
-  document.getElementById('iapSub').textContent='In-App Call • Connected';
-  document.getElementById('iapStatus').textContent='Connected 🟢';
-  document.getElementById('iapTimer').textContent='';
-  overlay('scInAppCall',true);
-  startCallTimer();
-}
 function dismissCallReq(){
   document.getElementById('callReqBadge').style.display='none';
   if(currentRideId)db.collection('rides').doc(currentRideId).update({riderCallRequest:false}).catch(()=>{});

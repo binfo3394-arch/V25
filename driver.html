@@ -657,7 +657,7 @@ input:checked+.d-ts-slider::before{transform:translateX(22px);}
 
 <div id="toast"></div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" defer></script>
 <script>
 // ══ FIREBASE ══
 const firebaseConfig={apiKey:"AIzaSyARwN5Iho-m96PWEQOAbKIJhPyEjOM7ZVA",authDomain:"tuktuk-d428d.firebaseapp.com",databaseURL:"https://tuktuk-d428d-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"tuktuk-d428d",storageBucket:"tuktuk-d428d.firebasestorage.app",messagingSenderId:"1064642828578",appId:"1:1064642828578:web:02086769db0e407a41ed7b"};
@@ -682,56 +682,42 @@ let _liveFareDisplayInterval=null;
 
 setTimeout(()=>{document.getElementById('ldProg').style.width='100%';},100);
 
-// Maps API load timeout — if Maps fails/slow, don't stay stuck on loading
-setTimeout(()=>{
-  if(!_mapReady){
-    console.warn('Maps API timeout — proceeding without map');
-    _mapReady=true;
-    tryShowApp();
-  }
-},8000);
-
-// Absolute safety net — never stay on loading screen >12s
-setTimeout(()=>{
-  const loading=document.getElementById('scLoad');
-  if(loading&&loading.classList.contains('active')){
-    console.warn('Safety net: forcing off loading screen');
-    _authReady=true;_mapReady=true;
-    tryShowApp();
-  }
-},12000);
-
 // ══ SCREEN ══
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function overlay(id,open){const el=document.getElementById(id);el.classList.toggle('active',open);el.style.display=open?'flex':'none';}
 
-// ══ APP INIT STATE ══
-let _authReady=false, _mapReady=false, _pendingUser=null;
+// ══ APP INIT — auth drives loading, map is independent ══
+let _pendingUser=null;
 
 function tryShowApp(){
-  // Only show app when BOTH auth AND map are ready
-  if(!_authReady||!_mapReady)return;
-  const user=_pendingUser;
-  if(user){
+  // Show app as soon as auth is known — don't wait for Maps
+  if(_pendingUser){
     show('scApp');
   }else{
     show('scAuth');
   }
 }
 
+// Safety net — never stuck on loading >10s
+setTimeout(()=>{
+  if(document.getElementById('scLoad').classList.contains('active')){
+    console.warn('Safety net triggered');
+    tryShowApp();
+  }
+},10000);
+
 // ══ MAP ══
 function initMap(){
-  map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
-    styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
-  });
-  // Get GPS immediately on map load
-  navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
-    const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
-    map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
-  },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
-  _mapReady=true;
-  tryShowApp();
+  try{
+    map=new google.maps.Map(document.getElementById('map'),{
+      center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
+      styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
+    });
+    navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
+    },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
+  }catch(e){console.warn('Map init error:',e.message);}
 }
 
 function placeDriverMarker(loc){
@@ -783,40 +769,28 @@ async function doSignup(){
 async function doLogout(){closeSidebar();await setOffline();await auth.signOut();}
 
 auth.onAuthStateChanged(async user=>{
-  // Fill progress bar
   document.getElementById('ldProg').style.width='100%';
-
   if(user){
     currentDriver=user;
     _pendingUser=user;
-    // Load driver profile
     try{
       const doc=await db.collection('drivers').doc(user.uid).get();
-      if(doc.exists){
-        driverProfile=doc.data()||{};
-      } else {
-        // New user — no profile yet, show auth to complete signup
-        driverProfile={};
-      }
+      driverProfile=doc.exists ? (doc.data()||{}) : {};
       selVType=driverProfile.vehicleType||'tuk';
       updateProfileUI();
       loadStats();
       listenRides();
     }catch(e){
       console.warn('Profile load error:',e.message);
-      // Firestore rules issue OR no internet — still show app
       driverProfile={};
     }
-    _authReady=true;
-    // Wait minimum 1s for loading UX, then show
-    setTimeout(tryShowApp, 1000);
   }else{
     currentDriver=null;driverProfile=null;
     _pendingUser=null;
-    _authReady=true;
-    setTimeout(tryShowApp, 1000);
     stopGPS();
   }
+  // Show app after min 1s loading UX
+  setTimeout(tryShowApp, 1000);
 });
 
 function safeSet(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
@@ -940,10 +914,6 @@ function animateMarker(marker, newPos){
 }
 
 // Live fare during in-progress ride
-let _rideTraveledMeters = 0;
-let _lastDriverPos = null;
-let _liveFareDisplayInterval = null;
-
 function resetLiveRide(){
   _rideTraveledMeters = 0;
   _lastDriverPos = null;

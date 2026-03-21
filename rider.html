@@ -1742,43 +1742,67 @@ function showPanel(p){
 
 // ══ RIDE LISTENERS ══
 let _liveFareStarted = false;
+let _lastRideStatus = null;
+
 function listenRide(id){
   if(rideListener)rideListener();
   _liveFareStarted = false;
+  _lastRideStatus = null;
   rideListener=db.collection('rides').doc(id).onSnapshot(snap=>{
-    const d=snap.data();if(!d)return;
-    if(d.status==='accepted'){
+    const d=snap.data();
+    if(!d)return;
+    const status=d.status;
+
+    // Avoid re-processing same status unnecessarily
+    if(status===_lastRideStatus && status!=='in_progress') return;
+    _lastRideStatus=status;
+
+    if(status==='accepted'){
+      activeRideId=id;
       showDriver(d);
-      _liveFareStarted = false;
+      _liveFareStarted=false;
     }
-    else if(d.status==='in_progress'){
+    else if(status==='in_progress'){
+      activeRideId=id;
       showDriver(d);
       if(!_liveFareStarted){ _liveFareStarted=true; startLiveFare(d); }
-      // Also show live fare pushed by driver
+      // Show live fare from driver
       if(d.liveFare && d.liveDistMeters){
         document.getElementById('dFare').textContent='Rs. '+d.liveFare;
         document.getElementById('dDist').textContent=formatDist(d.liveDistMeters);
       }
     }
-    else if(d.status==='completed'){
+    else if(status==='completed'){
       stopDriverTrack();
       showRatingScreen(d);
     }
-    else if(d.status==='cancelled_driver'){toast('❌ Driver cancelled');showPanel('search');}
-  });
+    else if(status==='cancelled_driver'){
+      toast('❌ Driver cancelled');
+      activeRideId=null;
+      showPanel('search');
+    }
+  },err=>console.error('listenRide error:',err));
 }
 
 function listenActiveRide(){
   if(!currentUser)return;
+  let _lastActiveId=null;
   db.collection('rides').where('riderId','==',currentUser.uid).onSnapshot(snap=>{
-    const active=snap.docs.filter(d=>['searching','accepted','in_progress'].includes(d.data().status))
+    const active=snap.docs
+      .filter(d=>['searching','accepted','in_progress'].includes(d.data().status))
       .sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
     if(active.length>0){
-      const doc=active[0];activeRideId=doc.id;
+      const doc=active[0];
       const d=doc.data();
-      if(d.status==='accepted'||d.status==='in_progress')showDriver(d);
-      else if(d.status==='searching')showPanel('search');
-      listenRide(doc.id);
+      // Only re-setup listener if ride ID changed
+      if(doc.id!==_lastActiveId){
+        _lastActiveId=doc.id;
+        activeRideId=doc.id;
+        listenRide(doc.id);
+      }
+      // Always update UI
+      if(d.status==='accepted'||d.status==='in_progress') showDriver(d);
+      else if(d.status==='searching') showPanel('search');
     }
   });
 }
@@ -1938,109 +1962,112 @@ function doPhoneCall(){
 }
 
 // ══════════════════════════════════════════
-// IN-APP CALL — WebRTC Audio (Rider = Caller/Offer side)
+// IN-APP CALL — WebRTC Audio (Rider = Offer/Caller side)
 // ══════════════════════════════════════════
 let iapCallInterval=null, iapCallSecs=0, iapMuted=false, iapCallListener=null;
-let _pc=null, _localStream=null, _remoteStream=null;
+let _pc=null, _localStream=null;
 const _iceServers={iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'}
+  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'stun:stun.relay.metered.ca:80'},
 ]};
 
 async function startRiderInAppCall(){
   overlay('scCallOpts',false);
   const driverName=_driverProfile?.name||'Driver';
   const driverIcon=_driverProfile?.vehicleIcon||'🚗';
-  _setCallUI(driverName, driverIcon, 'Connecting mic...', 'In-App Call • Free');
+  _setCallUI(driverName, driverIcon, 'Mic connecting...', 'In-App Call • Free');
   overlay('scInAppCall',true);
 
-  // 1. Get microphone
+  // Get mic
   try{
-    _localStream=await navigator.mediaDevices.getUserMedia({audio:true, video:false});
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}, video:false});
   }catch(e){
-    toast('🎙️ Mic access denied — Settings ලෙ allow කරන්න');
-    overlay('scInAppCall',false);
-    return;
+    toast('🎙️ Mic access denied — Browser Settings ලෙ allow කරන්න');
+    overlay('scInAppCall',false); return;
   }
 
-  // 2. Create PeerConnection
+  // Close any existing PC
+  if(_pc){try{_pc.close();}catch(e){} _pc=null;}
+
   _pc=new RTCPeerConnection(_iceServers);
   _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
 
-  // 3. Remote audio
-  _remoteStream=new MediaStream();
+  // Remote audio — attach stream as tracks arrive
   const remoteAudio=document.getElementById('remoteAudio');
-  remoteAudio.srcObject=_remoteStream;
-  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
-
-  // 4. ICE candidates → RTDB
-  const rideId=activeRideId;
-  _pc.onicecandidate=e=>{
-    if(e.candidate&&rideId){
-      rtdb.ref('calls/'+rideId+'/callerCandidates').push(e.candidate.toJSON());
+  _pc.ontrack=e=>{
+    if(remoteAudio.srcObject!==e.streams[0]){
+      remoteAudio.srcObject=e.streams[0];
+      remoteAudio.play().catch(()=>{});
     }
   };
 
-  // 5. Connection state
-  _pc.onconnectionstatechange=()=>{
-    const s=_pc.connectionState;
-    if(s==='connected'){
+  const rideId=activeRideId;
+
+  // ICE candidates → RTDB
+  _pc.onicecandidate=e=>{
+    if(e.candidate&&rideId)
+      rtdb.ref('calls/'+rideId+'/callerCandidates').push(e.candidate.toJSON());
+  };
+
+  // Use iceconnectionstatechange — more reliable than connectionstatechange
+  _pc.oniceconnectionstatechange=()=>{
+    const s=_pc.iceConnectionState;
+    console.log('ICE state (rider):', s);
+    if(s==='connected'||s==='completed'){
       document.getElementById('iapStatus').textContent='Connected 🟢';
       startCallTimer();
-    } else if(s==='disconnected'||s==='failed'||s==='closed'){
+      remoteAudio.play().catch(()=>{});
+    } else if(s==='failed'){
+      toast('📵 Call connection failed');
       endInAppCall();
+    } else if(s==='disconnected'){
+      document.getElementById('iapStatus').textContent='Reconnecting...';
     }
   };
 
-  // 6. Create offer
-  const offer=await _pc.createOffer();
+  // Create offer
+  const offer=await _pc.createOffer({offerToReceiveAudio:true});
   await _pc.setLocalDescription(offer);
 
-  // 7. Write offer + signal to Firestore + RTDB
+  // Write to RTDB + signal Firestore
   if(rideId){
     await rtdb.ref('calls/'+rideId).set({
       offer:{type:offer.type, sdp:offer.sdp},
-      status:'calling',
-      callerId:currentUser?.uid||'rider',
-      ts:Date.now()
+      status:'calling', callerId:currentUser?.uid||'rider', ts:Date.now()
     });
     db.collection('rides').doc(rideId).update({
       inAppCallFromRider:true, inAppCallStatus:'calling',
       inAppCallAt:firebase.firestore.FieldValue.serverTimestamp()
     }).catch(()=>{});
-  }
 
-  document.getElementById('iapStatus').textContent='Calling...';
+    document.getElementById('iapStatus').textContent='Calling...';
 
-  // 8. Listen for answer from driver (RTDB)
-  if(rideId){
+    // Listen for answer
     rtdb.ref('calls/'+rideId+'/answer').on('value', async snap=>{
       const ans=snap.val();
-      if(ans&&_pc&&!_pc.currentRemoteDescription){
-        await _pc.setRemoteDescription(new RTCSessionDescription(ans));
+      if(ans && _pc && !_pc.currentRemoteDescription){
+        try{ await _pc.setRemoteDescription(new RTCSessionDescription(ans)); }
+        catch(e){ console.warn('setRemoteDesc error:',e); }
       }
     });
-    // Listen for driver's ICE candidates
+    // Driver's ICE candidates
     rtdb.ref('calls/'+rideId+'/calleeCandidates').on('child_added', snap=>{
       const c=snap.val();
-      if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+      if(c&&_pc&&_pc.remoteDescription)
+        _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
     });
-  }
 
-  // 9. Firestore status listener (declined / ended signal)
-  if(iapCallListener){iapCallListener();iapCallListener=null;}
-  if(rideId){
+    // Decline/end signal
+    if(iapCallListener){iapCallListener();iapCallListener=null;}
     iapCallListener=db.collection('rides').doc(rideId).onSnapshot(snap=>{
       const d=snap.data();
-      if(d?.inAppCallStatus==='declined'){
-        toast('📵 Driver declined the call');
-        endInAppCall();
-      } else if(d?.inAppCallStatus==='ended'&&d?.inAppCallFromDriver===false&&d?.inAppCallFromRider===false){
-        endInAppCall();
-      }
+      if(d?.inAppCallStatus==='declined'){ toast('📵 Driver declined'); endInAppCall(); }
+      else if(d?.inAppCallStatus==='ended'){ endInAppCall(); }
     });
-    // 30s ring timeout
+
+    // 30s timeout
     setTimeout(()=>{
       if(document.getElementById('scInAppCall').classList.contains('active')&&
          document.getElementById('iapStatus').textContent==='Calling...'){
@@ -2126,37 +2153,44 @@ async function answerInAppCall(){
   document.getElementById('incomingCallBanner').style.display='none';
   const driverName=_driverProfile?.name||'Driver';
   const driverIcon=_driverProfile?.vehicleIcon||'🚗';
-  _setCallUI(driverName, driverIcon, 'Connecting mic...', 'In-App Call • Connected');
+  _setCallUI(driverName, driverIcon, 'Connecting mic...', 'In-App Call • Answering');
   overlay('scInAppCall',true);
 
-  // Mic
   try{
-    _localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    _localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
   }catch(e){
     toast('🎙️ Mic access denied');
-    overlay('scInAppCall',false);
-    return;
+    overlay('scInAppCall',false); return;
   }
+
+  if(_pc){try{_pc.close();}catch(e){} _pc=null;}
 
   _pc=new RTCPeerConnection(_iceServers);
   _localStream.getTracks().forEach(t=>_pc.addTrack(t,_localStream));
-  _remoteStream=new MediaStream();
+
   const remoteAudio=document.getElementById('remoteAudio');
-  remoteAudio.srcObject=_remoteStream;
-  _pc.ontrack=e=>{ e.streams[0].getTracks().forEach(t=>_remoteStream.addTrack(t)); };
+  _pc.ontrack=e=>{
+    if(remoteAudio.srcObject!==e.streams[0]){
+      remoteAudio.srcObject=e.streams[0];
+      remoteAudio.play().catch(()=>{});
+    }
+  };
 
   const rideId=activeRideId;
   _pc.onicecandidate=e=>{
     if(e.candidate&&rideId)
       rtdb.ref('calls/'+rideId+'/calleeCandidates').push(e.candidate.toJSON());
   };
-  _pc.onconnectionstatechange=()=>{
-    const s=_pc.connectionState;
-    if(s==='connected'){ document.getElementById('iapStatus').textContent='Connected 🟢'; startCallTimer(); }
-    else if(s==='disconnected'||s==='failed'||s==='closed') endInAppCall();
+  _pc.oniceconnectionstatechange=()=>{
+    const s=_pc.iceConnectionState;
+    console.log('ICE state (rider answer):', s);
+    if(s==='connected'||s==='completed'){
+      document.getElementById('iapStatus').textContent='Connected 🟢';
+      startCallTimer();
+      remoteAudio.play().catch(()=>{});
+    } else if(s==='failed'){ endInAppCall(); }
   };
 
-  // Get offer from RTDB
   const offerSnap=await rtdb.ref('calls/'+rideId+'/offer').get();
   const offerData=offerSnap.val();
   if(!offerData){ toast('Call data error'); overlay('scInAppCall',false); return; }
@@ -2165,15 +2199,12 @@ async function answerInAppCall(){
   await _pc.setLocalDescription(answer);
   await rtdb.ref('calls/'+rideId+'/answer').set({type:answer.type,sdp:answer.sdp});
 
-  // Caller's ICE candidates
   rtdb.ref('calls/'+rideId+'/callerCandidates').on('child_added',snap=>{
     const c=snap.val();
-    if(c&&_pc) _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    if(c&&_pc&&_pc.remoteDescription)
+      _pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
   });
-
   db.collection('rides').doc(rideId).update({inAppCallStatus:'answered'}).catch(()=>{});
-  document.getElementById('iapStatus').textContent='Connected 🟢';
-  startCallTimer();
 }
 
 function declineInAppCall(){

@@ -682,20 +682,56 @@ let _liveFareDisplayInterval=null;
 
 setTimeout(()=>{document.getElementById('ldProg').style.width='100%';},100);
 
+// Maps API load timeout — if Maps fails/slow, don't stay stuck on loading
+setTimeout(()=>{
+  if(!_mapReady){
+    console.warn('Maps API timeout — proceeding without map');
+    _mapReady=true;
+    tryShowApp();
+  }
+},8000);
+
+// Absolute safety net — never stay on loading screen >12s
+setTimeout(()=>{
+  const loading=document.getElementById('scLoad');
+  if(loading&&loading.classList.contains('active')){
+    console.warn('Safety net: forcing off loading screen');
+    _authReady=true;_mapReady=true;
+    tryShowApp();
+  }
+},12000);
+
 // ══ SCREEN ══
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function overlay(id,open){const el=document.getElementById(id);el.classList.toggle('active',open);el.style.display=open?'flex':'none';}
 
+// ══ APP INIT STATE ══
+let _authReady=false, _mapReady=false, _pendingUser=null;
+
+function tryShowApp(){
+  // Only show app when BOTH auth AND map are ready
+  if(!_authReady||!_mapReady)return;
+  const user=_pendingUser;
+  if(user){
+    show('scApp');
+  }else{
+    show('scAuth');
+  }
+}
+
 // ══ MAP ══
 function initMap(){
   map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:6.9271,lng:79.8612},zoom:14,disableDefaultUI:true,gestureHandling:'greedy',
+    center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
     styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
   });
+  // Get GPS immediately on map load
   navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
     const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
     map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
-  });
+  },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
+  _mapReady=true;
+  tryShowApp();
 }
 
 function placeDriverMarker(loc){
@@ -747,37 +783,57 @@ async function doSignup(){
 async function doLogout(){closeSidebar();await setOffline();await auth.signOut();}
 
 auth.onAuthStateChanged(async user=>{
+  // Fill progress bar
   document.getElementById('ldProg').style.width='100%';
-  setTimeout(async()=>{
-    if(user){
-      currentDriver=user;
-      try{
-        const doc=await db.collection('drivers').doc(user.uid).get();
+
+  if(user){
+    currentDriver=user;
+    _pendingUser=user;
+    // Load driver profile
+    try{
+      const doc=await db.collection('drivers').doc(user.uid).get();
+      if(doc.exists){
         driverProfile=doc.data()||{};
-        selVType=driverProfile.vehicleType||'tuk';
-        updateProfileUI();loadStats();listenRides();
-      }catch(e){}
-      show('scApp');
-    }else{
-      currentDriver=null;driverProfile=null;
-      show('scAuth');stopGPS();
+      } else {
+        // New user — no profile yet, show auth to complete signup
+        driverProfile={};
+      }
+      selVType=driverProfile.vehicleType||'tuk';
+      updateProfileUI();
+      loadStats();
+      listenRides();
+    }catch(e){
+      console.warn('Profile load error:',e.message);
+      // Firestore rules issue OR no internet — still show app
+      driverProfile={};
     }
-  },1800);
+    _authReady=true;
+    // Wait minimum 1s for loading UX, then show
+    setTimeout(tryShowApp, 1000);
+  }else{
+    currentDriver=null;driverProfile=null;
+    _pendingUser=null;
+    _authReady=true;
+    setTimeout(tryShowApp, 1000);
+    stopGPS();
+  }
 });
+
+function safeSet(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
 
 function updateProfileUI(){
   if(!driverProfile)return;
   const n=driverProfile.name||currentDriver?.displayName||'Driver';
   const icon=driverProfile.vehicleIcon||'🚗';
-  const vname=driverProfile.vehicleName||'Driver';
+  const vname=driverProfile.vehicleName||driverProfile.vehicleType||'Vehicle';
   const plate=driverProfile.vehiclePlate||'—';
   const rating=(driverProfile.rating||5.0).toFixed(1);
-  document.getElementById('topVType').textContent=icon+' '+vname;
-  document.getElementById('sbAvi').textContent=icon;
-  document.getElementById('sbName').textContent=n;
-  document.getElementById('sbDetail').textContent=plate+' • ⭐'+rating;
-  document.getElementById('sbVBadge').textContent=icon+' '+vname;
-  document.getElementById('statRating').textContent=rating;
+  safeSet('topVType',icon+' '+vname);
+  safeSet('sbAvi',icon);
+  safeSet('sbName',n);
+  safeSet('sbDetail',plate+' • ⭐'+rating);
+  safeSet('sbVBadge',icon+' '+vname);
+  safeSet('statRating',rating);
 }
 
 // ══ FARE CONFIG (same as rider) ══

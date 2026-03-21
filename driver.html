@@ -666,9 +666,12 @@ window.initMap = function(){
       center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
       styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
     });
+    // Get GPS — defer placeDriverMarker until inline script is loaded
     navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
       const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
-      map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
+      map.setCenter(loc);map.setZoom(15);
+      // placeDriverMarker may not be defined yet — call via setTimeout to let inline script load
+      setTimeout(()=>{ if(typeof placeDriverMarker==='function') placeDriverMarker(loc); },100);
     },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
   }catch(e){console.warn('Map init error:',e.message);}
 };

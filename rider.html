@@ -1193,44 +1193,31 @@ async function doLogout(){
 
 auth.onAuthStateChanged(async user=>{
   document.getElementById('ldProg').style.width='100%';
-  setTimeout(async()=>{
-    if(user){
-      currentUser=user;
-      // Load profile
-      try{
-        const doc=await db.collection('riders').doc(user.uid).get();
-        const d=doc.data()||{};
-        const n=d.name||user.displayName||'Rider';
-        document.getElementById('greetTxt').textContent='හෙලෝ, '+n.split(' ')[0]+'! 👋';
-        document.getElementById('sbName').textContent=n;
-        document.getElementById('sbEmail').textContent=user.email||d.phone||'';
-      }catch(e){}
-      // Check location permission & go to app
+  if(user){
+    currentUser=user;
+    try{
+      const doc=await db.collection('riders').doc(user.uid).get();
+      const d=doc.data()||{};
+      const n=d.name||user.displayName||'Rider';
+      document.getElementById('greetTxt').textContent='හෙලෝ, '+n.split(' ')[0]+'! 👋';
+      document.getElementById('sbName').textContent=n;
+      document.getElementById('sbEmail').textContent=user.email||d.phone||'';
+    }catch(e){ console.warn('Profile load:',e.message); }
+    listenActiveRide();
+    // Show app after brief loading UX
+    setTimeout(()=>{
       if(navigator.permissions){
-        try{
-          const r=await navigator.permissions.query({name:'geolocation'});
-          if(r.state==='granted'){
-            show('scApp');
-            // tryGetLocation called by initMap when map is ready,
-            // but if map is already ready, call it now
-            if(map) tryGetLocation();
-          } else if(r.state==='prompt'){
-            show('scPerm');
-          } else {
-            // denied
-            show('scApp');
-            document.getElementById('topLocTxt').textContent='📍 Location blocked';
-          }
-        }catch(e){show('scPerm');}
-      }else{
-        show('scPerm');
-      }
-      listenActiveRide();
-    }else{
-      currentUser=null;
-      show('scAuth');
-    }
-  },1800);
+        navigator.permissions.query({name:'geolocation'}).then(r=>{
+          if(r.state==='granted'){ show('scApp'); if(map) tryGetLocation(); }
+          else if(r.state==='prompt'){ show('scPerm'); }
+          else { show('scApp'); document.getElementById('topLocTxt').textContent='📍 Location blocked'; }
+        }).catch(()=>show('scPerm'));
+      }else{ show('scPerm'); }
+    },800);
+  }else{
+    currentUser=null;
+    setTimeout(()=>show('scAuth'),800);
+  }
 });
 
 // ══ LOCATION PERMISSION SCREEN ══
@@ -1741,73 +1728,68 @@ function showPanel(p){
 }
 
 // ══ RIDE LISTENERS ══
-let _liveFareStarted = false;
-let _lastRideStatus = null;
+let _liveFareStarted=false, _lastRideStatus=null, _activeRideListenerId=null;
 
 function listenRide(id){
-  if(rideListener)rideListener();
-  _liveFareStarted = false;
-  _lastRideStatus = null;
+  if(rideListener){ rideListener(); rideListener=null; }
+  _liveFareStarted=false; _lastRideStatus=null;
   rideListener=db.collection('rides').doc(id).onSnapshot(snap=>{
-    const d=snap.data();
-    if(!d)return;
+    const d=snap.data(); if(!d)return;
     const status=d.status;
-
-    // Avoid re-processing same status unnecessarily
     if(status===_lastRideStatus && status!=='in_progress') return;
     _lastRideStatus=status;
-
     if(status==='accepted'){
       activeRideId=id;
       showDriver(d);
       _liveFareStarted=false;
-    }
-    else if(status==='in_progress'){
+    } else if(status==='in_progress'){
       activeRideId=id;
       showDriver(d);
       if(!_liveFareStarted){ _liveFareStarted=true; startLiveFare(d); }
-      // Show live fare from driver
-      if(d.liveFare && d.liveDistMeters){
+      if(d.liveFare&&d.liveDistMeters){
         document.getElementById('dFare').textContent='Rs. '+d.liveFare;
         document.getElementById('dDist').textContent=formatDist(d.liveDistMeters);
       }
-    }
-    else if(status==='completed'){
-      stopDriverTrack();
+    } else if(status==='completed'){
+      stopDriverTrack(); stopLiveFare();
+      chatIsOpen=false; chatUnreadCount=0; updateUnreadBadge();
+      window._incomingCallSetup=false;
+      if(_incomingCallListener){ _incomingCallListener(); _incomingCallListener=null; }
       showRatingScreen(d);
-    }
-    else if(status==='cancelled_driver'){
+    } else if(status==='cancelled_driver'){
       toast('❌ Driver cancelled');
-      activeRideId=null;
+      activeRideId=null; stopDriverTrack();
+      chatIsOpen=false; chatUnreadCount=0;
+      window._incomingCallSetup=false;
+      if(_incomingCallListener){ _incomingCallListener(); _incomingCallListener=null; }
       showPanel('search');
     }
-  },err=>console.error('listenRide error:',err));
+  },err=>console.error('listenRide:',err));
 }
 
 function listenActiveRide(){
   if(!currentUser)return;
-  let _lastActiveId=null;
   db.collection('rides').where('riderId','==',currentUser.uid).onSnapshot(snap=>{
     const active=snap.docs
       .filter(d=>['searching','accepted','in_progress'].includes(d.data().status))
       .sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
     if(active.length>0){
-      const doc=active[0];
-      const d=doc.data();
-      // Only re-setup listener if ride ID changed
-      if(doc.id!==_lastActiveId){
-        _lastActiveId=doc.id;
+      const doc=active[0]; const d=doc.data();
+      if(doc.id!==_activeRideListenerId){
+        _activeRideListenerId=doc.id;
         activeRideId=doc.id;
         listenRide(doc.id);
+        // UI for status that listenRide won't see (already searching)
+        if(d.status==='searching') showPanel('search');
       }
-      // Always update UI
-      if(d.status==='accepted'||d.status==='in_progress') showDriver(d);
-      else if(d.status==='searching') showPanel('search');
     }
   });
 }
 
+let _showDriverBusy=false;
 async function showDriver(data){
+  if(_showDriverBusy) return;
+  _showDriverBusy=true;
   const vIcon=VTICONS[data.vehicleType]||'🚗';
   document.getElementById('dAvi').textContent=vIcon;
   document.getElementById('dName').textContent=data.driverName||'Driver';
@@ -1816,7 +1798,6 @@ async function showDriver(data){
   document.getElementById('dRating').textContent=(data.driverRating||5.0);
   document.getElementById('dETA').textContent=(data.eta||'~3')+' min';
   showPanel('driver');
-  // Fetch real profile
   if(data.driverId){
     try{
       const dd=(await db.collection('drivers').doc(data.driverId).get()).data()||{};
@@ -1828,8 +1809,13 @@ async function showDriver(data){
       _driverProfile={...dd,driverId:data.driverId};
     }catch(e){}
     startDriverTrack(data);
-    listenIncomingCall(); // Start listening for in-app calls from driver
+    // Only setup incoming call listener once per ride
+    if(!window._incomingCallSetup){
+      window._incomingCallSetup=true;
+      listenIncomingCall();
+    }
   }
+  _showDriverBusy=false;
 }
 
 // ══ DRIVER TRACKING — Live 2s update + Live fare ══
@@ -2128,9 +2114,11 @@ function _setCallUI(name, icon, status, sub){
 
 // ══ INCOMING CALL FROM DRIVER (Answerer side) ══
 let incomingCallTimeout=null;
+let _incomingCallListener=null;
 function listenIncomingCall(){
   if(!activeRideId)return;
-  db.collection('rides').doc(activeRideId).onSnapshot(snap=>{
+  if(_incomingCallListener){ _incomingCallListener(); _incomingCallListener=null; }
+  _incomingCallListener=db.collection('rides').doc(activeRideId).onSnapshot(snap=>{
     const d=snap.data();
     if(d?.inAppCallFromDriver&&d?.inAppCallStatus==='calling'){
       showIncomingCallBanner(d);
@@ -2245,9 +2233,8 @@ function loadChat(){
   if(chatListener){chatListener();chatListener=null;}
   chatListener=db.collection('rides').doc(activeRideId).collection('messages')
     .orderBy('ts').onSnapshot(snap=>{
-      const noMsg=document.getElementById('chatNoMsg');
-      const typing=document.getElementById('typingBubble');
-      noMsg.style.display=snap.empty?'block':'none';
+      const wasEmpty=snap.empty;
+      document.getElementById('chatNoMsg').style.display=wasEmpty?'block':'none';
       const html=snap.docs.map(d=>{
         const m=d.data();
         const me=m.senderId===currentUser?.uid;
@@ -2256,8 +2243,11 @@ function loadChat(){
         if(!me&&!m.read&&!chatIsOpen){chatUnreadCount++;updateUnreadBadge();}
         return`<div class="cmsg ${me?'me':'them'}"><div class="cmsg-b">${esc(m.text||'')}</div><div class="cmsg-t">${me?'You':'Driver'} • ${t} ${readTick}</div></div>`;
       }).join('');
-      c.innerHTML='';c.appendChild(noMsg);c.insertAdjacentHTML('beforeend',html);
-      c.appendChild(typing);
+      // Safe render — don't move DOM nodes, use innerHTML + keep typing bubble via CSS
+      const typingVisible=document.getElementById('typingBubble').style.display;
+      c.innerHTML=(wasEmpty?'<div class="chat-no-msg" id="chatNoMsg" style="display:block">💬 Chat start කරන්න</div>':'<div class="chat-no-msg" id="chatNoMsg" style="display:none">💬 Chat start කරන්න</div>')
+        +html
+        +'<div class="typing-bubble" id="typingBubble" style="display:'+typingVisible+'"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
       c.scrollTop=c.scrollHeight;
     },e=>console.log('chat:',e.message));
 }
@@ -2290,9 +2280,8 @@ function listenTyping(){
   db.collection('rides').doc(activeRideId).onSnapshot(snap=>{
     const isTyping=snap.data()?.driverTyping||false;
     const tb=document.getElementById('typingBubble');
-    const c=document.getElementById('chatMsgs');
-    tb.style.display=isTyping?'block':'none';
-    if(isTyping)c.scrollTop=c.scrollHeight;
+    if(tb){ tb.style.display=isTyping?'block':'none'; }
+    if(isTyping){ const c=document.getElementById('chatMsgs'); if(c)c.scrollTop=c.scrollHeight; }
   });
 }
 

@@ -657,7 +657,23 @@ input:checked+.d-ts-slider::before{transform:translateX(22px);}
 
 <div id="toast"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" defer></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script>
+// ══ PRE-DECLARE initMap as window global BEFORE Maps API loads ══
+window.initMap = function(){
+  try{
+    map=new google.maps.Map(document.getElementById('map'),{
+      center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
+      styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
+    });
+    navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
+      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
+    },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
+  }catch(e){console.warn('Map init error:',e.message);}
+};
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3vnm04yRr6Fz0NVdMHWOcd2PL7TffAfk&libraries=geometry&callback=initMap" async defer></script>
 <script>
 // ══ FIREBASE ══
 const firebaseConfig={apiKey:"AIzaSyARwN5Iho-m96PWEQOAbKIJhPyEjOM7ZVA",authDomain:"tuktuk-d428d.firebaseapp.com",databaseURL:"https://tuktuk-d428d-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"tuktuk-d428d",storageBucket:"tuktuk-d428d.firebasestorage.app",messagingSenderId:"1064642828578",appId:"1:1064642828578:web:02086769db0e407a41ed7b"};
@@ -706,19 +722,7 @@ setTimeout(()=>{
   }
 },10000);
 
-// ══ MAP ══
-function initMap(){
-  try{
-    map=new google.maps.Map(document.getElementById('map'),{
-      center:{lat:7.8731,lng:80.7718},zoom:10,disableDefaultUI:true,gestureHandling:'greedy',
-      styles:[{featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a2e'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a40'}]},{featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#33334d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#1e1e30'}]},{featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8888aa'}]}]
-    });
-    navigator.geolocation&&navigator.geolocation.getCurrentPosition(pos=>{
-      const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
-      map.setCenter(loc);map.setZoom(15);placeDriverMarker(loc);
-    },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:30000});
-  }catch(e){console.warn('Map init error:',e.message);}
-}
+// ══ MAP — initMap defined above as window.initMap before Maps API loads ══
 
 function placeDriverMarker(loc){
   const vIcon=VTICONS[selVType]||'🚗';

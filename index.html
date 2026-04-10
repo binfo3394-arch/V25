@@ -9,8 +9,7 @@
 <!-- Firebase SDKs -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, push, onValue, onChildAdded, remove, update, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp as fsTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getDatabase, ref, set, get, push, onValue, onChildAdded, remove, onDisconnect, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   // ========== FIREBASE CONFIG ==========
   const firebaseConfig = {
@@ -26,7 +25,6 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  const firestore = getFirestore(app);
 
   // ========== STATE ==========
   let localStream = null;
@@ -37,6 +35,7 @@
   let isMuted = false;
   let isVideoOff = false;
   let callMode = 'video'; // 'video' or 'audio'
+  let unsubFns = []; // Firebase listener unsubscribers
 
   const iceServers = {
     iceServers: [
@@ -126,6 +125,7 @@
   }
 
   // ========== WEBRTC ==========
+  // ICE path convention: ice/{sender}/{receiver}
   async function createPeer(remoteId, initiator) {
     if (peers[remoteId]) return;
 
@@ -135,16 +135,18 @@
     // Add local tracks
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-    // ICE candidates
+    // BUG7 FIX: ICE path = ice/{myId}/{remoteId} so remote reads ice/{remoteId}/{myId}
     pc.onicecandidate = async e => {
       if (e.candidate) {
-        const candRef = ref(db, `rooms/${currentRoom}/ice/${remoteId}/${userId}`);
-        await push(candRef, e.candidate.toJSON());
+        await push(ref(db, `rooms/${currentRoom}/ice/${userId}/${remoteId}`), e.candidate.toJSON());
       }
     };
 
-    // Remote stream
+    // BUG5 FIX: guard duplicate tiles with a flag
+    let trackAdded = false;
     pc.ontrack = e => {
+      if (trackAdded) return;
+      trackAdded = true;
       const userRef = ref(db, `rooms/${currentRoom}/users/${remoteId}`);
       get(userRef).then(snap => {
         const name = snap.val()?.name || remoteId;
@@ -154,27 +156,28 @@
     };
 
     if (initiator) {
+      // BUG2 FIX: await setLocalDescription before writing offer to Firebase
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       await set(ref(db, `rooms/${currentRoom}/offers/${remoteId}/${userId}`), {
-        sdp: offer.sdp,
-        type: offer.type
+        sdp: pc.localDescription.sdp,
+        type: pc.localDescription.type
       });
-    }
 
-    // Listen for answer
-    if (initiator) {
-      onValue(ref(db, `rooms/${currentRoom}/answers/${userId}/${remoteId}`), async snap => {
-        if (snap.val() && pc.signalingState !== 'stable') {
-          await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
+      // Listen for answer
+      const answerUnsub = onValue(ref(db, `rooms/${currentRoom}/answers/${userId}/${remoteId}`), async snap => {
+        if (snap.val() && pc.signalingState === 'have-local-offer') {
+          try { await pc.setRemoteDescription(new RTCSessionDescription(snap.val())); } catch {}
         }
       });
+      unsubFns.push(answerUnsub);
     }
 
-    // Listen for ICE from remote
-    onChildAdded(ref(db, `rooms/${currentRoom}/ice/${userId}/${remoteId}`), async snap => {
+    // BUG7 FIX: listen on ice/{remoteId}/{myId} (remote writes to their own id first)
+    const iceUnsub = onChildAdded(ref(db, `rooms/${currentRoom}/ice/${remoteId}/${userId}`), async snap => {
       try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch {}
     });
+    unsubFns.push(iceUnsub);
 
     return pc;
   }
@@ -185,13 +188,18 @@
 
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
+    // BUG7 FIX: write ICE to ice/{myId}/{fromId}
     pc.onicecandidate = async e => {
       if (e.candidate) {
-        await push(ref(db, `rooms/${currentRoom}/ice/${fromId}/${userId}`), e.candidate.toJSON());
+        await push(ref(db, `rooms/${currentRoom}/ice/${userId}/${fromId}`), e.candidate.toJSON());
       }
     };
 
+    // BUG5 FIX: guard duplicate tiles
+    let trackAdded = false;
     pc.ontrack = e => {
+      if (trackAdded) return;
+      trackAdded = true;
       const userRef = ref(db, `rooms/${currentRoom}/users/${fromId}`);
       get(userRef).then(snap => {
         const name = snap.val()?.name || fromId;
@@ -205,13 +213,15 @@
     await pc.setLocalDescription(answer);
 
     await set(ref(db, `rooms/${currentRoom}/answers/${fromId}/${userId}`), {
-      sdp: answer.sdp,
-      type: answer.type
+      sdp: pc.localDescription.sdp,
+      type: pc.localDescription.type
     });
 
-    onChildAdded(ref(db, `rooms/${currentRoom}/ice/${userId}/${fromId}`), async snap => {
+    // BUG7 FIX: listen on ice/{fromId}/{myId}
+    const iceUnsub = onChildAdded(ref(db, `rooms/${currentRoom}/ice/${fromId}/${userId}`), async snap => {
       try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch {}
     });
+    unsubFns.push(iceUnsub);
   }
 
   // ========== ROOM ==========
@@ -247,42 +257,43 @@
     onDisconnect(ref(db, `rooms/${roomId}/answers/${userId}`)).remove();
     onDisconnect(ref(db, `rooms/${roomId}/ice/${userId}`)).remove();
 
-    // Listen for existing + new users
-    onChildAdded(ref(db, `rooms/${roomId}/users`), async snap => {
+    // BUG1 FIX: store all unsubscribers so we can clean up on leave
+    unsubFns = [];
+
+    const u1 = onChildAdded(ref(db, `rooms/${roomId}/users`), async snap => {
       const remoteId = snap.key;
       if (remoteId === userId) return;
-      // I join after them → I initiate
       showNotif(`${snap.val().name} joined`, 'info');
       await createPeer(remoteId, true);
     });
+    unsubFns.push(u1);
 
-    // Listen for offers addressed to me
-    onChildAdded(ref(db, `rooms/${roomId}/offers/${userId}`), async snap => {
+    const u2 = onChildAdded(ref(db, `rooms/${roomId}/offers/${userId}`), async snap => {
       const fromId = snap.key;
       if (!peers[fromId]) {
         await handleOffer(fromId, snap.val());
       }
     });
+    unsubFns.push(u2);
 
-    // Listen for user leaves
-    onValue(ref(db, `rooms/${roomId}/users`), snap => {
+    const u3 = onValue(ref(db, `rooms/${roomId}/users`), snap => {
       const activeIds = snap.val() ? Object.keys(snap.val()) : [];
       Object.keys(peers).forEach(pid => {
         if (!activeIds.includes(pid)) {
           peers[pid]?.close();
           delete peers[pid];
           removeVideoTile(pid);
-          showNotif(`A user left the room`, 'warning');
+          showNotif('A user left the room', 'warning');
         }
       });
     });
+    unsubFns.push(u3);
 
-    // Chat via Realtime Database (guaranteed real-time sync for all users)
-    const chatRef = ref(db, `rooms/${roomId}/chat`);
-    onChildAdded(chatRef, snap => {
+    const u4 = onChildAdded(ref(db, `rooms/${roomId}/chat`), snap => {
       const data = snap.val();
       if (data) renderChatMsg(data);
     });
+    unsubFns.push(u4);
 
     // Switch to call UI
     hide('join-screen');
@@ -319,12 +330,31 @@
   }
 
   async function leaveRoom() {
+    // BUG1 FIX: unsubscribe all Firebase listeners
+    unsubFns.forEach(unsub => { try { unsub(); } catch {} });
+    unsubFns = [];
+
     Object.values(peers).forEach(pc => pc.close());
     peers = {};
     localStream?.getTracks().forEach(t => t.stop());
     localStream = null;
-    await remove(ref(db, `rooms/${currentRoom}/users/${userId}`));
+
+    if (currentRoom) {
+      await remove(ref(db, `rooms/${currentRoom}/users/${userId}`));
+    }
     currentRoom = null;
+
+    // BUG6 FIX: reset callMode to default for next join
+    callMode = 'video';
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+    const videoModeBtn = document.querySelector('.mode-btn[data-mode="video"]');
+    if (videoModeBtn) videoModeBtn.classList.add('selected');
+
+    // BUG3 FIX: reset join button properly
+    $('btn-join').disabled = false;
+    $('btn-join').textContent = 'Join Room →';
+    $('btn-video').style.opacity = '';
+    $('btn-video').style.pointerEvents = '';
 
     $('video-grid').innerHTML = '';
     $('chat-messages').innerHTML = '';

@@ -36,6 +36,7 @@
   let userId = 'user_' + Math.random().toString(36).substr(2, 9);
   let isMuted = false;
   let isVideoOff = false;
+  let callMode = 'video'; // 'video' or 'audio'
 
   const iceServers = {
     iceServers: [
@@ -58,26 +59,43 @@
     setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 400); }, 3000);
   }
 
-  function addVideoTile(uid, stream, name) {
+  function addVideoTile(uid, stream, name, audioOnly = false) {
     const existing = document.querySelector(`[data-uid="${uid}"]`);
     if (existing) return;
 
     const grid = $('video-grid');
     const tile = document.createElement('div');
-    tile.className = 'video-tile';
+    tile.className = 'video-tile' + (audioOnly ? ' audio-only' : '');
     tile.dataset.uid = uid;
 
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    if (uid === userId) video.muted = true;
-    video.srcObject = stream;
+    if (!audioOnly && stream && stream.getVideoTracks().length > 0) {
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      if (uid === userId) video.muted = true;
+      video.srcObject = stream;
+      tile.appendChild(video);
+    } else {
+      // Audio only — show avatar
+      const avatar = document.createElement('div');
+      avatar.className = 'audio-avatar';
+      const initials = (name || uid).split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+      avatar.innerHTML = `<div class="avatar-circle">${initials}</div>`;
+      // Still attach audio
+      if (stream) {
+        const audio = document.createElement('audio');
+        audio.autoplay = true;
+        if (uid === userId) audio.muted = true;
+        audio.srcObject = stream;
+        tile.appendChild(audio);
+      }
+      tile.appendChild(avatar);
+    }
 
     const label = document.createElement('div');
     label.className = 'tile-label';
     label.textContent = name || uid;
 
-    tile.appendChild(video);
     tile.appendChild(label);
     grid.appendChild(tile);
     updateGridLayout();
@@ -130,7 +148,8 @@
       const userRef = ref(db, `rooms/${currentRoom}/users/${remoteId}`);
       get(userRef).then(snap => {
         const name = snap.val()?.name || remoteId;
-        addVideoTile(remoteId, e.streams[0], name);
+        const audioOnly = callMode === 'audio' || e.streams[0].getVideoTracks().length === 0;
+        addVideoTile(remoteId, e.streams[0], name, audioOnly);
       });
     };
 
@@ -176,7 +195,8 @@
       const userRef = ref(db, `rooms/${currentRoom}/users/${fromId}`);
       get(userRef).then(snap => {
         const name = snap.val()?.name || fromId;
-        addVideoTile(fromId, e.streams[0], name);
+        const audioOnly = callMode === 'audio' || e.streams[0].getVideoTracks().length === 0;
+        addVideoTile(fromId, e.streams[0], name, audioOnly);
       });
     };
 
@@ -199,15 +219,23 @@
     currentRoom = roomId;
     currentUser = userName;
 
-    // Get local media
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    } catch {
+    // Get local media based on callMode
+    if (callMode === 'video') {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        callMode = 'audio';
+        showNotif('Camera not available, switching to voice call', 'warning');
+      }
+    } else {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      showNotif('Camera not available, audio only', 'warning');
     }
 
-    addVideoTile(userId, localStream, userName + ' (You)');
+    // Store mode in DB so others know
+    await set(ref(db, `rooms/${roomId}/meta/mode`), callMode);
+
+    addVideoTile(userId, localStream, userName + ' (You)', callMode === 'audio');
 
     // Register user in Realtime DB
     const userRef = ref(db, `rooms/${roomId}/users/${userId}`);
@@ -314,10 +342,32 @@
   }
 
   function toggleVideo() {
+    if (callMode === 'audio') {
+      showNotif('Voice call mode — video not available', 'warning');
+      return;
+    }
     isVideoOff = !isVideoOff;
     localStream?.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
     $('btn-video').classList.toggle('active', isVideoOff);
     $('btn-video').querySelector('.ctrl-icon').textContent = isVideoOff ? '📵' : '📹';
+    // Toggle local tile between video and avatar
+    const myTile = document.querySelector(`[data-uid="${userId}"]`);
+    if (myTile) {
+      if (isVideoOff) {
+        myTile.querySelector('video') && (myTile.querySelector('video').style.display = 'none');
+        if (!myTile.querySelector('.audio-avatar')) {
+          const av = document.createElement('div');
+          av.className = 'audio-avatar';
+          const initials = currentUser.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+          av.innerHTML = `<div class="avatar-circle">${initials}</div>`;
+          myTile.insertBefore(av, myTile.querySelector('.tile-label'));
+        }
+      } else {
+        myTile.querySelector('video') && (myTile.querySelector('video').style.display = '');
+        const av = myTile.querySelector('.audio-avatar');
+        if (av) av.remove();
+      }
+    }
   }
 
   function toggleChat() {
@@ -333,6 +383,15 @@
   // ========== INIT ==========
   window.addEventListener('DOMContentLoaded', () => {
     // Join form
+    // Call mode toggle
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        callMode = btn.dataset.mode;
+      });
+    });
+
     $('btn-join').addEventListener('click', async () => {
       const name = $('input-name').value.trim();
       const room = $('input-room').value.trim() || 'room_' + Math.random().toString(36).substr(2,6);
@@ -341,6 +400,14 @@
       $('btn-join').textContent = 'Joining…';
       try {
         await joinRoom(room, name);
+        // Show/hide video btn based on mode
+        if (callMode === 'audio') {
+          $('btn-video').style.opacity = '0.4';
+          $('btn-video').style.pointerEvents = 'none';
+          $('call-mode-badge').textContent = '🎙️ Voice Call';
+        } else {
+          $('call-mode-badge').textContent = '📹 Video Call';
+        }
       } catch (e) {
         showNotif('Error: ' + e.message, 'error');
         $('btn-join').disabled = false;
@@ -833,6 +900,77 @@
 
   .config-warning a { color: var(--accent2); text-decoration: underline; }
 
+
+  /* ===== CALL MODE SELECTOR ===== */
+  .mode-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 10px;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-dim);
+  }
+
+  .mode-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .mode-btn.selected {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.15);
+    color: var(--text);
+  }
+
+  .mode-icon { font-size: 1.5rem; line-height: 1; }
+  .mode-label { font-size: 0.8rem; font-weight: 600; font-family: 'Syne', sans-serif; }
+
+  /* ===== AUDIO AVATAR ===== */
+  .video-tile.audio-only {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  }
+
+  .audio-avatar {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-circle {
+    width: clamp(56px, 20%, 90px);
+    height: clamp(56px, 20%, 90px);
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(108,99,255,0.3), 0 8px 24px rgba(0,0,0,0.4);
+    animation: avatarPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes avatarPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(108,99,255,0.3), 0 8px 24px rgba(0,0,0,0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(108,99,255,0.1), 0 8px 24px rgba(0,0,0,0.4); }
+  }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -852,6 +990,18 @@
   <div class="join-card">
     <div class="logo">SanChat</div>
     <div class="tagline">Unlimited users · Real-time video & chat</div>
+
+    <label>Call Type</label>
+    <div class="mode-selector">
+      <button class="mode-btn selected" data-mode="video">
+        <span class="mode-icon">📹</span>
+        <span class="mode-label">Video Call</span>
+      </button>
+      <button class="mode-btn" data-mode="audio">
+        <span class="mode-icon">🎙️</span>
+        <span class="mode-label">Voice Call</span>
+      </button>
+    </div>
 
     <label>Your Name</label>
     <input type="text" id="input-name" placeholder="Enter your name..." autocomplete="off">
@@ -883,7 +1033,7 @@
       Room: <span id="room-id-display">—</span>
       <span style="opacity:0.5">📋</span>
     </div>
-    <div style="width:80px"></div>
+    <div id="call-mode-badge" style="font-size:0.78rem;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 12px;">📹 Video Call</div>
   </div>
 
   <!-- Content -->

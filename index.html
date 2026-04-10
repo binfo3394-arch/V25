@@ -24,28 +24,46 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const db  = getDatabase(app);
 
   // ========== STATE ==========
-  let localStream = null;
-  let peers = {}; // { userId: RTCPeerConnection }
-  let currentRoom = null;
-  let currentUser = null;
-  let userId = 'user_' + Math.random().toString(36).substr(2, 9);
-  let isMuted = false;
-  let isVideoOff = false;
-  let callMode = 'video'; // 'video' or 'audio'
-  let unsubFns = []; // Firebase listener unsubscribers
+  let localStream  = null;
+  let peers        = {};          // remoteId → { pc, iceBuf }
+  let currentRoom  = null;
+  let currentUser  = null;
+  let userId       = 'u_' + Math.random().toString(36).substr(2, 9);
+  let isMuted      = false;
+  let isVideoOff   = false;
+  let callMode     = 'video';     // 'video' | 'audio'
+  let unsubFns     = [];
 
-  const iceServers = {
+  // Free public STUN + TURN servers (metered.ca free tier)
+  const RTC_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:openrelay.metered.ca:80' },
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ]
   };
 
   // ========== UI HELPERS ==========
-  const $ = id => document.getElementById(id);
+  const $    = id => document.getElementById(id);
   const show = id => $(id).style.display = 'flex';
   const hide = id => $(id).style.display = 'none';
 
@@ -55,173 +73,210 @@
     n.textContent = msg;
     document.body.appendChild(n);
     setTimeout(() => n.classList.add('show'), 10);
-    setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 400); }, 3000);
+    setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 400); }, 3500);
+  }
+
+  function getInitials(name) {
+    return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   }
 
   function addVideoTile(uid, stream, name, audioOnly = false) {
-    const existing = document.querySelector(`[data-uid="${uid}"]`);
-    if (existing) return;
-
+    if (document.querySelector(`[data-uid="${uid}"]`)) return;
     const grid = $('video-grid');
     const tile = document.createElement('div');
     tile.className = 'video-tile' + (audioOnly ? ' audio-only' : '');
     tile.dataset.uid = uid;
 
-    if (!audioOnly && stream && stream.getVideoTracks().length > 0) {
+    if (!audioOnly) {
       const video = document.createElement('video');
       video.autoplay = true;
       video.playsInline = true;
-      if (uid === userId) video.muted = true;
-      video.srcObject = stream;
+      video.muted = (uid === userId);
+      if (stream) video.srcObject = stream;
       tile.appendChild(video);
     } else {
-      // Audio only — show avatar
-      const avatar = document.createElement('div');
-      avatar.className = 'audio-avatar';
-      const initials = (name || uid).split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
-      avatar.innerHTML = `<div class="avatar-circle">${initials}</div>`;
-      // Still attach audio
-      if (stream) {
+      // audio element (hidden) for playback
+      if (stream && uid !== userId) {
         const audio = document.createElement('audio');
         audio.autoplay = true;
-        if (uid === userId) audio.muted = true;
         audio.srcObject = stream;
         tile.appendChild(audio);
       }
-      tile.appendChild(avatar);
+      const av = document.createElement('div');
+      av.className = 'audio-avatar';
+      av.innerHTML = `<div class="avatar-circle">${getInitials(name)}</div>`;
+      tile.appendChild(av);
     }
 
     const label = document.createElement('div');
     label.className = 'tile-label';
     label.textContent = name || uid;
-
     tile.appendChild(label);
+
     grid.appendChild(tile);
     updateGridLayout();
   }
 
-  function removeVideoTile(uid) {
+  // Update an existing tile's stream (e.g. when remote track arrives)
+  function updateTileStream(uid, stream, audioOnly) {
     const tile = document.querySelector(`[data-uid="${uid}"]`);
-    if (tile) { tile.remove(); updateGridLayout(); }
+    if (!tile) return;
+    if (!audioOnly) {
+      let video = tile.querySelector('video');
+      if (!video) {
+        video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = (uid === userId);
+        tile.insertBefore(video, tile.firstChild);
+        tile.classList.remove('audio-only');
+        // remove avatar if present
+        tile.querySelector('.audio-avatar')?.remove();
+      }
+      video.srcObject = stream;
+    } else {
+      let audio = tile.querySelector('audio');
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.autoplay = true;
+        tile.appendChild(audio);
+      }
+      audio.srcObject = stream;
+    }
+  }
+
+  function removeVideoTile(uid) {
+    document.querySelector(`[data-uid="${uid}"]`)?.remove();
+    updateGridLayout();
   }
 
   function updateGridLayout() {
     const grid = $('video-grid');
     const count = grid.children.length;
     if (count === 0) return;
-
-    // Calculate optimal columns/rows to fill the screen
-    const cols = count === 1 ? 1
-               : count === 2 ? 2
-               : count <= 4 ? 2
-               : count <= 6 ? 3
-               : count <= 9 ? 3
-               : 4;
+    const cols = count === 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
     const rows = Math.ceil(count / cols);
-
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    grid.style.alignItems = 'stretch';
+    grid.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
   }
 
   // ========== WEBRTC ==========
-  // ICE path convention: ice/{sender}/{receiver}
-  async function createPeer(remoteId, initiator) {
-    if (peers[remoteId]) return;
+  // Signaling paths:
+  //   offer  : rooms/{room}/offers/{toId}/{fromId}
+  //   answer : rooms/{room}/answers/{toId}/{fromId}
+  //   ICE    : rooms/{room}/ice/{toId}/{fromId}/...
 
-    const pc = new RTCPeerConnection(iceServers);
-    peers[remoteId] = pc;
+  function createPeerConnection(remoteId) {
+    const pc    = new RTCPeerConnection(RTC_CONFIG);
+    const iceBuf = [];   // buffer ICE until remoteDescription is set
+    peers[remoteId] = { pc, iceBuf };
 
     // Add local tracks
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    // BUG7 FIX: ICE path = ice/{myId}/{remoteId} so remote reads ice/{remoteId}/{myId}
-    pc.onicecandidate = async e => {
+    // My ICE → write to ice/{remoteId}/{myId}
+    pc.onicecandidate = e => {
       if (e.candidate) {
-        await push(ref(db, `rooms/${currentRoom}/ice/${userId}/${remoteId}`), e.candidate.toJSON());
+        push(ref(db, `rooms/${currentRoom}/ice/${remoteId}/${userId}`), e.candidate.toJSON());
       }
     };
 
-    // BUG5 FIX: guard duplicate tiles with a flag
-    let trackAdded = false;
-    pc.ontrack = e => {
-      if (trackAdded) return;
-      trackAdded = true;
-      const userRef = ref(db, `rooms/${currentRoom}/users/${remoteId}`);
-      get(userRef).then(snap => {
-        const name = snap.val()?.name || remoteId;
-        const audioOnly = callMode === 'audio' || e.streams[0].getVideoTracks().length === 0;
-        addVideoTile(remoteId, e.streams[0], name, audioOnly);
-      });
+    pc.onconnectionstatechange = () => {
+      console.log(`[${remoteId}] connection: ${pc.connectionState}`);
+      if (pc.connectionState === 'failed') {
+        pc.restartIce();
+      }
     };
 
-    if (initiator) {
-      // BUG2 FIX: await setLocalDescription before writing offer to Firebase
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await set(ref(db, `rooms/${currentRoom}/offers/${remoteId}/${userId}`), {
-        sdp: pc.localDescription.sdp,
-        type: pc.localDescription.type
-      });
+    // Remote tracks → render
+    const remoteStream = new MediaStream();
+    pc.ontrack = e => {
+      e.track.onunmute = () => {
+        remoteStream.addTrack(e.track);
+        get(ref(db, `rooms/${currentRoom}/users/${remoteId}`)).then(snap => {
+          const name     = snap.val()?.name || remoteId;
+          const hasVideo = remoteStream.getVideoTracks().length > 0;
+          const audioOnly = callMode === 'audio' || !hasVideo;
+          if (!document.querySelector(`[data-uid="${remoteId}"]`)) {
+            addVideoTile(remoteId, remoteStream, name, audioOnly);
+          } else {
+            updateTileStream(remoteId, remoteStream, audioOnly);
+          }
+        });
+      };
+    };
 
-      // Listen for answer
-      const answerUnsub = onValue(ref(db, `rooms/${currentRoom}/answers/${userId}/${remoteId}`), async snap => {
-        if (snap.val() && pc.signalingState === 'have-local-offer') {
-          try { await pc.setRemoteDescription(new RTCSessionDescription(snap.val())); } catch {}
-        }
-      });
-      unsubFns.push(answerUnsub);
-    }
-
-    // BUG7 FIX: listen on ice/{remoteId}/{myId} (remote writes to their own id first)
-    const iceUnsub = onChildAdded(ref(db, `rooms/${currentRoom}/ice/${remoteId}/${userId}`), async snap => {
-      try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch {}
+    // Listen for ICE from remote: ice/{myId}/{remoteId}
+    const iceRef = ref(db, `rooms/${currentRoom}/ice/${userId}/${remoteId}`);
+    const iceUnsub = onChildAdded(iceRef, async snap => {
+      const cand = snap.val();
+      if (!cand) return;
+      if (pc.remoteDescription) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+      } else {
+        iceBuf.push(cand);
+      }
     });
     unsubFns.push(iceUnsub);
 
     return pc;
   }
 
-  async function handleOffer(fromId, offer) {
-    const pc = new RTCPeerConnection(iceServers);
-    peers[fromId] = pc;
+  async function flushIceBuf(remoteId) {
+    const entry = peers[remoteId];
+    if (!entry) return;
+    const { pc, iceBuf } = entry;
+    while (iceBuf.length) {
+      const cand = iceBuf.shift();
+      try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+    }
+  }
 
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  // Caller side
+  async function makeOffer(remoteId) {
+    if (peers[remoteId]) return;
+    const pc = createPeerConnection(remoteId);
 
-    // BUG7 FIX: write ICE to ice/{myId}/{fromId}
-    pc.onicecandidate = async e => {
-      if (e.candidate) {
-        await push(ref(db, `rooms/${currentRoom}/ice/${userId}/${fromId}`), e.candidate.toJSON());
-      }
-    };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
-    // BUG5 FIX: guard duplicate tiles
-    let trackAdded = false;
-    pc.ontrack = e => {
-      if (trackAdded) return;
-      trackAdded = true;
-      const userRef = ref(db, `rooms/${currentRoom}/users/${fromId}`);
-      get(userRef).then(snap => {
-        const name = snap.val()?.name || fromId;
-        const audioOnly = callMode === 'audio' || e.streams[0].getVideoTracks().length === 0;
-        addVideoTile(fromId, e.streams[0], name, audioOnly);
-      });
-    };
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    await set(ref(db, `rooms/${currentRoom}/answers/${fromId}/${userId}`), {
+    // Write offer → offers/{remoteId}/{myId}
+    await set(ref(db, `rooms/${currentRoom}/offers/${remoteId}/${userId}`), {
       sdp: pc.localDescription.sdp,
       type: pc.localDescription.type
     });
 
-    // BUG7 FIX: listen on ice/{fromId}/{myId}
-    const iceUnsub = onChildAdded(ref(db, `rooms/${currentRoom}/ice/${fromId}/${userId}`), async snap => {
-      try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch {}
+    // Listen for answer → answers/{myId}/{remoteId}
+    const ansRef = ref(db, `rooms/${currentRoom}/answers/${userId}/${remoteId}`);
+    const ansUnsub = onValue(ansRef, async snap => {
+      if (!snap.val()) return;
+      if (pc.signalingState !== 'have-local-offer') return;
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
+        await flushIceBuf(remoteId);
+      } catch (err) { console.warn('setRemoteDesc answer err', err); }
     });
-    unsubFns.push(iceUnsub);
+    unsubFns.push(ansUnsub);
+  }
+
+  // Callee side
+  async function handleOffer(fromId, offerData) {
+    if (peers[fromId]) return;
+    const pc = createPeerConnection(fromId);
+
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offerData));
+      await flushIceBuf(fromId);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // Write answer → answers/{fromId}/{myId}
+      await set(ref(db, `rooms/${currentRoom}/answers/${fromId}/${userId}`), {
+        sdp: pc.localDescription.sdp,
+        type: pc.localDescription.type
+      });
+    } catch (err) { console.warn('handleOffer err', err); }
   }
 
   // ========== ROOM ==========
@@ -229,96 +284,96 @@
     currentRoom = roomId;
     currentUser = userName;
 
-    // Get local media based on callMode
-    if (callMode === 'video') {
-      try {
+    // Get media
+    try {
+      if (callMode === 'video') {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      } catch {
+      } else {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (err) {
+      try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         callMode = 'audio';
-        showNotif('Camera not available, switching to voice call', 'warning');
+        showNotif('Camera not available — voice only', 'warning');
+      } catch {
+        throw new Error('Microphone access denied');
       }
-    } else {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     }
-
-    // Store mode in DB so others know
-    await set(ref(db, `rooms/${roomId}/meta/mode`), callMode);
 
     addVideoTile(userId, localStream, userName + ' (You)', callMode === 'audio');
 
-    // Register user in Realtime DB
+    // Register presence
     const userRef = ref(db, `rooms/${roomId}/users/${userId}`);
-    await set(userRef, { name: userName, joinedAt: Date.now() });
-
-    // Remove on disconnect
+    await set(userRef, { name: userName, joinedAt: Date.now(), mode: callMode });
     onDisconnect(userRef).remove();
-    onDisconnect(ref(db, `rooms/${roomId}/offers/${userId}`)).remove();
-    onDisconnect(ref(db, `rooms/${roomId}/answers/${userId}`)).remove();
-    onDisconnect(ref(db, `rooms/${roomId}/ice/${userId}`)).remove();
 
-    // BUG1 FIX: store all unsubscribers so we can clean up on leave
+    // ── Listeners ──────────────────────────────────────────────────────────
     unsubFns = [];
 
+    // New user joins → I offer them
     const u1 = onChildAdded(ref(db, `rooms/${roomId}/users`), async snap => {
-      const remoteId = snap.key;
-      if (remoteId === userId) return;
+      const rid = snap.key;
+      if (rid === userId) return;
       showNotif(`${snap.val().name} joined`, 'info');
-      await createPeer(remoteId, true);
+      await makeOffer(rid);
     });
     unsubFns.push(u1);
 
+    // Someone sent me an offer
     const u2 = onChildAdded(ref(db, `rooms/${roomId}/offers/${userId}`), async snap => {
-      const fromId = snap.key;
-      if (!peers[fromId]) {
-        await handleOffer(fromId, snap.val());
-      }
+      await handleOffer(snap.key, snap.val());
     });
     unsubFns.push(u2);
 
+    // User leaves
     const u3 = onValue(ref(db, `rooms/${roomId}/users`), snap => {
-      const activeIds = snap.val() ? Object.keys(snap.val()) : [];
+      const active = snap.val() ? Object.keys(snap.val()) : [];
       Object.keys(peers).forEach(pid => {
-        if (!activeIds.includes(pid)) {
-          peers[pid]?.close();
+        if (!active.includes(pid)) {
+          peers[pid]?.pc?.close();
           delete peers[pid];
           removeVideoTile(pid);
-          showNotif('A user left the room', 'warning');
+          showNotif('A user left', 'warning');
         }
       });
     });
     unsubFns.push(u3);
 
+    // Chat
     const u4 = onChildAdded(ref(db, `rooms/${roomId}/chat`), snap => {
-      const data = snap.val();
-      if (data) renderChatMsg(data);
+      if (snap.val()) renderChatMsg(snap.val());
     });
     unsubFns.push(u4);
 
-    // Switch to call UI
     hide('join-screen');
     show('call-screen');
     $('room-id-display').textContent = roomId;
+
+    if (callMode === 'audio') {
+      $('btn-video').style.opacity = '0.4';
+      $('btn-video').style.pointerEvents = 'none';
+      $('call-mode-badge').textContent = '🎙️ Voice Call';
+    } else {
+      $('call-mode-badge').textContent = '📹 Video Call';
+    }
   }
 
+  // ========== CHAT ==========
   async function sendChat() {
     const input = $('chat-input');
-    const text = input.value.trim();
+    const text  = input.value.trim();
     if (!text || !currentRoom) return;
     input.value = '';
-
     await push(ref(db, `rooms/${currentRoom}/chat`), {
-      text,
-      name: currentUser,
-      uid: userId,
-      timestamp: Date.now()
+      text, name: currentUser, uid: userId, ts: Date.now()
     });
   }
 
   function renderChatMsg(data) {
-    const box = $('chat-messages');
+    const box   = $('chat-messages');
     const isMine = data.uid === userId;
-    const div = document.createElement('div');
+    const div   = document.createElement('div');
     div.className = `chat-msg ${isMine ? 'mine' : 'theirs'}`;
     div.innerHTML = `<span class="msg-name">${data.name}</span><p>${escapeHtml(data.text)}</p>`;
     box.appendChild(div);
@@ -329,13 +384,14 @@
     return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // ========== LEAVE ==========
   async function leaveRoom() {
-    // BUG1 FIX: unsubscribe all Firebase listeners
-    unsubFns.forEach(unsub => { try { unsub(); } catch {} });
+    unsubFns.forEach(fn => { try { fn(); } catch {} });
     unsubFns = [];
 
-    Object.values(peers).forEach(pc => pc.close());
+    Object.values(peers).forEach(({ pc }) => pc?.close());
     peers = {};
+
     localStream?.getTracks().forEach(t => t.stop());
     localStream = null;
 
@@ -344,19 +400,22 @@
     }
     currentRoom = null;
 
-    // BUG6 FIX: reset callMode to default for next join
+    // Reset UI
     callMode = 'video';
+    isMuted  = false;
+    isVideoOff = false;
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-    const videoModeBtn = document.querySelector('.mode-btn[data-mode="video"]');
-    if (videoModeBtn) videoModeBtn.classList.add('selected');
-
-    // BUG3 FIX: reset join button properly
-    $('btn-join').disabled = false;
+    document.querySelector('.mode-btn[data-mode="video"]')?.classList.add('selected');
+    $('btn-join').disabled  = false;
     $('btn-join').textContent = 'Join Room →';
     $('btn-video').style.opacity = '';
     $('btn-video').style.pointerEvents = '';
+    $('btn-mute').classList.remove('active');
+    $('btn-mute').querySelector('.ctrl-icon').textContent = '🎙️';
+    $('btn-video').classList.remove('active');
+    $('btn-video').querySelector('.ctrl-icon').textContent = '📹';
 
-    $('video-grid').innerHTML = '';
+    $('video-grid').innerHTML   = '';
     $('chat-messages').innerHTML = '';
     hide('call-screen');
     show('join-screen');
@@ -372,15 +431,11 @@
   }
 
   function toggleVideo() {
-    if (callMode === 'audio') {
-      showNotif('Voice call mode — video not available', 'warning');
-      return;
-    }
+    if (callMode === 'audio') { showNotif('Voice call — video disabled', 'warning'); return; }
     isVideoOff = !isVideoOff;
     localStream?.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
     $('btn-video').classList.toggle('active', isVideoOff);
     $('btn-video').querySelector('.ctrl-icon').textContent = isVideoOff ? '📵' : '📹';
-    // Toggle local tile between video and avatar
     const myTile = document.querySelector(`[data-uid="${userId}"]`);
     if (myTile) {
       if (isVideoOff) {
@@ -388,22 +443,17 @@
         if (!myTile.querySelector('.audio-avatar')) {
           const av = document.createElement('div');
           av.className = 'audio-avatar';
-          const initials = currentUser.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-          av.innerHTML = `<div class="avatar-circle">${initials}</div>`;
+          av.innerHTML = `<div class="avatar-circle">${getInitials(currentUser)}</div>`;
           myTile.insertBefore(av, myTile.querySelector('.tile-label'));
         }
       } else {
         myTile.querySelector('video') && (myTile.querySelector('video').style.display = '');
-        const av = myTile.querySelector('.audio-avatar');
-        if (av) av.remove();
+        myTile.querySelector('.audio-avatar')?.remove();
       }
     }
   }
 
-  function toggleChat() {
-    const panel = $('chat-panel');
-    panel.classList.toggle('open');
-  }
+  function toggleChat() { $('chat-panel').classList.toggle('open'); }
 
   function copyRoomId() {
     navigator.clipboard.writeText($('room-id-display').textContent);
@@ -412,8 +462,6 @@
 
   // ========== INIT ==========
   window.addEventListener('DOMContentLoaded', () => {
-    // Join form
-    // Call mode toggle
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
@@ -424,24 +472,16 @@
 
     $('btn-join').addEventListener('click', async () => {
       const name = $('input-name').value.trim();
-      const room = $('input-room').value.trim() || 'room_' + Math.random().toString(36).substr(2,6);
+      const room = $('input-room').value.trim() || 'room_' + Math.random().toString(36).substr(2, 6);
       if (!name) { showNotif('Please enter your name', 'error'); return; }
-      $('btn-join').disabled = true;
+      $('btn-join').disabled   = true;
       $('btn-join').textContent = 'Joining…';
       try {
         await joinRoom(room, name);
-        // Show/hide video btn based on mode
-        if (callMode === 'audio') {
-          $('btn-video').style.opacity = '0.4';
-          $('btn-video').style.pointerEvents = 'none';
-          $('call-mode-badge').textContent = '🎙️ Voice Call';
-        } else {
-          $('call-mode-badge').textContent = '📹 Video Call';
-        }
       } catch (e) {
         showNotif('Error: ' + e.message, 'error');
-        $('btn-join').disabled = false;
-        $('btn-join').textContent = 'Join Room';
+        $('btn-join').disabled   = false;
+        $('btn-join').textContent = 'Join Room →';
       }
     });
 
@@ -450,10 +490,10 @@
     $('btn-video').addEventListener('click', toggleVideo);
     $('btn-chat').addEventListener('click', toggleChat);
     $('btn-copy-room').addEventListener('click', copyRoomId);
-
     $('chat-send').addEventListener('click', sendChat);
-    $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
-
+    $('chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+    });
     $('btn-new-room').addEventListener('click', () => {
       $('input-room').value = 'room_' + Math.random().toString(36).substr(2, 6);
     });

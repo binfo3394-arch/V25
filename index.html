@@ -236,12 +236,11 @@
       });
     });
 
-    // Chat via Firestore
-    const chatQ = query(collection(firestore, `rooms/${roomId}/messages`), orderBy('timestamp'));
-    onSnapshot(chatQ, snap => {
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') renderChatMsg(change.doc.data());
-      });
+    // Chat via Realtime Database (guaranteed real-time sync for all users)
+    const chatRef = ref(db, `rooms/${roomId}/chat`);
+    onChildAdded(chatRef, snap => {
+      const data = snap.val();
+      if (data) renderChatMsg(data);
     });
 
     // Switch to call UI
@@ -256,11 +255,11 @@
     if (!text || !currentRoom) return;
     input.value = '';
 
-    await addDoc(collection(firestore, `rooms/${currentRoom}/messages`), {
+    await push(ref(db, `rooms/${currentRoom}/chat`), {
       text,
       name: currentUser,
       uid: userId,
-      timestamp: fsTimestamp()
+      timestamp: Date.now()
     });
   }
 

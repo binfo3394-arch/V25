@@ -91,7 +91,20 @@
   function updateGridLayout() {
     const grid = $('video-grid');
     const count = grid.children.length;
-    grid.style.gridTemplateColumns = count <= 1 ? '1fr' : count <= 4 ? 'repeat(2,1fr)' : count <= 9 ? 'repeat(3,1fr)' : 'repeat(4,1fr)';
+    if (count === 0) return;
+
+    // Calculate optimal columns/rows to fill the screen
+    const cols = count === 1 ? 1
+               : count === 2 ? 2
+               : count <= 4 ? 2
+               : count <= 6 ? 3
+               : count <= 9 ? 3
+               : 4;
+    const rows = Math.ceil(count / cols);
+
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    grid.style.alignItems = 'stretch';
   }
 
   // ========== WEBRTC ==========
@@ -525,6 +538,7 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+    min-height: 0;
   }
 
   /* Top bar */
@@ -575,6 +589,7 @@
     flex: 1;
     overflow: hidden;
     position: relative;
+    min-height: 0;
   }
 
   /* Video grid */
@@ -582,19 +597,23 @@
     flex: 1;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 12px;
-    overflow: auto;
+    grid-template-rows: 1fr;
+    gap: 6px;
+    padding: 8px;
+    overflow: hidden;
     background: #050507;
-    transition: grid-template-columns 0.3s;
+    min-height: 0;
+    height: 100%;
+    transition: grid-template-columns 0.3s, grid-template-rows 0.3s;
   }
 
   .video-tile {
     position: relative;
     background: var(--surface);
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
-    aspect-ratio: 16/9;
+    min-height: 0;
+    height: 100%;
     border: 1px solid var(--border);
   }
 

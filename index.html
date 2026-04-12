@@ -3526,117 +3526,447 @@ function checkIfPhonePage() {
     return true;
   }
 
-  // Override the entire body with the phone scanner UI
+  // Override the entire body with polished mobile UI
+  document.head.innerHTML = `
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0A0F1E">
+  <title>BillMate Scanner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"><\/script>
+  `;
   document.body.innerHTML = `
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Plus Jakarta Sans',sans-serif,Arial;background:#0C1424;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
-    h1{font-size:20px;font-weight:800;padding:18px 16px 6px;letter-spacing:-.4px}
-    .subtitle{font-size:12px;color:#7C91AB;margin-bottom:16px;padding:0 16px;text-align:center}
-    .status-bar{width:100%;max-width:480px;padding:10px 16px;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
-    .dot{width:8px;height:8px;border-radius:50%;background:#EAB308;flex-shrink:0}
-    .dot.ok{background:#22C55E} .dot.err{background:#EF4444}
-    #ph-scanner{width:100%;max-width:480px;flex:1;background:#000;position:relative;min-height:300px}
-    #ph-scanner video{width:100%!important}
-    .frame-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
-    .frame{width:240px;height:150px;border:2.5px solid rgba(14,165,233,.85);border-radius:12px;position:relative;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
-    .frame::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#0EA5E9,transparent);animation:sc 1.8s linear infinite}
-    @keyframes sc{0%{top:0}100%{top:calc(100% - 2px)}}
-    .c{position:absolute;width:16px;height:16px;border-color:#0EA5E9;border-style:solid}
-    .c.tl{top:-1px;left:-1px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
-    .c.tr{top:-1px;right:-1px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
-    .c.bl{bottom:-1px;left:-1px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
-    .c.br{bottom:-1px;right:-1px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
-    .log{width:100%;max-width:480px;padding:10px 16px;font-size:12px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
-    .log-item{padding:8px 12px;border-radius:8px;display:flex;gap:8px;align-items:center;animation:fadeIn .2s}
-    .log-item.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3)}
-    .log-item.miss{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2)}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-    .log-bc{font-family:monospace;font-size:11px;color:#7C91AB}
-    .log-name{font-weight:700}
-    .start-btn{margin:16px auto;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer;width:calc(100% - 32px);max-width:448px}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overflow:hidden;background:#0A0F1E;color:#F0F6FF;font-family:'Plus Jakarta Sans',sans-serif;-webkit-font-smoothing:antialiased}
+    body{display:flex;flex-direction:column}
+
+    .ph-app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+    /* Header */
+    .ph-header{
+      flex-shrink:0;
+      padding:env(safe-area-inset-top,14px) 18px 0;
+      padding-top:max(env(safe-area-inset-top),14px);
+      background:#0A0F1E;
+      display:flex;align-items:center;justify-content:space-between;
+      padding-bottom:12px;
+    }
+    .ph-title{font-size:18px;font-weight:800;letter-spacing:-.5px}
+    .ph-subtitle{font-size:11px;color:#4A637A;margin-top:2px;font-weight:500}
+    .conn-pill{
+      display:flex;align-items:center;gap:6px;
+      padding:5px 12px 5px 8px;
+      border-radius:20px;font-size:12px;font-weight:700;
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+      color:#94A3B8;transition:all .3s;
+    }
+    .conn-pill.ok{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.25);color:#34D399}
+    .conn-pill.err{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.2);color:#F87171}
+    .conn-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .conn-dot.pulse{animation:blink 1.4s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+    /* Camera */
+    .cam-wrap{flex-shrink:0;position:relative;width:100%;background:#000;aspect-ratio:4/3;max-height:55vh}
+    #ph-scanner{width:100%;height:100%;position:relative;overflow:hidden}
+    #ph-scanner video{width:100%!important;height:100%!important;object-fit:cover}
+    .cam-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+    .cam-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at center,transparent 40%,rgba(0,0,0,.55) 100%)}
+    .scan-box{position:relative;width:72%;max-width:280px;aspect-ratio:2/1}
+    .scan-border{position:absolute;inset:0;border:2px solid rgba(56,189,248,.7);border-radius:14px}
+    .scan-line{position:absolute;left:8px;right:8px;height:2px;
+      background:linear-gradient(90deg,transparent,#38BDF8,transparent);
+      border-radius:1px;top:0;animation:scanMove 2s ease-in-out infinite}
+    @keyframes scanMove{0%{top:0;opacity:1}85%{top:calc(100% - 2px);opacity:1}100%{top:0;opacity:0}}
+    .sc{position:absolute;width:18px;height:18px;border-color:#38BDF8;border-style:solid}
+    .sc.tl{top:-1px;left:-1px;border-width:3px 0 0 3px;border-radius:5px 0 0 0}
+    .sc.tr{top:-1px;right:-1px;border-width:3px 3px 0 0;border-radius:0 5px 0 0}
+    .sc.bl{bottom:-1px;left:-1px;border-width:0 0 3px 3px;border-radius:0 0 0 5px}
+    .sc.br{bottom:-1px;right:-1px;border-width:0 3px 3px 0;border-radius:0 0 5px 0}
+    .scan-hint-text{
+      position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);
+      font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap;
+      background:rgba(0,0,0,.45);padding:3px 12px;border-radius:20px;
+    }
+
+    .cam-btns{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px}
+    .cam-fab{
+      width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
+      background:rgba(255,255,255,.14);backdrop-filter:blur(10px);
+      display:flex;align-items:center;justify-content:center;
+      -webkit-backdrop-filter:blur(10px);
+    }
+    .cam-fab:active{background:rgba(255,255,255,.28)}
+    .cam-fab svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .cam-fab.torch-on{background:rgba(251,191,36,.25)}
+
+    /* Scroll area */
+    .ph-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 0}
+    .ph-scroll::-webkit-scrollbar{display:none}
+
+    /* Stats strip */
+    .stats-strip{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+      margin-bottom:12px;
+    }
+    .stat-box{
+      background:#111827;border:1px solid rgba(255,255,255,.07);
+      border-radius:12px;padding:10px 10px 8px;text-align:center;
+    }
+    .stat-val{font-size:18px;font-weight:800;letter-spacing:-.6px}
+    .stat-val.blue{color:#38BDF8}
+    .stat-val.green{color:#34D399}
+    .stat-val.warn{color:#FBBF24}
+    .stat-lbl{font-size:10px;color:#4A637A;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+    /* Log */
+    .log-section-title{
+      font-size:10.5px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.8px;color:#4A637A;margin-bottom:8px;
+    }
+    .log-empty{
+      text-align:center;padding:24px 0;
+      color:#4A637A;font-size:13px;
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+    }
+    .log-empty-icon{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:20px}
+
+    .ph-log-item{
+      background:#111827;border:1px solid rgba(255,255,255,.07);
+      border-radius:12px;padding:11px 13px;
+      display:flex;align-items:center;gap:11px;
+      margin-bottom:7px;animation:slideUp .2s ease;
+    }
+    @keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .ph-log-item.ok{border-color:rgba(52,211,153,.18)}
+    .ph-log-item.miss{border-color:rgba(248,113,113,.15)}
+    .ph-log-icon{
+      width:36px;height:36px;border-radius:9px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;font-size:15px;
+    }
+    .ph-log-icon.ok{background:rgba(52,211,153,.1)}
+    .ph-log-icon.miss{background:rgba(248,113,113,.08)}
+    .ph-log-info{flex:1;min-width:0}
+    .ph-log-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ph-log-bc{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#4A637A;margin-top:2px}
+    .ph-log-right{text-align:right;flex-shrink:0}
+    .ph-log-price{font-size:14px;font-weight:800;color:#38BDF8}
+    .ph-log-status{font-size:11px;font-weight:600;margin-top:2px}
+    .ph-log-status.ok{color:#34D399}
+    .ph-log-status.miss{color:#F87171}
+
+    /* Bottom action */
+    .ph-bottom{
+      flex-shrink:0;
+      padding:10px 14px;
+      padding-bottom:max(10px, env(safe-area-inset-bottom));
+      background:#0A0F1E;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+    .start-btn{
+      width:100%;padding:16px;border-radius:16px;border:none;
+      font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;
+      cursor:pointer;letter-spacing:-.2px;
+      display:flex;align-items:center;justify-content:center;gap:9px;
+      transition:transform .1s,opacity .1s;
+    }
+    .start-btn:active{transform:scale(.98);opacity:.9}
+    .start-btn.go{background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff}
+    .start-btn.stop{background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff}
+    .start-btn.disabled{background:#1A2235;color:#4A637A;cursor:default}
+
+    /* Connecting screen */
+    .connecting-screen{
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:24px;gap:20px;text-align:center;
+    }
+    .connect-icon{
+      width:72px;height:72px;border-radius:22px;
+      background:rgba(56,189,248,.1);border:1.5px solid rgba(56,189,248,.2);
+      display:flex;align-items:center;justify-content:center;font-size:32px;
+      animation:iconPulse 2s ease-in-out infinite;
+    }
+    @keyframes iconPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+    .connect-title{font-size:20px;font-weight:800;letter-spacing:-.5px}
+    .connect-sub{font-size:13px;color:#4A637A;line-height:1.6;max-width:280px}
+    .steps-list{text-align:left;width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;margin-top:4px}
+    .step-row{display:flex;align-items:center;gap:12px}
+    .step-num{
+      width:28px;height:28px;border-radius:50%;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:800;
+    }
+    .step-num.done{background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)}
+    .step-num.active{background:rgba(251,191,36,.1);color:#FBBF24;border:1px solid rgba(251,191,36,.2);animation:blink 1.2s infinite}
+    .step-num.idle{background:rgba(255,255,255,.04);color:#4A637A;border:1px solid rgba(255,255,255,.07)}
+    .step-text{font-size:13px;color:#94A3B8}
+    .step-text.done{color:#34D399}
+    .step-text.idle{color:#4A637A}
   </style>
-  <h1>📷 BillMate Scanner</h1>
-  <p class="subtitle">Scan barcodes to add to cart on desktop</p>
-  <div class="status-bar"><div class="dot" id="ph-dot"></div><span id="ph-status">Connecting to desktop…</span></div>
-  <div id="ph-scanner">
-    <div class="frame-overlay"><div class="frame"><div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div></div></div>
+
+  <div class="ph-app" id="ph-app">
+
+    <div class="ph-header">
+      <div>
+        <div class="ph-title">BillMate Scanner</div>
+        <div class="ph-subtitle" id="ph-subtitle">Initializing…</div>
+      </div>
+      <div class="conn-pill" id="conn-pill">
+        <div class="conn-dot pulse" id="conn-dot"></div>
+        <span id="conn-label">Connecting</span>
+      </div>
+    </div>
+
+    <!-- Connecting state (shown until connected) -->
+    <div class="connecting-screen" id="ph-connect-screen">
+      <div class="connect-icon">📷</div>
+      <div>
+        <div class="connect-title">Connecting to Desktop</div>
+        <div class="connect-sub">BillMate POS desktop app ෙකට connect වෙනවා…</div>
+      </div>
+      <div class="steps-list">
+        <div class="step-row">
+          <div class="step-num done" id="step1-num">✓</div>
+          <div class="step-text done">QR code scan කළා</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num active" id="step2-num">2</div>
+          <div class="step-text" id="step2-text">Desktop connect වෙනවා…</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num idle" id="step3-num">3</div>
+          <div class="step-text idle" id="step3-text">Camera allow කරන්න</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num idle" id="step4-num">4</div>
+          <div class="step-text idle" id="step4-text">Barcode scan!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scanner state (shown after connected) -->
+    <div id="ph-scanner-screen" style="display:none;flex:1;display:none;flex-direction:column">
+
+      <div class="cam-wrap">
+        <div id="ph-scanner">
+          <div class="cam-overlay">
+            <div class="cam-vignette"></div>
+            <div class="scan-box">
+              <div class="scan-border">
+                <div class="scan-line"></div>
+                <div class="sc tl"></div><div class="sc tr"></div>
+                <div class="sc bl"></div><div class="sc br"></div>
+              </div>
+              <div class="scan-hint-text">Barcode frame ෙකට ගෙනෙන්න</div>
+            </div>
+          </div>
+        </div>
+        <div class="cam-btns">
+          <button class="cam-fab" id="flip-btn" onclick="flipCamera()" title="Flip camera">
+            <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+          </button>
+          <button class="cam-fab" id="torch-btn" onclick="toggleTorch()" title="Torch">
+            <svg viewBox="0 0 24 24"><path d="M14 2L8 14h6l-2 8 8-12h-6z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="ph-scroll">
+        <div class="stats-strip" id="ph-stats">
+          <div class="stat-box"><div class="stat-val blue" id="st-added">0</div><div class="stat-lbl">Added</div></div>
+          <div class="stat-box"><div class="stat-val green" id="st-total">Rs.0</div><div class="stat-lbl">Value</div></div>
+          <div class="stat-box"><div class="stat-val warn" id="st-miss">0</div><div class="stat-lbl">Not found</div></div>
+        </div>
+
+        <div class="log-section-title">Recent scans</div>
+        <div id="ph-log">
+          <div class="log-empty" id="ph-log-empty">
+            <div class="log-empty-icon">🎯</div>
+            Scan a barcode to start
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="ph-bottom">
+      <button class="start-btn go" id="ph-start-btn" onclick="startPhoneScanner()">
+        <svg style="width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>
+        Start Camera
+      </button>
+    </div>
+
   </div>
-  <button class="start-btn" id="ph-start-btn" onclick="startPhoneScanner()">▶ Start Camera</button>
-  <div class="log" id="ph-log"></div>
   `;
 
+  // State
   let phConn = null;
   let phScanner = null;
   let phRunning = false;
+  let torchOn = false;
+  let currentCamIdx = 0;
+  let camList = [];
+  let scanCount = 0;
+  let missCount = 0;
+  let totalValue = 0;
 
+  function setConnUI(state, label, sub) {
+    const pill = document.getElementById('conn-pill');
+    const dot = document.getElementById('conn-dot');
+    const lbl = document.getElementById('conn-label');
+    const sub_ = document.getElementById('ph-subtitle');
+    pill.className = 'conn-pill ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : '');
+    dot.className = 'conn-dot' + (state === 'connecting' ? ' pulse' : '');
+    lbl.textContent = label;
+    if (sub_) sub_.textContent = sub;
+  }
+
+  function markStep(n, done) {
+    const num = document.getElementById('step'+n+'-num');
+    const txt = document.getElementById('step'+n+'-text');
+    if (!num) return;
+    if (done) {
+      num.className = 'step-num done'; num.textContent = '✓';
+      if (txt) { txt.className = 'step-text done'; }
+    } else {
+      num.className = 'step-num active';
+      if (txt) { txt.className = 'step-text'; }
+    }
+  }
+
+  // Connect peer
   const phPeer = new Peer(undefined, { host:'0.peerjs.com', port:443, path:'/', secure:true, debug:0 });
 
   phPeer.on('open', () => {
-    phPeer.connect(peerId);
-  });
-
-  // Connect to the desktop peer
-  setTimeout(() => {
+    setConnUI('connecting', 'Connecting', 'Desktop ෙකට connect වෙනවා…');
     phConn = phPeer.connect(peerId, { reliable: true });
 
     phConn.on('open', () => {
-      document.getElementById('ph-dot').className = 'dot ok';
-      document.getElementById('ph-status').textContent = 'Connected to desktop! Scan a barcode.';
+      setConnUI('ok', 'Connected', 'Desktop connected! Camera start කරන්න');
+      markStep(2, true); markStep(3, false);
+      document.getElementById('ph-connect-screen').style.display = 'none';
+      const ss = document.getElementById('ph-scanner-screen');
+      ss.style.display = 'flex';
+    });
+
+    phConn.on('close', () => {
+      setConnUI('err', 'Disconnected', 'Connection lost');
     });
 
     phConn.on('error', () => {
-      document.getElementById('ph-dot').className = 'dot err';
-      document.getElementById('ph-status').textContent = 'Connection failed. Reload and try again.';
+      setConnUI('err', 'Error', 'Connection failed');
     });
-  }, 500);
+  });
+
+  phPeer.on('error', (e) => {
+    setConnUI('err', 'Error', 'Cannot connect: ' + e.type);
+    const num = document.getElementById('step2-num');
+    if (num) { num.className = 'step-num'; num.textContent = '!'; num.style.color = '#F87171'; }
+  });
 
   window.startPhoneScanner = async function() {
-    if (phRunning) return;
     const btn = document.getElementById('ph-start-btn');
-    btn.textContent = '⏳ Starting camera…';
-    btn.disabled = true;
+    if (phRunning) {
+      // Stop
+      try { await phScanner.stop(); phScanner.clear(); } catch(e){}
+      phScanner = null; phRunning = false; torchOn = false;
+      btn.className = 'start-btn go';
+      btn.innerHTML = '<svg style="width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg> Start Camera';
+      setConnUI('ok', 'Connected', 'Camera stopped');
+      return;
+    }
+
+    btn.className = 'start-btn disabled';
+    btn.textContent = 'Starting camera…';
+    markStep(3, true); markStep(4, false);
 
     try {
+      camList = await Html5Qrcode.getCameras();
+      currentCamIdx = camList.findIndex(c => /back|rear|env/i.test(c.label));
+      if (currentCamIdx < 0) currentCamIdx = Math.max(0, camList.length - 1);
+
       phScanner = new Html5Qrcode('ph-scanner');
-      const cameras = await Html5Qrcode.getCameras();
-      // Prefer back camera
-      const cam = cameras.find(c => /back|rear|env/i.test(c.label)) || cameras[cameras.length - 1] || { facingMode:'environment' };
+      const camId = (camList[currentCamIdx] && camList[currentCamIdx].id) || { facingMode: 'environment' };
 
       await phScanner.start(
-        cam.id || { facingMode: 'environment' },
-        { fps: 15, qrbox: { width: 240, height: 150 }, aspectRatio: 1.6 },
-        (code) => {
-          // Send to desktop
-          if (phConn && phConn.open) {
-            phConn.send(code);
-            addPhoneLog(code, true);
-          } else {
-            addPhoneLog(code, false);
-          }
-        },
-        () => {}
+        camId,
+        { fps: 15, qrbox: { width: 240, height: 120 } },
+        onPhoneScan, () => {}
       );
 
       phRunning = true;
-      btn.style.display = 'none';
-      document.getElementById('ph-dot').className = 'dot ok';
-      document.getElementById('ph-status').textContent = 'Scanning… Point camera at barcode.';
+      btn.className = 'start-btn stop';
+      btn.innerHTML = '<svg style="width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Stop Scanning';
+      setConnUI('ok', 'Connected', 'Scanning… barcode ෙකට camera ඇල්ලු');
+      markStep(4, true);
+      document.getElementById('ph-log-empty') && (document.getElementById('ph-log-empty').style.display = 'none');
 
     } catch(e) {
-      btn.textContent = '▶ Retry Camera';
-      btn.disabled = false;
-      document.getElementById('ph-status').textContent = 'Camera access denied. Please allow camera permission.';
+      btn.className = 'start-btn go';
+      btn.innerHTML = 'Retry Camera';
+      setConnUI('err', 'Camera error', 'Camera access denied — allow permission');
     }
   };
 
-  function addPhoneLog(code, sent) {
+  function onPhoneScan(code) {
+    const sent = phConn && phConn.open;
+    if (sent) phConn.send(code);
+
+    // Vibrate on mobile
+    try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+
+    // Update stats
+    const isSent = sent; // treat sent as "possibly found" — we don't know product from phone
+    scanCount++;
+    if (!sent) missCount++;
+    document.getElementById('st-added').textContent = scanCount;
+    document.getElementById('st-miss').textContent = missCount;
+
+    // Log item
     const log = document.getElementById('ph-log');
+    const empty = document.getElementById('ph-log-empty');
+    if (empty) empty.style.display = 'none';
+
     const item = document.createElement('div');
-    item.className = 'log-item ' + (sent ? 'ok' : 'miss');
-    item.innerHTML = `<span>${sent ? '✅' : '⚠️'}</span><span class="log-bc">${code}</span><span class="log-name">${sent ? 'Sent to desktop' : 'Not connected'}</span>`;
+    item.className = 'ph-log-item ' + (sent ? 'ok' : 'miss');
+    item.innerHTML = `
+      <div class="ph-log-icon ${sent ? 'ok' : 'miss'}">${sent ? '✅' : '⚠️'}</div>
+      <div class="ph-log-info">
+        <div class="ph-log-name">${sent ? 'Sent to desktop' : 'Desktop disconnected'}</div>
+        <div class="ph-log-bc">${code}</div>
+      </div>
+      <div class="ph-log-right">
+        <div class="ph-log-status ${sent ? 'ok' : 'miss'}">${sent ? 'Sent ✓' : 'Failed'}</div>
+      </div>`;
     log.insertBefore(item, log.firstChild);
   }
+
+  window.flipCamera = async function() {
+    if (!phRunning || camList.length < 2) return;
+    try {
+      await phScanner.stop();
+      currentCamIdx = (currentCamIdx + 1) % camList.length;
+      await phScanner.start(
+        camList[currentCamIdx].id,
+        { fps: 15, qrbox: { width: 240, height: 120 } },
+        onPhoneScan, () => {}
+      );
+    } catch(e) {}
+  };
+
+  window.toggleTorch = async function() {
+    if (!phRunning) return;
+    try {
+      torchOn = !torchOn;
+      await phScanner.applyVideoConstraints({ advanced: [{ torch: torchOn }] });
+      document.getElementById('torch-btn').className = 'cam-fab' + (torchOn ? ' torch-on' : '');
+    } catch(e) { torchOn = false; }
+  };
 
   return true;
 }

@@ -996,11 +996,20 @@ function displayRemoteStream(stream, camIdx) {
 function connectToChild() {
   const peerId = document.getElementById("childPeerInput").value.trim();
   if (!peerId) { alert("Child Peer ID ඇතුලත් කරන්න"); return; }
-  if (!myPeer) { alert("PeerJS initialize නොවූවා"); return; }
-  const call = myPeer.call(peerId, null); // request stream
-  if (!call) { alert("Connection failed"); return; }
-  call.on("stream", stream => displayRemoteStream(stream, 0));
-  call.on("error", e => alert("WebRTC error: " + e));
+  if (!myPeer || !myPeer.open) { alert("PeerJS initialize නොවූවා. ටිකක් wait කර retry කරන්න."); return; }
+  try {
+    const conn = myPeer.connect(peerId);
+    conn.on("open", () => showToast("📡 Child device connected!"));
+    conn.on("error", e => showToast("Connection error: " + e));
+    // Also try to receive video stream
+    myPeer.on("call", call => {
+      call.answer();
+      call.on("stream", stream => displayRemoteStream(stream, 0));
+    });
+    showToast("🔗 Connecting to child device…");
+  } catch(e) {
+    alert("Connection failed: " + e.message);
+  }
 }
 
 // Child mode: share camera
@@ -1214,7 +1223,8 @@ function navTo(panel, el) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   document.getElementById("panel-"+panel).classList.add("active");
   if (el) el.classList.add("active");
-  document.getElementById("pageTitle").textContent = panel.charAt(0).toUpperCase() + panel.slice(1);
+  const titles = {overview:"Overview",camera:"Camera",location:"Location",audio:"Audio",alerts:"Alerts",settings:"Settings"};
+  document.getElementById("pageTitle").textContent = titles[panel] || panel.charAt(0).toUpperCase() + panel.slice(1);
   if (panel === "overview")  renderOverview();
   if (panel === "camera")    renderCamera();
   if (panel === "location")  renderLocation();
@@ -1373,15 +1383,20 @@ function renderAudio() {
 // ─── ALERTS ───
 function renderAlerts() {
   const all = CHILDREN.flatMap(c => c.alerts.map(a => ({...a,child:c.name,childColor:c.color})));
-  document.getElementById("alertCount").textContent = all.filter(a=>a.color==="#ff5c5c").length;
-  document.getElementById("alertBadge").textContent = all.filter(a=>a.color==="#ff5c5c").length;
-  document.getElementById("allAlerts").innerHTML = all.map(a =>
-    `<div class="alert-item"><div class="alert-type-dot" style="background:${a.color}"></div><div class="alert-body"><div class="alert-msg">${a.msg}</div><div class="alert-meta">${a.child} • ${a.time}</div></div><div class="alert-badge" style="background:${a.color}22;color:${a.color}">${a.tag}</div></div>`
-  ).join("");
+  const urgentCount = all.filter(a=>a.color==="#ff5c5c").length;
+  document.getElementById("alertCount").textContent = urgentCount;
+  document.getElementById("alertBadge").textContent = urgentCount;
+  document.getElementById("allAlerts").innerHTML = all.length
+    ? all.map(a =>
+        `<div class="alert-item"><div class="alert-type-dot" style="background:${a.color}"></div><div class="alert-body"><div class="alert-msg">${a.msg}</div><div class="alert-meta">${a.child} • ${a.time}</div></div><div class="alert-badge" style="background:${a.color}22;color:${a.color}">${a.tag}</div></div>`
+      ).join("")
+    : `<div style="font-size:13px;color:var(--text3);padding:20px;text-align:center">No alerts</div>`;
 }
 
 function clearAlerts() {
   CHILDREN.forEach(c => c.alerts = []);
+  document.getElementById("alertCount").textContent = "0";
+  document.getElementById("alertBadge").textContent = "0";
   renderAlerts();
 }
 
@@ -1469,11 +1484,46 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 
+// ─── DEMO LIVE SIMULATION ───
+function startDemoSimulation() {
+  setInterval(() => {
+    CHILDREN.forEach(c => {
+      // Randomly tweak screen time percentage slightly
+      const delta = Math.floor(Math.random() * 3) - 1;
+      c.metrics.limitPct = Math.min(100, Math.max(0, c.metrics.limitPct + delta));
+      // Occasionally add a demo alert
+      if (Math.random() < 0.08) {
+        const demoAlerts = [
+          {msg:"Screen time updated", time:new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}), color:"#4fc3f7", tag:"INFO"},
+          {msg:"App blocked: new attempt", time:new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}), color:"#ff5c5c", tag:"BLOCK"},
+          {msg:"Geofence check passed", time:new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}), color:"#3ddc84", tag:"GEO"},
+        ];
+        const pick = demoAlerts[Math.floor(Math.random()*demoAlerts.length)];
+        c.alerts.unshift(pick);
+        if (c.alerts.length > 10) c.alerts.pop();
+      }
+    });
+    // Re-render active panel
+    const active = document.querySelector(".panel.active");
+    if (active) {
+      const panelName = active.id.replace("panel-","");
+      if (panelName === "overview") renderOverview();
+      if (panelName === "alerts") renderAlerts();
+    }
+    // Always update badge counts
+    const all = CHILDREN.flatMap(c => c.alerts);
+    const urgentCount = all.filter(a=>a.color==="#ff5c5c").length;
+    document.getElementById("alertCount").textContent = urgentCount;
+    document.getElementById("alertBadge").textContent = urgentCount;
+  }, 5000);
+}
+
 // ─── INIT ───
 function init() {
   initPeerJS();
   renderChildList();
   renderOverview();
+  startDemoSimulation();
 }
 
 
@@ -1673,7 +1723,8 @@ function onDeviceConnected(name, data) {
 
 function finalizeConnection() {
   closeQRModal();
-  navTo('overview', document.querySelector('.nav-item'));
+  const overviewNav = document.querySelectorAll('.nav-item')[0];
+  navTo('overview', overviewNav);
 }
 
 function showPairNotif(msg) {

@@ -1860,7 +1860,8 @@ tr:hover td { background: #F8FBFF; }
               <input type="text" id="pm-barcode" placeholder="e.g. 4719512001234">
               <div class="form-error" id="pm-barcode-err">Barcode is required</div>
             </div>
-            <button class="scan-icon-btn" onclick="openScanner('product')" style="margin-top:0;flex-shrink:0" title="Scan barcode with camera">📷 Scan</button>
+            <button class="scan-icon-btn" onclick="openScanner('product')" style="margin-top:0;flex-shrink:0" title="Scan barcode with desktop camera">📷 Scan</button>
+            <button class="scan-icon-btn" onclick="openMobileProductScanner()" style="margin-top:0;flex-shrink:0;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;border-color:#7C3AED" title="Scan barcode with your mobile phone">📱 Mobile</button>
           </div>
         </div>
         <div class="form-group">
@@ -2127,6 +2128,58 @@ tr:hover td { background: #F8FBFF; }
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeRemoteScanner()">Close</button>
       <button class="btn btn-outline btn-sm" id="peer-reconnect-btn" onclick="initRemotePeer()" style="display:none">🔄 Reconnect</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Product Barcode Scanner Modal -->
+<div class="modal-overlay remote-scanner-modal" id="modal-mobile-product-scan">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h3>📱 Mobile Barcode Scanner</h3>
+      <button class="modal-close" onclick="closeMobileProductScanner()">✕</button>
+    </div>
+
+    <div class="peer-status-bar">
+      <div class="peer-dot" id="mps-peer-dot"></div>
+      <span id="mps-peer-status-text">Initializing…</span>
+    </div>
+
+    <!-- QR + instructions (shown when not connected) -->
+    <div id="mps-connect-ui">
+      <div class="qr-connect-box">
+        <div class="qc-label">📷 Phone එකෙන් QR scan කරන්න — Barcode capture කරන්න</div>
+        <div id="mps-qr-code"></div>
+        <div class="qc-url" id="mps-url" onclick="copyMpsUrl()" title="Click to copy">⏳ Generating link…</div>
+      </div>
+      <div class="qc-steps">
+        <div class="qc-step"><div class="qc-step-num">1</div><span>Phone camera ෙකන් ඉහළ QR code scan කරන්න</span></div>
+        <div class="qc-step"><div class="qc-step-num">2</div><span>Browser page open වෙනවා — Camera Allow කරන්න</span></div>
+        <div class="qc-step"><div class="qc-step-num">3</div><span>Product barcode scan කරන්න — Field ෙකට fill වෙනවා</span></div>
+      </div>
+    </div>
+
+    <!-- Waiting for scan state -->
+    <div id="mps-waiting-ui" style="display:none;padding:20px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">📱</div>
+      <div style="font-size:15px;font-weight:700;color:var(--success);margin-bottom:6px">✅ Phone Connected!</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Phone ෙකේ camera ෙකන් product barcode scan කරන්න</div>
+      <div id="mps-scan-result" style="display:none;padding:12px 16px;background:var(--primary-light);border-radius:10px;border:1.5px solid var(--primary)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--primary-dark);margin-bottom:4px">Barcode Captured ✓</div>
+        <div id="mps-captured-code" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--text)"></div>
+      </div>
+      <div class="remote-scan-log" style="margin-top:12px">
+        <div class="rsl-head">Scan Log</div>
+        <div class="rsl-body" id="mps-log-body">
+          <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Waiting for scan…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeMobileProductScanner()">Cancel</button>
+      <button class="btn btn-outline btn-sm" id="mps-reconnect-btn" onclick="initMobileProductPeer()" style="display:none">🔄 Reconnect</button>
+      <button class="btn btn-primary" id="mps-use-btn" onclick="useCapturedMpsBarcode()" style="display:none">✅ Use This Barcode</button>
     </div>
   </div>
 </div>
@@ -3514,6 +3567,129 @@ function handleRemoteScan(barcode) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  MOBILE PRODUCT BARCODE SCANNER (PeerJS — fills form field)
+// ═══════════════════════════════════════════════════════
+let mpsPeer = null;
+let mpsPeerId = null;
+let mpsConn = null;
+let mpsCapturedBarcode = null;
+
+function openMobileProductScanner() {
+  mpsCapturedBarcode = null;
+  document.getElementById('mps-scan-result').style.display = 'none';
+  document.getElementById('mps-use-btn').style.display = 'none';
+  document.getElementById('mps-reconnect-btn').style.display = 'none';
+  document.getElementById('mps-connect-ui').style.display = '';
+  document.getElementById('mps-waiting-ui').style.display = 'none';
+  openModal('modal-mobile-product-scan');
+  initMobileProductPeer();
+}
+
+function closeMobileProductScanner() {
+  closeModal('modal-mobile-product-scan');
+}
+
+function setMpsStatus(status, text) {
+  const dot = document.getElementById('mps-peer-dot');
+  const txt = document.getElementById('mps-peer-status-text');
+  dot.className = 'peer-dot ' + (status || '');
+  txt.textContent = text;
+}
+
+function initMobileProductPeer() {
+  if (mpsPeer) { try { mpsPeer.destroy(); } catch(e){} }
+  mpsConn = null;
+  mpsCapturedBarcode = null;
+  document.getElementById('mps-qr-code').innerHTML = '';
+  document.getElementById('mps-url').textContent = '⏳ Connecting to server…';
+  document.getElementById('mps-reconnect-btn').style.display = 'none';
+  document.getElementById('mps-use-btn').style.display = 'none';
+  document.getElementById('mps-connect-ui').style.display = '';
+  document.getElementById('mps-waiting-ui').style.display = 'none';
+  setMpsStatus('connecting', 'Relay server ෙකට connect වෙනවා…');
+
+  try {
+    mpsPeer = new Peer(undefined, {
+      host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0,
+    });
+  } catch(e) {
+    setMpsStatus('error', 'PeerJS load failed.');
+    return;
+  }
+
+  mpsPeer.on('open', (id) => {
+    mpsPeerId = id;
+    setMpsStatus('connecting', 'Phone ෙකෙන් QR scan කරන්න…');
+    // Generate QR pointing to phone scanner page, but in product-capture mode
+    const base = window.location.href.split('?')[0].split('#')[0];
+    const phoneUrl = base + '?phone=1&peer=' + encodeURIComponent(id) + '&mode=product';
+    document.getElementById('mps-url').textContent = '📋 ' + phoneUrl + '  (tap to copy)';
+    document.getElementById('mps-url').setAttribute('data-url', phoneUrl);
+    document.getElementById('mps-qr-code').innerHTML = '';
+    try {
+      new QRCode(document.getElementById('mps-qr-code'), {
+        text: phoneUrl, width: 200, height: 200,
+        colorDark: '#0C1424', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    } catch(e) {
+      document.getElementById('mps-qr-code').innerHTML = `<div style="padding:12px;font-size:11px;word-break:break-all;background:#F5F8FB;border-radius:8px">${phoneUrl}</div>`;
+    }
+  });
+
+  mpsPeer.on('connection', (conn) => {
+    mpsConn = conn;
+    setMpsStatus('connected', 'Phone connected! Barcode scan කරන්න');
+    document.getElementById('mps-connect-ui').style.display = 'none';
+    document.getElementById('mps-waiting-ui').style.display = '';
+    document.getElementById('mps-log-body').innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Waiting for scan…</div>';
+    toast('📱 Phone connected! Product barcode scan කරන්න.', 'success');
+
+    conn.on('data', (barcode) => {
+      mpsCapturedBarcode = barcode;
+      // Show result
+      document.getElementById('mps-captured-code').textContent = barcode;
+      document.getElementById('mps-scan-result').style.display = '';
+      document.getElementById('mps-use-btn').style.display = '';
+      setMpsStatus('connected', 'Barcode captured! ✓');
+      // Log entry
+      const logBody = document.getElementById('mps-log-body');
+      const placeholder = logBody.querySelector('div[style*="text-align:center"]');
+      if (placeholder) placeholder.remove();
+      const item = document.createElement('div');
+      item.className = 'rsl-item';
+      item.innerHTML = `<span>✅</span><span class="rsl-bc">${escHtml(barcode)}</span><span class="rsl-name">Captured</span>`;
+      logBody.insertBefore(item, logBody.firstChild);
+      try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch(e){}
+    });
+
+    conn.on('close', () => {
+      setMpsStatus('error', 'Phone disconnected.');
+      document.getElementById('mps-reconnect-btn').style.display = '';
+    });
+  });
+
+  mpsPeer.on('error', (err) => {
+    setMpsStatus('error', 'Connection error: ' + err.type);
+    document.getElementById('mps-reconnect-btn').style.display = '';
+  });
+}
+
+function useCapturedMpsBarcode() {
+  if (!mpsCapturedBarcode) return;
+  document.getElementById('pm-barcode').value = mpsCapturedBarcode;
+  closeMobileProductScanner();
+  toast(`📱 Barcode <strong>${mpsCapturedBarcode}</strong> filled!`, 'success');
+  // Auto-focus product name field
+  setTimeout(() => document.getElementById('pm-name').focus(), 200);
+}
+
+function copyMpsUrl() {
+  const url = document.getElementById('mps-url').getAttribute('data-url') || '';
+  navigator.clipboard?.writeText(url).then(() => toast('Link copied!', 'success')).catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════
 //  PHONE SCANNER PAGE (runs when ?phone=1 in URL)
 // ═══════════════════════════════════════════════════════
 function checkIfPhonePage() {
@@ -3814,6 +3990,17 @@ function checkIfPhonePage() {
   let scanCount = 0;
   let missCount = 0;
   let totalValue = 0;
+  const isProductMode = params.get('mode') === 'product';
+
+  // Update title for product mode
+  if (isProductMode) {
+    const titleEl = document.querySelector('.ph-title');
+    if (titleEl) titleEl.textContent = '📦 Product Barcode';
+    const hintEl = document.querySelector('.scan-hint-text');
+    if (hintEl) hintEl.textContent = 'Product barcode ෙකට ගෙනෙන්න';
+    const step4El = document.getElementById('step4-text');
+    if (step4El) step4El.textContent = 'Barcode scan — 1 scan only!';
+  }
 
   function setConnUI(state, label, sub) {
     const pill = document.getElementById('conn-pill');
@@ -3920,8 +4107,39 @@ function checkIfPhonePage() {
     // Vibrate on mobile
     try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
 
-    // Update stats
-    const isSent = sent; // treat sent as "possibly found" — we don't know product from phone
+    if (isProductMode) {
+      // Product mode: show big success, stop scanning
+      scanCount++;
+      document.getElementById('st-added').textContent = scanCount;
+      const log = document.getElementById('ph-log');
+      const empty = document.getElementById('ph-log-empty');
+      if (empty) empty.style.display = 'none';
+      const item = document.createElement('div');
+      item.className = 'ph-log-item ok';
+      item.innerHTML = `
+        <div class="ph-log-icon ok">✅</div>
+        <div class="ph-log-info">
+          <div class="ph-log-name" style="color:#22C55E;font-size:14px">Barcode Captured!</div>
+          <div class="ph-log-bc" style="font-size:13px;font-weight:700">${code}</div>
+        </div>
+        <div class="ph-log-right">
+          <div class="ph-log-status ok">Sent ✓</div>
+        </div>`;
+      log.insertBefore(item, log.firstChild);
+      setConnUI('ok', 'Captured!', '✅ Barcode captured — Desktop ෙකේ form fill වෙනවා');
+      // Stop camera after capture
+      setTimeout(async () => {
+        if (phScanner && phRunning) {
+          try { await phScanner.stop(); phScanner.clear(); } catch(e){}
+          phRunning = false;
+        }
+        const btn = document.getElementById('ph-start-btn');
+        if (btn) { btn.className = 'start-btn go'; btn.innerHTML = '🔁 Scan Again'; }
+      }, 800);
+      return;
+    }
+
+    // POS mode (original behaviour)
     scanCount++;
     if (!sent) missCount++;
     document.getElementById('st-added').textContent = scanCount;

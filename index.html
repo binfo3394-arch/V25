@@ -735,6 +735,24 @@ body {
 
 .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
+/* ── Barcode Lookup Badge ── */
+.lookup-badge {
+  display: none; align-items: center; gap: 6px;
+  margin-top: 6px; padding: 7px 11px;
+  border-radius: 8px; font-size: 12px; font-weight: 600;
+  animation: fadeIn .2s ease;
+}
+.lookup-badge.loading  { display:flex; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
+.lookup-badge.found    { display:flex; background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; }
+.lookup-badge.notfound { display:flex; background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+.lookup-badge.error    { display:flex; background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5; }
+.lookup-spinner {
+  width:13px; height:13px; border:2px solid #BFDBFE;
+  border-top-color:#1D4ED8; border-radius:50%;
+  animation:spin .7s linear infinite; flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+
 .form-error { color: var(--danger); font-size: 11.5px; margin-top: 4px; display: none; }
 .form-error.show { display: block; }
 
@@ -1288,7 +1306,7 @@ tr:hover td { background: #F8FBFF; }
   position: relative;
   background: #0C1424;
   overflow: hidden;
-  min-height: 320px;
+  min-height: 280px;
 }
 
 #scanner-container { width: 100%; }
@@ -1305,8 +1323,8 @@ tr:hover td { background: #F8FBFF; }
 }
 
 .scan-frame {
-  width: 340px;
-  height: 130px;
+  width: 220px;
+  height: 140px;
   border: 2.5px solid rgba(14,165,233,.8);
   border-radius: 12px;
   position: relative;
@@ -1855,12 +1873,16 @@ tr:hover td { background: #F8FBFF; }
       <div class="form-row">
         <div class="form-group">
           <label>Barcode / SKU *</label>
-          <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="display:flex;gap:6px;align-items:flex-start">
             <div style="flex:1">
-              <input type="text" id="pm-barcode" placeholder="e.g. 4719512001234">
+              <input type="text" id="pm-barcode" placeholder="e.g. 4719512001234"
+                oninput="onBarcodeInput(this.value)"
+                onpaste="setTimeout(()=>onBarcodeInput(document.getElementById('pm-barcode').value),50)">
               <div class="form-error" id="pm-barcode-err">Barcode is required</div>
+              <div class="lookup-badge" id="lookup-badge"></div>
             </div>
-            <button class="scan-icon-btn" onclick="openScanner('product')" style="margin-top:0;flex-shrink:0" title="Scan barcode with camera">📷 Scan</button>
+            <button class="scan-icon-btn" onclick="openScanner('product')" style="margin-top:0;flex-shrink:0" title="Scan with desktop camera">📷</button>
+            <button class="scan-icon-btn" onclick="openRemoteScanner('product')" style="margin-top:0;flex-shrink:0;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;border-color:#7C3AED" title="Scan with mobile phone">📱</button>
           </div>
         </div>
         <div class="form-group">
@@ -2081,7 +2103,7 @@ tr:hover td { background: #F8FBFF; }
 <div class="modal-overlay remote-scanner-modal" id="modal-remote-scanner">
   <div class="modal" style="max-width:420px">
     <div class="modal-head">
-      <h3>📱 Connect Phone Scanner</h3>
+      <h3 id="rms-title">📱 Connect Phone Scanner</h3>
       <button class="modal-close" onclick="closeRemoteScanner()">✕</button>
     </div>
 
@@ -2093,26 +2115,26 @@ tr:hover td { background: #F8FBFF; }
     <!-- QR + instructions (shown when not connected) -->
     <div id="remote-connect-ui">
       <div class="qr-connect-box">
-        <div class="qc-label">📷 Phone එකෙන් මේ QR scan කරන්න</div>
+        <div class="qc-label" id="rms-qr-label">📷 Phone එකෙන් මේ QR scan කරන්න</div>
         <div id="remote-qr-code"></div>
         <div class="qc-url" id="remote-url" onclick="copyRemoteUrl()" title="Click to copy">⏳ Generating link…</div>
       </div>
 
-      <div class="qc-steps">
-        <div class="qc-step"><div class="qc-step-num">1</div><span>Phone camera ෙකන් ඉහළ QR code scan කරන්න</span></div>
+      <div class="qc-steps" id="rms-steps">
+        <div class="qc-step"><div class="qc-step-num">1</div><span>Phone camera ෙකෙන් ඉහළ QR code scan කරන්න</span></div>
         <div class="qc-step"><div class="qc-step-num">2</div><span>Browser ෙකේ page open වෙනවා — Camera Allow කරන්න</span></div>
-        <div class="qc-step"><div class="qc-step-num">3</div><span>Product barcode scan කරන්න — Cart ෙකට automatically add වෙනවා</span></div>
-        <div class="qc-step"><div class="qc-step-num">4</div><span>Same WiFi network ෙකේ ඉන්න ඕනෙ නෑ — Internet ඇති ඕනෑම කොහෙන් connect වෙනවා</span></div>
+        <div class="qc-step rms-step-3"><div class="qc-step-num">3</div><span id="rms-step3-text">Product barcode scan කරන්න — Cart ෙකට automatically add වෙනවා</span></div>
+        <div class="qc-step rms-step-4" id="rms-step4"><div class="qc-step-num">4</div><span>Same WiFi ඕනෑ නෑ — Internet ඇත්නම් connect වෙනවා</span></div>
       </div>
     </div>
 
-    <!-- Connected state -->
+    <!-- Connected state — POS mode -->
     <div id="remote-connected-ui" style="display:none">
       <div class="connected-badge">
         <span style="font-size:20px">✅</span>
         <div>
           <div>Phone connected!</div>
-          <div style="font-size:11px;font-weight:500;color:#16A34A">Phone ෙකේ camera ෙකන් barcode scan කරන්න</div>
+          <div style="font-size:11px;font-weight:500;color:#16A34A" id="rms-connected-hint">Phone ෙකේ camera ෙකෙන් barcode scan කරන්න</div>
         </div>
       </div>
 
@@ -2124,9 +2146,30 @@ tr:hover td { background: #F8FBFF; }
       </div>
     </div>
 
+    <!-- Connected state — Product capture mode -->
+    <div id="remote-product-ui" style="display:none;padding:16px 20px">
+      <div style="text-align:center;padding:8px 0 16px">
+        <div style="font-size:40px;margin-bottom:8px">📱</div>
+        <div style="font-size:14px;font-weight:700;color:var(--success)">✅ Phone Connected!</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Product barcode scan කරන්න — 1 scan ෙකෙන් done</div>
+      </div>
+      <div id="rms-capture-result" style="display:none;padding:12px 16px;background:var(--primary-light);border-radius:10px;border:1.5px solid var(--primary);margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--primary-dark);margin-bottom:4px">Barcode Captured ✓</div>
+        <div id="rms-capture-code" style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:800;color:var(--text)"></div>
+        <div id="rms-capture-name" style="font-size:12px;color:var(--text-2);margin-top:3px"></div>
+      </div>
+      <div class="remote-scan-log">
+        <div class="rsl-head">Scan Log</div>
+        <div class="rsl-body" id="rsl-body-product">
+          <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Phone ෙකෙන් scan කරන්න…</div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeRemoteScanner()">Close</button>
       <button class="btn btn-outline btn-sm" id="peer-reconnect-btn" onclick="initRemotePeer()" style="display:none">🔄 Reconnect</button>
+      <button class="btn btn-primary" id="rms-use-btn" onclick="useRemoteCapturedBarcode()" style="display:none">✅ Use Barcode</button>
     </div>
   </div>
 </div>
@@ -2707,6 +2750,106 @@ function reprintOrder() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  BARCODE PRODUCT LOOKUP (Open Food Facts)
+// ═══════════════════════════════════════════════════════
+let _lookupTimer = null;
+
+function onBarcodeInput(val) {
+  clearTimeout(_lookupTimer);
+  setLookupBadge('', '');
+  const barcode = val.trim();
+  if (barcode.length < 6) return;
+  _lookupTimer = setTimeout(() => lookupBarcode(barcode), 650);
+}
+
+function setLookupBadge(type, html) {
+  const b = document.getElementById('lookup-badge');
+  if (!b) return;
+  b.className = 'lookup-badge' + (type ? ' ' + type : '');
+  b.innerHTML = html;
+}
+
+async function lookupBarcode(barcode) {
+  if (!barcode || barcode.length < 6) return;
+  setLookupBadge('loading', '<div class="lookup-spinner"></div>&nbsp;Product info lookup කරනවා…');
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error('net');
+    const data = await res.json();
+    if (data.status === 1 && data.product) {
+      applyLookupResult(data.product);
+    } else {
+      await lookupUPCFallback(barcode);
+    }
+  } catch(e) {
+    if (e.name === 'TimeoutError') {
+      setLookupBadge('error', '⏱️ Timeout — Manually enter කරන්න.');
+    } else {
+      await lookupUPCFallback(barcode);
+    }
+  }
+}
+
+async function lookupUPCFallback(barcode) {
+  try {
+    const res = await fetch(
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(barcode)}`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.code === 'OK' && data.items && data.items[0]) {
+      applyLookupResult(data.items[0], 'upc');
+      return;
+    }
+  } catch(e) {}
+  setLookupBadge('notfound', '⚠️ Database ෙකේ නෑ — Name manually enter කරන්න.');
+  setTimeout(() => document.getElementById('pm-name')?.focus(), 100);
+}
+
+function applyLookupResult(p, src) {
+  let name, brand, cat;
+  if (src === 'upc') {
+    name  = p.title || '';
+    brand = p.brand || '';
+    cat   = guessCategory(p.category || '');
+  } else {
+    name  = p.product_name_en || p.product_name || p.abbreviated_product_name || p.generic_name || '';
+    brand = p.brands ? p.brands.split(',')[0].trim() : '';
+    cat   = guessCategory(p.categories || p.pnns_groups_1 || '');
+  }
+  const full = (brand && name && !name.toLowerCase().includes(brand.toLowerCase()))
+    ? brand + ' ' + name : name;
+
+  if (full) {
+    document.getElementById('pm-name').value = full;
+    if (cat) document.getElementById('pm-category').value = cat;
+    setLookupBadge('found',
+      `✅ Found: <strong>${escHtml(full)}</strong>${cat ? ' · ' + cat : ''} — Price enter කරන්න`);
+    setTimeout(() => document.getElementById('pm-price')?.focus(), 100);
+  } else {
+    setLookupBadge('notfound', '⚠️ Barcode found but no name — Manually enter කරන්න.');
+    setTimeout(() => document.getElementById('pm-name')?.focus(), 100);
+  }
+}
+
+function guessCategory(str) {
+  const s = str.toLowerCase();
+  if (/rice|grain|flour|cereal|wheat|pasta|noodle/.test(s))             return 'Rice & Grains';
+  if (/milk|dairy|cheese|butter|yogurt|cream|curd/.test(s))              return 'Dairy';
+  if (/beverage|drink|juice|water|soda|tea|coffee|cola/.test(s))         return 'Beverages';
+  if (/snack|chip|biscuit|cookie|cracker|chocolate|candy|sweet/.test(s)) return 'Snacks';
+  if (/soap|shampoo|toothpaste|lotion|hygiene|personal|cosmetic/.test(s)) return 'Personal Care';
+  if (/clean|detergent|bleach|disinfect|wash/.test(s))                   return 'Cleaning';
+  if (/fruit|vegetable|produce|fresh/.test(s))                           return 'Produce';
+  if (/grocery|oil|sugar|salt|spice|condiment|sauce/.test(s))            return 'Grocery';
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════
 //  PRODUCTS
 // ═══════════════════════════════════════════════════════
 function renderProductStats() {
@@ -2799,6 +2942,7 @@ function openAddProduct() {
   document.getElementById('pm-stock').value = '0';
   document.getElementById('pm-category').value = 'Grocery';
   clearFormErrors();
+  setLookupBadge('', '');
   openModal('modal-product');
   setTimeout(() => document.getElementById('pm-barcode').focus(), 120);
 }
@@ -2815,6 +2959,7 @@ function openEditProduct(id) {
   document.getElementById('pm-stock').value = p.stock;
   document.getElementById('pm-category').value = p.category || 'Grocery';
   clearFormErrors();
+  setLookupBadge('', '');
   openModal('modal-product');
 }
 
@@ -3242,7 +3387,7 @@ async function openScanner(mode) {
     ? '📷 Scan Barcode — Add to Cart'
     : '📷 Scan Barcode — Product Code';
   document.getElementById('scanner-title').textContent = title;
-  document.getElementById('scanner-status').textContent = '📷 Press "Start Scan" to activate camera — Barcode frame ෙකේ wide area ෙකට hold කරන්න';
+  document.getElementById('scanner-status').textContent = '📷 Press "Start Scan" to activate camera';
   document.getElementById('scanner-status').className = 'scanner-status';
   document.getElementById('scanner-container').innerHTML = '';
   document.getElementById('scan-toggle-btn').textContent = '▶ Start Scan';
@@ -3291,22 +3436,7 @@ async function startScannerEngine() {
   const btn = document.getElementById('scan-toggle-btn');
 
   try {
-    // Support ALL common barcode formats
-    const allFormats = [
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.ITF,
-      Html5QrcodeSupportedFormats.CODABAR,
-      Html5QrcodeSupportedFormats.DATA_MATRIX,
-      Html5QrcodeSupportedFormats.QR_CODE,
-    ];
-
-    scannerInstance = new Html5Qrcode('scanner-container', { formatsToSupport: allFormats, verbose: false });
+    scannerInstance = new Html5Qrcode('scanner-container');
     const camId = document.getElementById('cam-select').value || { facingMode: 'environment' };
 
     statusEl.className = 'scanner-status';
@@ -3314,15 +3444,7 @@ async function startScannerEngine() {
 
     await scannerInstance.start(
       camId || { facingMode: 'environment' },
-      {
-        fps: 25,
-        qrbox: (w, h) => {
-          const min = Math.min(w, h);
-          return { width: Math.round(min * 0.8), height: Math.round(min * 0.4) };
-        },
-        aspectRatio: 1.7777,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      },
+      { fps: 15, qrbox: { width: 220, height: 140 }, aspectRatio: 1.6 },
       onScanSuccess,
       () => {}  // silent errors during scan
     );
@@ -3384,13 +3506,12 @@ function onScanSuccess(decodedText) {
     }
 
   } else if (scannerMode === 'product') {
-    // Fill barcode field in product modal
     document.getElementById('pm-barcode').value = decodedText;
     statusEl.className = 'scanner-status success';
-    statusEl.textContent = `✅ Barcode captured: ${decodedText}`;
+    statusEl.textContent = `✅ Barcode captured: ${decodedText} — Lookup කරනවා…`;
     stopScannerEngine();
     closeScanner();
-    toast(`Barcode <strong>${decodedText}</strong> filled in form!`, 'success');
+    lookupBarcode(decodedText);
   }
 }
 
@@ -3401,17 +3522,38 @@ let remotePeer = null;
 let remotePeerId = null;
 let remoteConn = null;
 let remoteQrInstance = null;
-let remoteScanMode = 'pos'; // always pos for now
+let remoteScanMode = 'pos'; // 'pos' | 'product'
+let remoteCapturedBarcode = null;
 
-function openRemoteScanner() {
-  remoteScanMode = 'pos';
+function openRemoteScanner(mode) {
+  remoteScanMode = mode || 'pos';
+  remoteCapturedBarcode = null;
+
+  // Update modal title & instructions based on mode
+  if (remoteScanMode === 'product') {
+    document.getElementById('rms-title').textContent = '📱 Mobile Barcode Scan';
+    document.getElementById('rms-step3-text').textContent = 'Product barcode scan කරන්න — Form ෙකට fill වෙනවා';
+    document.getElementById('rms-step4').style.display = 'none';
+  } else {
+    document.getElementById('rms-title').textContent = '📱 Connect Phone Scanner';
+    document.getElementById('rms-step3-text').textContent = 'Product barcode scan කරන්න — Cart ෙකට automatically add වෙනවා';
+    document.getElementById('rms-step4').style.display = '';
+  }
+
+  // Reset UI
+  document.getElementById('remote-connect-ui').style.display = '';
+  document.getElementById('remote-connected-ui').style.display = 'none';
+  document.getElementById('remote-product-ui').style.display = 'none';
+  document.getElementById('rms-capture-result').style.display = 'none';
+  document.getElementById('rms-use-btn').style.display = 'none';
+  document.getElementById('peer-reconnect-btn').style.display = 'none';
+
   openModal('modal-remote-scanner');
   initRemotePeer();
 }
 
 function closeRemoteScanner() {
   closeModal('modal-remote-scanner');
-  // keep peer alive so phone can still scan
 }
 
 function setPeerStatus(status, text) {
@@ -3422,23 +3564,21 @@ function setPeerStatus(status, text) {
 }
 
 function initRemotePeer() {
-  // Cleanup old
   if (remotePeer) { try { remotePeer.destroy(); } catch(e){} }
   remoteConn = null;
+  remoteCapturedBarcode = null;
   document.getElementById('remote-connect-ui').style.display = '';
   document.getElementById('remote-connected-ui').style.display = 'none';
+  document.getElementById('remote-product-ui').style.display = 'none';
   document.getElementById('peer-reconnect-btn').style.display = 'none';
+  document.getElementById('rms-use-btn').style.display = 'none';
   document.getElementById('remote-qr-code').innerHTML = '';
   document.getElementById('remote-url').textContent = '⏳ Connecting to server…';
-  setPeerStatus('connecting', 'Connecting to relay server…');
+  setPeerStatus('connecting', 'Relay server ෙකට connect වෙනවා…');
 
   try {
     remotePeer = new Peer(undefined, {
-      host: '0.peerjs.com',
-      port: 443,
-      path: '/',
-      secure: true,
-      debug: 0,
+      host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0,
     });
   } catch(e) {
     setPeerStatus('error', 'PeerJS load failed. Check internet connection.');
@@ -3447,22 +3587,31 @@ function initRemotePeer() {
 
   remotePeer.on('open', (id) => {
     remotePeerId = id;
-    setPeerStatus('connecting', 'Waiting for phone to connect…');
+    setPeerStatus('connecting', 'Phone ෙකෙන් QR scan කරන්න…');
     generateRemoteQR(id);
   });
 
   remotePeer.on('connection', (conn) => {
     remoteConn = conn;
-    setPeerStatus('connected', 'Phone connected! Scan barcodes now.');
+    setPeerStatus('connected', remoteScanMode === 'product'
+      ? 'Phone connected! Product barcode scan කරන්න'
+      : 'Phone connected! Scan barcodes now.');
+
     document.getElementById('remote-connect-ui').style.display = 'none';
-    document.getElementById('remote-connected-ui').style.display = '';
-    document.getElementById('rsl-body').innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Scans will appear here…</div>';
-    toast('📱 Phone connected! Barcode scan ready.', 'success');
 
-    conn.on('data', (data) => {
-      handleRemoteScan(data);
-    });
+    if (remoteScanMode === 'product') {
+      document.getElementById('remote-product-ui').style.display = '';
+      document.getElementById('rsl-body-product').innerHTML =
+        '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Phone ෙකෙන් scan කරන්න…</div>';
+    } else {
+      document.getElementById('remote-connected-ui').style.display = '';
+      document.getElementById('rsl-body').innerHTML =
+        '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Scans will appear here…</div>';
+    }
 
+    toast('📱 Phone connected!', 'success');
+
+    conn.on('data', (data) => handleRemoteScan(data));
     conn.on('close', () => {
       setPeerStatus('error', 'Phone disconnected.');
       document.getElementById('peer-reconnect-btn').style.display = '';
@@ -3477,48 +3626,64 @@ function initRemotePeer() {
 }
 
 function generateRemoteQR(peerId) {
-  // Build the phone scanner URL - a separate lightweight page
-  const phoneUrl = buildPhoneScannerUrl(peerId);
+  const base = window.location.href.split('?')[0].split('#')[0];
+  // Pass mode so phone page knows to stop after 1 scan in product mode
+  const modeParam = remoteScanMode === 'product' ? '&mode=product' : '';
+  const phoneUrl = base + '?phone=1&peer=' + encodeURIComponent(peerId) + modeParam;
+
   document.getElementById('remote-url').textContent = '📋 ' + phoneUrl + '  (tap to copy)';
   document.getElementById('remote-url').setAttribute('data-url', phoneUrl);
-
-  // Generate QR
   document.getElementById('remote-qr-code').innerHTML = '';
   try {
     new QRCode(document.getElementById('remote-qr-code'), {
-      text: phoneUrl,
-      width: 200,
-      height: 200,
-      colorDark: '#0C1424',
-      colorLight: '#ffffff',
+      text: phoneUrl, width: 200, height: 200,
+      colorDark: '#0C1424', colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M,
     });
   } catch(e) {
-    document.getElementById('remote-qr-code').innerHTML = `<div style="padding:12px;font-size:11px;word-break:break-all;background:#F5F8FB;border-radius:8px">${phoneUrl}</div>`;
+    document.getElementById('remote-qr-code').innerHTML =
+      `<div style="padding:12px;font-size:11px;word-break:break-all;background:#F5F8FB;border-radius:8px">${phoneUrl}</div>`;
   }
 }
 
-function buildPhoneScannerUrl(peerId) {
-  // We host the phone scanner page as a data URL embedded in the app
-  // Actually: use a public CDN-hosted simple page won't work.
-  // Best: encode the phone page as a blob URL or use a known stable URL param approach.
-  // We'll use a GitHub-hosted page OR encode a minimal HTML as a data: URL for QR.
-  // Since data: URLs are too long for QR codes, we use a query-param approach with
-  // a self-contained phone page served from the same HTML file via hash routing.
-  const base = window.location.href.split('?')[0].split('#')[0];
-  return base + '?phone=1&peer=' + encodeURIComponent(peerId);
-}
-
 function copyRemoteUrl() {
-  const url = document.getElementById('remote-url').getAttribute('data-url') ||
-              document.getElementById('remote-url').textContent.replace('📋 ','').replace('  (tap to copy)','');
+  const url = document.getElementById('remote-url').getAttribute('data-url') || '';
   navigator.clipboard?.writeText(url).then(() => toast('Link copied!', 'success')).catch(() => {});
 }
 
 function handleRemoteScan(barcode) {
+  // ── Product capture mode ──────────────────────────────
+  if (remoteScanMode === 'product') {
+    remoteCapturedBarcode = barcode;
+    try { navigator.vibrate && navigator.vibrate([60,40,60]); } catch(e){}
+
+    // Show captured barcode in modal
+    document.getElementById('rms-capture-code').textContent = barcode;
+    document.getElementById('rms-capture-name').textContent = 'Lookup කරනවා…';
+    document.getElementById('rms-capture-result').style.display = '';
+    document.getElementById('rms-use-btn').style.display = '';
+    setPeerStatus('connected', '✅ Barcode captured!');
+
+    // Log entry
+    const logBody = document.getElementById('rsl-body-product');
+    const ph = logBody.querySelector('div[style*="text-align:center"]');
+    if (ph) ph.remove();
+    const item = document.createElement('div');
+    item.className = 'rsl-item';
+    item.innerHTML = `<span>✅</span><span class="rsl-bc">${escHtml(barcode)}</span><span class="rsl-name">Captured</span>`;
+    logBody.insertBefore(item, logBody.firstChild);
+
+    // Auto-fill barcode in product form (modal may be behind)
+    document.getElementById('pm-barcode').value = barcode;
+
+    // Trigger online lookup and show name in capture result
+    lookupBarcodeForCapture(barcode);
+    return;
+  }
+
+  // ── POS cart mode ─────────────────────────────────────
   const product = state.products.find(p => p.barcode === barcode);
   const logBody = document.getElementById('rsl-body');
-
   const item = document.createElement('div');
   item.className = 'rsl-item';
 
@@ -3529,11 +3694,41 @@ function handleRemoteScan(barcode) {
     item.innerHTML = `<span>❌</span><span class="rsl-bc">${escHtml(barcode)}</span><span class="rsl-miss">Not found</span>`;
   }
 
-  // Remove placeholder
-  const placeholder = logBody.querySelector('div[style*="text-align:center"]');
-  if (placeholder) placeholder.remove();
-
+  const ph = logBody.querySelector('div[style*="text-align:center"]');
+  if (ph) ph.remove();
   logBody.insertBefore(item, logBody.firstChild);
+}
+
+async function lookupBarcodeForCapture(barcode) {
+  try {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const name = p.product_name_en || p.product_name || p.abbreviated_product_name || p.generic_name || '';
+      const brand = p.brands ? p.brands.split(',')[0].trim() : '';
+      const fullName = (brand && name && !name.toLowerCase().includes(brand.toLowerCase()))
+        ? `${brand} ${name}` : (name || '');
+      if (fullName) {
+        const nameEl = document.getElementById('rms-capture-name');
+        if (nameEl) nameEl.textContent = '✅ ' + fullName;
+        return;
+      }
+    }
+  } catch(e) {}
+  const nameEl = document.getElementById('rms-capture-name');
+  if (nameEl) nameEl.textContent = 'Name online ෙකේ නෑ — manually enter කරන්න';
+}
+
+function useRemoteCapturedBarcode() {
+  if (!remoteCapturedBarcode) return;
+  closeRemoteScanner();
+  // barcode already filled — now trigger full lookup
+  document.getElementById('pm-barcode').value = remoteCapturedBarcode;
+  lookupBarcode(remoteCapturedBarcode);
+  toast(`📱 Barcode <strong>${escHtml(remoteCapturedBarcode)}</strong> captured!`, 'success');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3600,7 +3795,7 @@ function checkIfPhonePage() {
     #ph-scanner video{width:100%!important;height:100%!important;object-fit:cover}
     .cam-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
     .cam-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at center,transparent 40%,rgba(0,0,0,.55) 100%)}
-    .scan-box{position:relative;width:88%;max-width:360px;aspect-ratio:3/1}
+    .scan-box{position:relative;width:72%;max-width:280px;aspect-ratio:2/1}
     .scan-border{position:absolute;inset:0;border:2px solid rgba(56,189,248,.7);border-radius:14px}
     .scan-line{position:absolute;left:8px;right:8px;height:2px;
       background:linear-gradient(90deg,transparent,#38BDF8,transparent);
@@ -3836,7 +4031,20 @@ function checkIfPhonePage() {
   let camList = [];
   let scanCount = 0;
   let missCount = 0;
-  let totalValue = 0;
+  const isProductMode = params.get('mode') === 'product';
+
+  // Tweak UI for product-capture mode
+  if (isProductMode) {
+    const t = document.querySelector('.ph-title');
+    if (t) t.textContent = '📦 Barcode Capture';
+    const hint = document.querySelector('.scan-hint-text');
+    if (hint) hint.textContent = 'Product barcode frame ෙකට hold කරන්න';
+    const step4 = document.getElementById('step4-text');
+    if (step4) step4.textContent = 'Scan — 1 scan ෙකෙන් done!';
+    // Hide stats strip (not needed for single capture)
+    const stats = document.getElementById('ph-stats');
+    if (stats) stats.style.display = 'none';
+  }
 
   function setConnUI(state, label, sub) {
     const pill = document.getElementById('conn-pill');
@@ -3913,32 +4121,12 @@ function checkIfPhonePage() {
       currentCamIdx = camList.findIndex(c => /back|rear|env/i.test(c.label));
       if (currentCamIdx < 0) currentCamIdx = Math.max(0, camList.length - 1);
 
-      const allFmts = [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.CODABAR,
-        Html5QrcodeSupportedFormats.DATA_MATRIX,
-        Html5QrcodeSupportedFormats.QR_CODE,
-      ];
-      phScanner = new Html5Qrcode('ph-scanner', { formatsToSupport: allFmts, verbose: false });
+      phScanner = new Html5Qrcode('ph-scanner');
       const camId = (camList[currentCamIdx] && camList[currentCamIdx].id) || { facingMode: 'environment' };
 
       await phScanner.start(
         camId,
-        {
-          fps: 25,
-          qrbox: (w, h) => {
-            const min = Math.min(w, h);
-            return { width: Math.round(min * 0.85), height: Math.round(min * 0.42) };
-          },
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        },
+        { fps: 15, qrbox: { width: 240, height: 120 } },
         onPhoneScan, () => {}
       );
 
@@ -3959,18 +4147,45 @@ function checkIfPhonePage() {
   function onPhoneScan(code) {
     const sent = phConn && phConn.open;
     if (sent) phConn.send(code);
+    try { navigator.vibrate && navigator.vibrate(isProductMode ? [60,30,60] : 60); } catch(e){}
 
-    // Vibrate on mobile
-    try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+    if (isProductMode) {
+      // ── Product capture: show big success, stop scanning ──
+      setConnUI('ok', 'Captured!', '✅ Desktop ෙකේ form ෙකට fill වෙනවා');
+      const log = document.getElementById('ph-log');
+      const empty = document.getElementById('ph-log-empty');
+      if (empty) empty.style.display = 'none';
+      const item = document.createElement('div');
+      item.className = 'ph-log-item ok';
+      item.innerHTML = `
+        <div class="ph-log-icon ok">✅</div>
+        <div class="ph-log-info">
+          <div class="ph-log-name" style="font-size:13px;font-weight:800;color:#34D399">Barcode Captured!</div>
+          <div class="ph-log-bc" style="font-size:12px;font-weight:700;letter-spacing:.5px">${code}</div>
+        </div>
+        <div class="ph-log-right"><div class="ph-log-status ok">Sent ✓</div></div>`;
+      log.insertBefore(item, log.firstChild);
+      // Stop camera after short delay
+      setTimeout(async () => {
+        if (phScanner && phRunning) {
+          try { await phScanner.stop(); phScanner.clear(); } catch(e){}
+          phRunning = false;
+        }
+        const btn = document.getElementById('ph-start-btn');
+        if (btn) {
+          btn.className = 'start-btn go';
+          btn.innerHTML = '🔁 Scan Again';
+        }
+      }, 700);
+      return;
+    }
 
-    // Update stats
-    const isSent = sent; // treat sent as "possibly found" — we don't know product from phone
+    // ── POS mode: log and continue scanning ──
     scanCount++;
     if (!sent) missCount++;
     document.getElementById('st-added').textContent = scanCount;
     document.getElementById('st-miss').textContent = missCount;
 
-    // Log item
     const log = document.getElementById('ph-log');
     const empty = document.getElementById('ph-log-empty');
     if (empty) empty.style.display = 'none';
@@ -3994,25 +4209,9 @@ function checkIfPhonePage() {
     try {
       await phScanner.stop();
       currentCamIdx = (currentCamIdx + 1) % camList.length;
-      const allFmts2 = [
-        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.CODABAR, Html5QrcodeSupportedFormats.DATA_MATRIX,
-        Html5QrcodeSupportedFormats.QR_CODE,
-      ];
-      phScanner = new Html5Qrcode('ph-scanner', { formatsToSupport: allFmts2, verbose: false });
       await phScanner.start(
         camList[currentCamIdx].id,
-        {
-          fps: 25,
-          qrbox: (w, h) => {
-            const min = Math.min(w, h);
-            return { width: Math.round(min * 0.85), height: Math.round(min * 0.42) };
-          },
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        },
+        { fps: 15, qrbox: { width: 240, height: 120 } },
         onPhoneScan, () => {}
       );
     } catch(e) {}

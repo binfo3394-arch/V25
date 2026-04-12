@@ -432,6 +432,51 @@ input:checked + .sw-track:before { transform: translateX(17px); background: var(
 .peer-id-box { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border2); color: var(--green); word-break: break-all; margin-bottom: 10px; }
 .connect-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; margin-bottom: 10px; }
 .connect-input:focus { outline: none; border-color: var(--green); }
+
+/* ─── QR PAIRING MODAL ─── */
+.qr-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 300; align-items: center; justify-content: center; backdrop-filter: blur(14px); }
+.qr-modal-overlay.open { display: flex; }
+.qr-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 22px; padding: 36px 32px; width: 92%; max-width: 460px; display: flex; flex-direction: column; align-items: center; position: relative; overflow: hidden; }
+.qr-close { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.qr-close:hover { background: var(--red-dim); color: var(--red); }
+.qr-steps-row { display: flex; align-items: center; gap: 6px; margin-bottom: 26px; }
+.qr-step-node { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border2); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: var(--mono); color: var(--text3); transition: all 0.3s; }
+.qr-step-node.active { border-color: var(--green); color: var(--green); background: var(--green-dim); box-shadow: 0 0 10px rgba(61,220,132,0.3); }
+.qr-step-node.done { border-color: var(--green2); background: var(--green2); color: var(--bg); }
+.qr-step-line { flex: 1; height: 2px; background: var(--border); border-radius: 1px; transition: background 0.3s; }
+.qr-step-line.done { background: var(--green2); }
+.qr-title { font-size: 19px; font-weight: 600; margin-bottom: 6px; text-align: center; }
+.qr-sub { font-size: 13px; color: var(--text2); text-align: center; margin-bottom: 22px; line-height: 1.65; max-width: 340px; }
+.qr-canvas-wrap { background: white; border-radius: 18px; padding: 14px; margin-bottom: 16px; position: relative; box-shadow: 0 0 0 1px rgba(61,220,132,0.2), 0 8px 32px rgba(0,0,0,0.4); }
+.qr-canvas-wrap canvas { display: block; border-radius: 4px; }
+.qr-scan-line { position: absolute; left: 14px; right: 14px; height: 2px; background: linear-gradient(90deg, transparent, var(--green), transparent); border-radius: 1px; pointer-events: none; animation: qrScan 2.4s ease-in-out infinite; box-shadow: 0 0 10px rgba(61,220,132,0.7); }
+@keyframes qrScan { 0% { top: 14px; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: calc(100% - 14px); opacity: 0; } }
+.qr-code-badge { font-family: var(--mono); font-size: 14px; color: var(--green); background: var(--surface2); border: 1px solid var(--border2); padding: 8px 18px; border-radius: 8px; letter-spacing: 3px; margin-bottom: 6px; }
+.qr-expires { font-size: 11px; font-family: var(--mono); color: var(--text3); margin-bottom: 18px; }
+.qr-expires b { color: var(--amber); }
+.qr-step-panel { display: none; width: 100%; align-items: center; flex-direction: column; }
+.qr-step-panel.active { display: flex; }
+.qr-spinner { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--border2); border-top-color: var(--green); animation: spin 1s linear infinite; margin: 16px 0 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.qr-success-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--green-dim); border: 2px solid rgba(61,220,132,0.35); display: flex; align-items: center; justify-content: center; font-size: 34px; margin: 8px 0 18px; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.connected-card { width: 100%; background: var(--green-dim); border: 1px solid rgba(61,220,132,0.25); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.connected-card-icon { font-size: 26px; }
+.connected-card-name { font-size: 14px; font-weight: 500; }
+.connected-card-meta { font-size: 11px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+.qr-child-name-input { width: 100%; background: var(--surface); border: 2px solid var(--border2); border-radius: 10px; padding: 12px 16px; color: var(--text); font-family: var(--font); font-size: 15px; text-align: center; margin-bottom: 12px; transition: border-color 0.2s; }
+.qr-child-name-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 4px rgba(61,220,132,0.08); }
+.age-chip-row { display: flex; gap: 7px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+.age-chip { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: var(--mono); cursor: pointer; transition: all 0.15s; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); }
+.age-chip:hover, .age-chip.sel { background: var(--green-dim); color: var(--green); border-color: rgba(61,220,132,0.35); }
+.qr-primary-btn { width: 100%; padding: 13px; background: var(--green); color: var(--bg); border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: all 0.15s; }
+.qr-primary-btn:hover { background: var(--green2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(61,220,132,0.25); }
+.qr-primary-btn:disabled { background: var(--surface2); color: var(--text3); transform: none; cursor: not-allowed; }
+.qr-sec-btn { margin-top: 10px; background: transparent; color: var(--text3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 18px; font-size: 13px; font-family: var(--font); cursor: pointer; transition: all 0.15s; width: 100%; }
+.qr-sec-btn:hover { color: var(--text2); border-color: var(--border2); }
+.pair-notif { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: var(--bg2); border: 1px solid rgba(61,220,132,0.5); color: var(--green); padding: 12px 24px; border-radius: 40px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 24px rgba(61,220,132,0.2); z-index: 400; display: none; gap: 8px; align-items: center; white-space: nowrap; }
+.pair-notif.show { display: flex; animation: slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+
 </style>
 </head>
 <body>
@@ -488,6 +533,79 @@ input:checked + .sw-track:before { transform: translateX(17px); background: var(
   </div>
 </div>
 
+
+<!-- ─── QR PAIRING MODAL ─── -->
+<div class="qr-modal-overlay" id="qrPairModal">
+  <div class="qr-box">
+    <button class="qr-close" onclick="closeQRModal()">✕</button>
+
+    <!-- Step indicator -->
+    <div class="qr-steps-row">
+      <div class="qr-step-node active" id="qsn1">1</div>
+      <div class="qr-step-line" id="qsl1"></div>
+      <div class="qr-step-node" id="qsn2">2</div>
+      <div class="qr-step-line" id="qsl2"></div>
+      <div class="qr-step-node" id="qsn3">3</div>
+    </div>
+
+    <!-- Step 1: Enter child name + generate QR -->
+    <div class="qr-step-panel active" id="qrStep1">
+      <div class="qr-title">Add Child Device</div>
+      <div class="qr-sub">දරුවාගේ නම සහ වයස enter කරන්න. QR code එක generate වෙයි.</div>
+      <input class="qr-child-name-input" id="qrChildName" placeholder="දරුවාගේ නම (e.g. Senuri)" oninput="updateQRGenBtn()">
+      <div class="age-chip-row" id="ageChipRow">
+        <div class="age-chip" onclick="selectAge(this,'5-7')">5–7</div>
+        <div class="age-chip" onclick="selectAge(this,'8-10')">8–10</div>
+        <div class="age-chip" onclick="selectAge(this,'11-13')">11–13</div>
+        <div class="age-chip" onclick="selectAge(this,'14-16')">14–16</div>
+        <div class="age-chip" onclick="selectAge(this,'17+')">17+</div>
+      </div>
+      <button class="qr-primary-btn" id="qrGenBtn" disabled onclick="generateQRAndProceed()">Generate QR Code →</button>
+    </div>
+
+    <!-- Step 2: Show QR, wait for mobile scan -->
+    <div class="qr-step-panel" id="qrStep2">
+      <div class="qr-title">QR Code Scan කරන්න</div>
+      <div class="qr-sub">Child ගේ phone එකෙන් camera open කර මෙම QR code scan කරන්න.</div>
+      <div class="qr-canvas-wrap">
+        <canvas id="qrCanvas" width="220" height="220"></canvas>
+        <div class="qr-scan-line"></div>
+      </div>
+      <div class="qr-code-badge" id="qrCodeText">FW-XXXX</div>
+      <div class="qr-expires">Expires in <b id="qrCountdown">05:00</b></div>
+      <div class="qr-spinner"></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:6px;text-align:center">Child device connect වීමට බලාසිටිමු…</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-align:center;margin-bottom:16px">Firebase Realtime DB polling active</div>
+      <button class="qr-sec-btn" onclick="goQRStep(1)">← Back</button>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="qr-step-panel" id="qrStep3">
+      <div class="qr-title">Device Connected! 🎉</div>
+      <div class="qr-success-icon">✓</div>
+      <div class="connected-card" id="connectedCardEl">
+        <div class="connected-card-icon">📱</div>
+        <div>
+          <div class="connected-card-name" id="connectedName">Senuri's Phone</div>
+          <div class="connected-card-meta" id="connectedMeta">Android · GPS Active · Camera Ready</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:20px;line-height:1.6">
+        දරුවාගේ device සාර්ථකව connect විය. Dashboard automatically update වෙයි.
+      </div>
+      <button class="qr-primary-btn" onclick="finalizeConnection()">Dashboard Open →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pair notification -->
+<div class="pair-notif" id="pairNotif">
+  <span>📱</span> <span id="pairNotifText">Device connected!</span>
+</div>
+
+<!-- QR.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <div class="snap-toast" id="snapToast">📸 Snapshot saved!</div>
 
 <div class="app">
@@ -518,7 +636,7 @@ input:checked + .sw-track:before { transform: translateX(17px); background: var(
       <div class="nav-item" onclick="navTo('settings',this)"><span class="nav-icon">◇</span> Settings</div>
     </nav>
     <div class="sidebar-footer">
-      <button class="footer-btn" onclick="showModal('addChild')">+ Add Child Device</button>
+      <button class="footer-btn" onclick="openQRModal()">+ Add Child Device</button>
     </div>
   </aside>
 
@@ -1356,6 +1474,213 @@ function init() {
   initPeerJS();
   renderChildList();
   renderOverview();
+}
+
+
+// ─── QR PAIRING SYSTEM ───
+let qrCountdownInterval = null;
+let qrPollInterval = null;
+let qrSession = null;
+let selectedAge = null;
+let qrCodeInstance = null;
+
+function openQRModal() {
+  document.getElementById('qrPairModal').classList.add('open');
+  goQRStep(1);
+}
+
+function closeQRModal() {
+  document.getElementById('qrPairModal').classList.remove('open');
+  clearInterval(qrCountdownInterval);
+  clearInterval(qrPollInterval);
+}
+
+function goQRStep(step) {
+  [1,2,3].forEach(i => {
+    document.getElementById('qrStep'+i).classList.toggle('active', i===step);
+    const node = document.getElementById('qsn'+i);
+    if (i < step)  { node.className = 'qr-step-node done'; node.textContent = '✓'; }
+    if (i === step){ node.className = 'qr-step-node active'; node.textContent = String(i); }
+    if (i > step)  { node.className = 'qr-step-node'; node.textContent = String(i); }
+  });
+  [1,2].forEach(i => {
+    const line = document.getElementById('qsl'+i);
+    if (line) line.classList.toggle('done', i < step);
+  });
+}
+
+function selectAge(el, val) {
+  document.querySelectorAll('.age-chip').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedAge = val;
+  updateQRGenBtn();
+}
+
+function updateQRGenBtn() {
+  const name = document.getElementById('qrChildName').value.trim();
+  document.getElementById('qrGenBtn').disabled = !(name.length >= 2 && selectedAge);
+}
+
+function generateQRAndProceed() {
+  const name = document.getElementById('qrChildName').value.trim();
+  if (!name || !selectedAge) return;
+
+  // Generate unique session code
+  const code = 'FW-' + Math.random().toString(36).substr(2,4).toUpperCase() + '-' + Math.random().toString(36).substr(2,4).toUpperCase();
+  qrSession = { code, name, age: selectedAge, ts: Date.now() };
+
+  // Write pairing session to Firebase
+  if (window._fb && window._fbUid) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'pairing/' + code), {
+      code, name, age: selectedAge,
+      status: 'pending',
+      parentUid: window._fbUid,
+      created: Date.now()
+    });
+  }
+
+  // Generate QR
+  document.getElementById('qrCodeText').textContent = code;
+  const canvas = document.getElementById('qrCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 220, 220);
+
+  // Use QRCode library if loaded, else draw a placeholder
+  if (typeof QRCode !== 'undefined') {
+    // Clear previous
+    canvas.width = 220; canvas.height = 220;
+    const qr = new QRCode(document.createElement('div'), {
+      text: JSON.stringify({ code, app: 'FamilyWatch', url: window.location.href }),
+      width: 220, height: 220,
+      colorDark: '#0a0f0a', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    // QRCode draws to a div with img — grab and draw to canvas
+    setTimeout(() => {
+      const img = qr._el.querySelector('img') || qr._el.querySelector('canvas');
+      if (img && img.tagName === 'CANVAS') {
+        ctx.drawImage(img, 0, 0, 220, 220);
+      } else if (img) {
+        const i2 = new Image(); i2.onload = () => ctx.drawImage(i2, 0, 0, 220, 220); i2.src = img.src;
+      } else {
+        drawFallbackQR(ctx, code);
+      }
+    }, 100);
+  } else {
+    drawFallbackQR(ctx, code);
+  }
+
+  goQRStep(2);
+  startQRCountdown();
+  startPairingPoll(code, name);
+}
+
+function drawFallbackQR(ctx, code) {
+  // Stylised placeholder QR visual when library not loaded
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 220, 220);
+  ctx.fillStyle = '#0a0f0a';
+  // Border
+  ctx.fillRect(10,10,60,60); ctx.fillStyle='#fff'; ctx.fillRect(17,17,46,46);
+  ctx.fillStyle='#0a0f0a'; ctx.fillRect(24,24,32,32);
+  ctx.fillStyle='#0a0f0a';
+  ctx.fillRect(150,10,60,60); ctx.fillStyle='#fff'; ctx.fillRect(157,17,46,46);
+  ctx.fillStyle='#0a0f0a'; ctx.fillRect(164,24,32,32);
+  ctx.fillStyle='#0a0f0a';
+  ctx.fillRect(10,150,60,60); ctx.fillStyle='#fff'; ctx.fillRect(17,157,46,46);
+  ctx.fillStyle='#0a0f0a'; ctx.fillRect(24,164,32,32);
+  // Data cells (random but seeded-ish)
+  ctx.fillStyle = '#0a0f0a';
+  for (let i=0;i<8;i++) for(let j=0;j<8;j++) {
+    if ((i+j*3+code.charCodeAt(i%code.length))%3!==0) ctx.fillRect(80+i*9, 80+j*9, 7,7);
+  }
+  // Code text
+  ctx.fillStyle = '#3ddc84'; ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center'; ctx.fillText(code, 110, 215);
+}
+
+function startQRCountdown() {
+  let secs = 300; // 5 min
+  clearInterval(qrCountdownInterval);
+  qrCountdownInterval = setInterval(() => {
+    secs--;
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    const el = document.getElementById('qrCountdown');
+    if (el) el.textContent = m+':'+s;
+    if (secs <= 0) {
+      clearInterval(qrCountdownInterval);
+      clearInterval(qrPollInterval);
+      if (el) el.textContent = 'EXPIRED';
+    }
+  }, 1000);
+}
+
+function startPairingPoll(code, name) {
+  clearInterval(qrPollInterval);
+
+  // Poll Firebase for pairing confirmation
+  if (window._fb && window._fbUid) {
+    const { db, ref, onValue } = window._fb;
+    const pairRef = ref(db, 'pairing/' + code);
+    onValue(pairRef, snap => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+      if (data.status === 'connected') {
+        clearInterval(qrPollInterval);
+        clearInterval(qrCountdownInterval);
+        onDeviceConnected(name, data);
+      }
+    });
+  }
+
+  // Simulate connection after 8 seconds for demo (remove in production)
+  if (!window._fb || !window._fbUid) {
+    setTimeout(() => onDeviceConnected(name, { deviceModel: 'Android Phone', uid: 'demo_'+Date.now() }), 8000);
+  }
+}
+
+function onDeviceConnected(name, data) {
+  document.getElementById('connectedName').textContent = name + "'s Phone";
+  document.getElementById('connectedMeta').textContent =
+    (data.deviceModel || 'Mobile Device') + ' · GPS Ready · Camera Ready';
+  goQRStep(3);
+
+  // Add to children list
+  const colors = ['#f472b6','#fb923c','#a78bfa','#38bdf8','#34d399'];
+  const bgs    = ['rgba(244,114,182,0.15)','rgba(251,146,60,0.15)','rgba(167,139,250,0.15)','rgba(56,189,248,0.15)','rgba(52,211,153,0.15)'];
+  const idx = CHILDREN.length % colors.length;
+  const initial = name.charAt(0).toUpperCase();
+  CHILDREN.push({
+    id: 'child_' + (CHILDREN.length+1),
+    name, age: selectedAge || '?',
+    color: colors[idx], bg: bgs[idx], initial,
+    status: 'Just Connected', online: true,
+    metrics: { screen:'0m', limit:'6h', limitPct:0, blocked:0, battery:'—', speed:'—' },
+    week:[0,0,0,0,0,0,0],
+    apps:[],
+    alerts:[{ msg:'Device connected via QR pairing', time:new Date().toLocaleTimeString(), color:'#3ddc84', tag:'PAIR' }],
+    audioAlerts:[],
+    cams:[{label:'FRONT CAM',loc:'Unknown',active:false}],
+    location:{ place:'Locating…', updated:'just now', dist:'—', speed:'—', accuracy:'—', battery:'—' },
+    history:[], geofences:[], limits:[], filters:[], allowed:[], blocked2:[]
+  });
+
+  renderChildList();
+  showPairNotif('📱 ' + name + "'s device connected!");
+}
+
+function finalizeConnection() {
+  closeQRModal();
+  navTo('overview', document.querySelector('.nav-item'));
+}
+
+function showPairNotif(msg) {
+  const el = document.getElementById('pairNotif');
+  document.getElementById('pairNotifText').textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
 }
 
 // Firebase config hardcoded — skip setup modal and auto-init
